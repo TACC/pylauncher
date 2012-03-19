@@ -1,0 +1,17 @@
+#!/bin/bash
+
+#$   -q development
+#$   -V
+#$   -cwd
+#$   -pe 16way 48
+#$   -l h_rt=0:30:00
+#$   -N pylaunchertest
+#$   -j y
+#$   -o $JOB_NAME.oe$JOB_ID
+## #$   -M eijkhout@tacc.utexas.edu
+## #$   -m e
+#$ -A A-ccsc
+#$ -P hpc # longhorn only
+
+module load python
+PYTHONPATH=..:${PYTHONPATH} python example_dynamic_job_list.py
