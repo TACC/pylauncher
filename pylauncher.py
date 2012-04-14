@@ -11,6 +11,7 @@ import copy
 import os
 import re
 import stat
+import subprocess
 import sys
 import time
 
@@ -22,17 +23,20 @@ class Task():
     def hasCompleted(self):
         return self.completionTest()
     def startonnodes(self,pool):
-        print ".. starting task",self.id,"of size",self.size
+        print ".. Starting task",self.id,"of size",self.size
         self.nodes = pool['nodes']
         print ".. node startup:",self.command,"on",pool
         wrapped = self.commandwrap(self.command)
         command = self.commandprefixer(wrapped,pool,self.size)
-        r = os.system(command)
-        while r!=0:
-            time.sleep(30)
-            print ".. startup of %d failed with return %d; retrying" % \
-                  (self.id,r)
-            r = os.system(command)
+        p = subprocess.Popen(command,shell=True,env=os.environ)
+        p.wait()
+        r = p.returncode
+#         r = os.system(command)
+#         while r!=0:
+#             time.sleep(30)
+#             print ".. startup of %d failed with return %d; retrying" % \
+#                   (self.id,r)
+#             r = os.system(command)
         print ".. started %d" % self.id
     def __repr__(self):
         s = "<< Task %d, commandline: %s, pool size %d" \
@@ -269,7 +273,12 @@ def launchercompletionTest(task):
 #
 # different ways of starting up a job
 def launcherssher(task,line,hosts,poolsize):
-    return "ssh "+hosts['nodes'][0]+" "+line+" &"
+    env = ""
+    for e in os.environ:
+        if not re.search("[; ]",os.environ[e]):
+            env += "%s=\"%s\" " % (e,os.environ[e])
+    return "ssh %s \"cd ; env %s %s &\"" % \
+           (hosts['nodes'][0],env,line)
 def launcheribrunner(task,line,hosts,poolsize):
     command =  "ibrun -n %d -o %d %s & " % \
               (len(hosts['nodes']),hosts['offset'],line)

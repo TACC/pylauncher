@@ -15,7 +15,7 @@ The python launcher is a utility\footnote{We add the qualification
   `python' since TACC also offers a more limited utility, simply
   called `the launcher'.} for executing many instances of a
 simple, possibly sequential, program in a single submitted batch
-job. For simply jobs, where a static list of commandlines is
+job. For simple jobs, where a static list of commandlines is
 available, the user is only required to write a three line python
 script (examples below); for more complicated workflows, some python
 programming may be required.
@@ -27,7 +27,7 @@ how to write a batch script, please consult the userguide for your
 cluster of choice. Inside your batch script, you invoke a launcher
 script, which is a short python program:
 \begin{verbatim}
-$# .... the usual batch script stuff
+# .... the usual batch script stuff
 module load pylauncher
 python your_launcher_script.py
 \end{verbatim}
@@ -57,7 +57,7 @@ where the \n{commandlines} file contains one commandline per line:
 \begin{verbatim}
 commandline1
 echo "this is command 2" ; commandline2
-if [ -z "${WHATEVER}" ] ; then commandline3a ; else commandline3b ; fi
+if [ some_test ] ; then commandline3a ; else commandline3b ; fi
 .... et cetera
 \end{verbatim}
 Blank lines are allowed in the commandlines file, and comment lines
@@ -65,7 +65,9 @@ starting with \n{\char`\#} are ignored.
 
 The batch job that calls the script will execute these commandlines on
 all the nodes and cores that have been requested (again, see the
-userguide if you do not yet know how to do this).
+userguide if you do not yet know how to do this). Each line is
+executed in a separate shell, and this shell inherits the user
+environment and starts in the current working directory.
 
 In the classic launcher setup each commandline is executed on a single
 core. If the commandline calls a multithreaded program, and therefore
