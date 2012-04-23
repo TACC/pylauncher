@@ -29,8 +29,8 @@ class Task():
         wrapped = self.commandwrap(self.command)
         command = self.commandprefixer(wrapped,pool,self.size)
         p = subprocess.Popen(command,shell=True,env=os.environ)
-        p.wait()
-        r = p.returncode
+#        p.wait()
+#        r = p.returncode
 #         r = os.system(command)
 #         while r!=0:
 #             time.sleep(30)
@@ -62,7 +62,7 @@ class Job():
     class TaskQueue():
         def __init__(self):
             self.queue = []; self.running = []; self.completed = []
-            self.maxsimul = 0; self.submitdelay = 10
+            self.maxsimul = 0; self.submitdelay = 1
         def isEmpty(self):
             return self.queue==[] and self.running==[]
         def startQueued(self,nodes):
