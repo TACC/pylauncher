@@ -232,9 +232,10 @@ def launchercommandgenerator(file,cores):
 def launcherexpirestamp(id):
     return "expire"+str(id)
 def launchercommandwrap(task,line):
+    global launcherdir
     id = task.id
-    stamp = os.getcwd()+"/.launcher/"+launcherexpirestamp(id)
-    xfile = os.getcwd()+"/.launcher/exec"+str(id)
+    stamp = os.getcwd()+"/"+launcherdir+"/"+launcherexpirestamp(id)
+    xfile = os.getcwd()+"/"+launcherdir+"/exec"+str(id)
     x = open(xfile,"w")
     x.write(line+" # the actual command\n")
     x.write("echo \"expiring "+str(id)+"\" # just a trace message\n")
@@ -243,9 +244,10 @@ def launchercommandwrap(task,line):
     print "Creating:\n" + line
     return xfile
 def launcherqsubwrap(task,line):
+    global launcherdir
     id = task.id
-    stamp = os.getcwd()+"/.launcher/"+launcherexpirestamp(id)
-    xfile = os.getcwd()+"/.launcher/exec"+str(id)
+    stamp = os.getcwd()+"/"+launcherdir+"/"+launcherexpirestamp(id)
+    xfile = os.getcwd()+"/"+launcherdir+"/exec"+str(id)
     x = open(xfile,"w")
     x.write("""#!/bin/bash
 
@@ -268,8 +270,9 @@ ibrun """+line+"\n")
     print "Creating file <%s> for executing <%s>" % (xfile,line)
     return xfile
 def launchercompletionTest(task):
+    global launcherdir
     return os.path.isfile(
-        os.getcwd()+"/.launcher/"+launcherexpirestamp(task.id))
+        os.getcwd()+"/"+launcherdir+"/"+launcherexpirestamp(task.id))
 #
 # different ways of starting up a job
 def launcherssher(task,line,hosts,poolsize):
@@ -291,7 +294,9 @@ def launcherqsubber(task,line,hosts,poolsize):
 
 class LauncherJob(Job):
     def __init__(self,**kwargs):
-        os.system("rm -rf .launcher ; mkdir .launcher")
+        global launcherdir
+        launcherdir = "pylauncher_tmpdir."+os.getenv("JOB_ID")
+        os.system("rm -rf %s ; mkdir %s" % (launcherdir,launcherdir) )
         hostlist = kwargs.pop("hostlist",launchergetpehosts())
         commandfile = kwargs.pop("commandfile",None)
         commandgenerator = kwargs.pop("commandgenerator",None)
