@@ -1,13 +1,22 @@
-"""pylauncher.py version 1.0 2011/12/28
+"""pylauncher.py version 1.3 2011/12/28
 
 A python based launcher utility for packaging sequential or
 low parallel jobs in one big parallel job
 
 Author: Victor Eijkhout
 eijkhout@tacc.utexas.edu
+
+Change log
+1.3
+- Tmp directory now internal to job instead of global variable;
+can be specified as kwarg to both Job and LauncherJob
+- Completion testing now takes only file system access per tick
+1.2
+- Unique tmp directory
 """
 
 import copy
+import glob
 import os
 import re
 import stat
@@ -20,12 +29,15 @@ class Task():
         self.size = tasksize
         self.nodes = None
         self.command = command; self.id = id
+    def setJob(self,job):
+        self.job = job
+        self.expireStamp = job.launcherdir+"/"+defaultExpireStamp(self.id)
     def hasCompleted(self):
-        return self.completionTest()
+        return self.job.completionTest(self)
     def startonnodes(self,pool):
         print ".. Starting task",self.id,"of size",self.size
         self.nodes = pool['nodes']
-        print ".. node startup:",self.command,"on",pool
+        #print ".. node startup:",self.command,"on",pool
         wrapped = self.commandwrap(self.command)
         command = self.commandprefixer(wrapped,pool,self.size)
         p = subprocess.Popen(command,shell=True,env=os.environ)
@@ -149,11 +161,13 @@ class Job():
                         )
         def __len__(self):
             return self.nhosts
-    def __init__(self,nhosts=1,
+    def __init__(self,nhosts=1,launcherdir="pylauncher_tmpdir",
                  commandgenerator=None,commandobject=None,
-                 commandwrap=nowrap,
-                 completionTest=None,commandprefixer=nowraptwo,
-                 hostlist=None,delay=1.):
+                 commandwrap=nowrap,commandprefixer=nowraptwo,
+                 hostlist=None,delay=1.,
+                 **kwargs):
+        self.launcherdir = launcherdir
+        os.system("rm -rf %s ; mkdir %s" % (launcherdir,launcherdir) )
         self.nodes = self.HostPool(nhosts,hostlist)
         print "Starting job on %d hosts" % self.nodes.nhosts
         self.taskid = 0
@@ -164,10 +178,15 @@ class Job():
         if commandgenerator is not None:
             self.commandgenerator = commandgenerator()
         else: self.commandgenerator = None
+        self.completionTest = kwargs.pop("completionTest",
+                                         defaultCompletionTest)
+        self.completionTestPrep = kwargs.pop("completionTestPrep",
+                                           defaultCompletionTestPrep)
         self.commandobject = commandobject
         Task.commandwrap = commandwrap
         Task.commandprefixer = commandprefixer
-        Task.completionTest = completionTest
+        #Task.completionTest = completionTest
+        #Task.completionTestPrep = completionTestPrep
     def newtask(self):
         if self.commandgenerator is not None:
             self.nexttask = self.commandgenerator.next()
@@ -195,6 +214,8 @@ class Job():
             print "\n====\nJob completed:\n#tasks = %d\n#hosts = %d\n" % (self.completed,len(self.nodes))
             return "finished"
         self.tasks.startQueued(self.nodes)
+        if self.completionTestPrep is not None:
+            self.completionTestPrep(self)
         completeID = self.tasks.findCompleted()
         if not completeID is None:
             self.completed += 1
@@ -206,6 +227,7 @@ class Job():
             while True:
                 newrequest = self.newtask() # make new job and enqueue it
                 if newrequest is  None: break
+                newrequest.setJob(self)
                 self.tasks.enqueue(newrequest)
         return None
 
@@ -229,25 +251,31 @@ def launchercommandgenerator(file,cores):
     yield "stop",0
 
 # tools to recognize when a job has ended
-def launcherexpirestamp(id):
-    return "expire"+str(id)
+def defaultExpireStamproot():
+    return "expire"
+def defaultExpireStamp(id):
+    return defaultExpireStamproot()+str(id)
+def defaultCompletionTestPrep(job):
+    return
+def defaultCompletionTest(task):
+    file = task.expireStamp
+    return os.path.isfile(file)
+        
 def launchercommandwrap(task,line):
-    global launcherdir
     id = task.id
-    stamp = os.getcwd()+"/"+launcherdir+"/"+launcherexpirestamp(id)
-    xfile = os.getcwd()+"/"+launcherdir+"/exec"+str(id)
+    stamp = task.job.launcherdir+"/"+defaultExpireStamp(id)
+    xfile = task.job.launcherdir+"/exec"+str(id)
     x = open(xfile,"w")
     x.write(line+" # the actual command\n")
     x.write("echo \"expiring "+str(id)+"\" # just a trace message\n")
     x.write("touch "+stamp+" # let the event loop know that the job is finished\n")
     x.close(); os.chmod(xfile,stat.S_IXUSR | stat.S_IRUSR | stat.S_IWUSR)
-    print "Creating:\n" + line
+    #print "Creating:\n" + line
     return xfile
 def launcherqsubwrap(task,line):
-    global launcherdir
     id = task.id
-    stamp = os.getcwd()+"/"+launcherdir+"/"+launcherexpirestamp(id)
-    xfile = os.getcwd()+"/"+launcherdir+"/exec"+str(id)
+    stamp = task.job.launcherdir+"/"+defaultExpireStamp(id)
+    xfile = task.job.launcherdir+"/exec"+str(id)
     x = open(xfile,"w")
     x.write("""#!/bin/bash
 
@@ -267,12 +295,21 @@ ibrun """+line+"\n")
     x.write("echo \"expiring "+str(id)+"\" # just a trace message\n")
     x.write("touch "+stamp+" # let the event loop know that the job is finished\n")
     x.close()
-    print "Creating file <%s> for executing <%s>" % (xfile,line)
+    #print "Creating file <%s> for executing <%s>" % (xfile,line)
     return xfile
-def launchercompletionTest(task):
-    global launcherdir
-    return os.path.isfile(
-        os.getcwd()+"/"+launcherdir+"/"+launcherexpirestamp(task.id))
+# this is executed by a Job
+def launcherCompletionTestPrep(job):
+    star = job.launcherdir+"/"+defaultExpireStamproot()+"*"
+    #print "asking for",star
+    job.stamps = glob.glob(star)
+# this is executed by a Task
+def launcherCompletionTest(task):
+    q = task.job.launcherdir+"/"+defaultExpireStamp(task.id)
+    #print "test %s in %s" % (q,str(task.job.stamps))
+    r = q in task.job.stamps
+    #print "result",r
+    return r
+
 #
 # different ways of starting up a job
 def launcherssher(task,line,hosts,poolsize):
@@ -285,19 +322,22 @@ def launcherssher(task,line,hosts,poolsize):
 def launcheribrunner(task,line,hosts,poolsize):
     command =  "ibrun -n %d -o %d %s & " % \
               (len(hosts['nodes']),hosts['offset'],line)
-    print command
     return command
 def launcherqsubber(task,line,hosts,poolsize):
     command = "qsub %s" % line
-    print command
     return command
+
+####
+#### TACC Launcher Job class:
+#### we use the PE_HOSTFILE to dig up the host list.
+####
 
 class LauncherJob(Job):
     def __init__(self,**kwargs):
-        global launcherdir
-        launcherdir = "pylauncher_tmpdir."+os.getenv("JOB_ID")
-        os.system("rm -rf %s ; mkdir %s" % (launcherdir,launcherdir) )
         hostlist = kwargs.pop("hostlist",launchergetpehosts())
+        launcherdir = kwargs.pop\
+             ("launcherdir",
+              os.getcwd()+"/"+"pylauncher_tmpdir."+os.getenv("JOB_ID"))
         commandfile = kwargs.pop("commandfile",None)
         commandgenerator = kwargs.pop("commandgenerator",None)
         commandobject = kwargs.pop("commandobject",None)
@@ -310,19 +350,15 @@ class LauncherJob(Job):
                 inhandle = open(commandfile)
                 commandgenerator= lambda : launchercommandgenerator(inhandle,defaultcores)
         Job.__init__(self,
+                     launcherdir=launcherdir,
                      commandgenerator=commandgenerator,
                      commandobject=commandobject,
                      commandwrap=launchercommandwrap,
-                     completionTest=launchercompletionTest,
+                     completionTest=launcherCompletionTest,
+                     completionTestPrep=launcherCompletionTestPrep,
                      commandprefixer=launcherssher,
                      hostlist=hostlist,
                      **kwargs)
-
-####
-#### TACC Launcher Job class:
-#### jobs take only one processor; 
-#### we use the PE_HOSTFILE to dig up the host list.
-####
 
 def launchergetpehosts():
     hostfile = os.environ["PE_HOSTFILE"]
@@ -360,4 +396,3 @@ def DynamicLauncher(generator):
         state = job.tick() # delay, recognize expiries, start new jobs
         if state is not None and re.match('^finished',state):
             break
-

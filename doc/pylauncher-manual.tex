@@ -45,7 +45,7 @@ if you want to invoke it as an executable shell script.
 From now on we will take these lines for given and only discuss the
 launcher commands in the script.
 
-Running the pylaunchers leaves behind a temporary directory {\tt
+Running the pylauncher leaves behind a temporary directory {\tt
   pylauncher\_tmpdir.123456} (with {\tt 123456} replaced by your job
 number. This directory can safely be deleted after the launcher job
 finishes.
@@ -153,5 +153,16 @@ job = pylauncher.DynamicLauncher(
     joblist( [ "command1", "command2", "command3" ] )
     )
 \end{verbatim}
+
+\section{Customization}
+
+Many aspects of the launcher can be customized. Here are just a few examples.
+\begin{itemize}
+  \item The name of the temporary directory can be set by a keyword argument:
+    \begin{verbatim}
+j = Job(launcherdir=".mylauncherdir",.....)
+j = LauncherJob(launcherdir=".mylauncherdir",.....)
+    \end{verbatim}
+\end{itemize}
 
 \end{document}
