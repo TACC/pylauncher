@@ -1,4 +1,4 @@
-"""pylauncher.py version 1.3 2011/12/28
+"""pylauncher.py version 1.4 2012/08/09
 
 A python based launcher utility for packaging sequential or
 low parallel jobs in one big parallel job
@@ -7,6 +7,8 @@ Author: Victor Eijkhout
 eijkhout@tacc.utexas.edu
 
 Change log
+1.4
+- CD'ing to current directory fixed
 1.3
 - Tmp directory now internal to job instead of global variable;
 can be specified as kwarg to both Job and LauncherJob
@@ -266,11 +268,11 @@ def launchercommandwrap(task,line):
     stamp = task.job.launcherdir+"/"+defaultExpireStamp(id)
     xfile = task.job.launcherdir+"/exec"+str(id)
     x = open(xfile,"w")
+    x.write("#!/bin/bash\n\n")
     x.write(line+" # the actual command\n")
     x.write("echo \"expiring "+str(id)+"\" # just a trace message\n")
     x.write("touch "+stamp+" # let the event loop know that the job is finished\n")
     x.close(); os.chmod(xfile,stat.S_IXUSR | stat.S_IRUSR | stat.S_IWUSR)
-    #print "Creating:\n" + line
     return xfile
 def launcherqsubwrap(task,line):
     id = task.id
@@ -300,7 +302,6 @@ ibrun """+line+"\n")
 # this is executed by a Job
 def launcherCompletionTestPrep(job):
     star = job.launcherdir+"/"+defaultExpireStamproot()+"*"
-    #print "asking for",star
     job.stamps = glob.glob(star)
 # this is executed by a Task
 def launcherCompletionTest(task):
@@ -313,12 +314,13 @@ def launcherCompletionTest(task):
 #
 # different ways of starting up a job
 def launcherssher(task,line,hosts,poolsize):
-    env = ""
+    env = "" ; pwd = ""
     for e in os.environ:
+        if e=="PWD" : pwd = os.environ[e]
         if not re.search("[; ]",os.environ[e]):
             env += "%s=\"%s\" " % (e,os.environ[e])
-    return "ssh %s \"cd ; env %s %s &\"" % \
-           (hosts['nodes'][0],env,line)
+    return "ssh %s \"cd %s ; env %s %s &\"" % \
+           (hosts['nodes'][0],pwd,env,line)
 def launcheribrunner(task,line,hosts,poolsize):
     command =  "ibrun -n %d -o %d %s & " % \
               (len(hosts['nodes']),hosts['offset'],line)
