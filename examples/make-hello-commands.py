@@ -14,7 +14,7 @@ for c in range(ncommands):
     if 10*int(c/10)==c and c>0:
         f.write(" \n")
     f.write("source %s/hello.sh %s %s\n" % \
-            (",",
+            (".",
              c,
              mintime+int((maxtime-mintime)*random.random())) )
 #     f.write("echo \"command %s\"; sleep %d; %s/hello %d\n" % \
