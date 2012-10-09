@@ -83,9 +83,9 @@ def istrue(s,i):
     return True
 class Job():
     class TaskQueue():
-        def __init__(self):
+        def __init__(self,debug=0):
             self.queue = []; self.running = []; self.completed = []
-            self.maxsimul = 0; self.submitdelay = 0
+            self.maxsimul = 0; self.submitdelay = 0; self.debug = debug
         def isEmpty(self):
             return self.queue==[] and self.running==[]
         def startQueued(self,nodes):
@@ -108,7 +108,8 @@ class Job():
                 if t.hasCompleted():
                     self.running.remove(t)
                     self.completed.append(t)
-                    print ".. job completed:",t.id
+                    if self.debug>0:
+                        print ".. job completed:",t.id
                     return t.id
             return None
         def __repr__(self):
@@ -128,7 +129,7 @@ class Job():
                 f.write(t.command+"\n")
             f.close()
     class HostPool():
-        def __init__(self,nhosts=None,hostlist=None):
+        def __init__(self,nhosts=None,hostlist=None,debug=0):
             """Create a list of host dictionaries. Input is either nhosts,
             the number of processes your machine supports,
             or hostlist, a list of host names.
@@ -150,7 +151,7 @@ class Job():
                 self.nodes = [ {'free':True,'task':-1,'host':None,'core':None}
                                for i in range(nhosts) ]
             else: raise LauncherException("HostPool creation needs n or list")
-            self.nhosts = nhosts
+            self.nhosts = nhosts; self.debug = debug
         def hosts(self,pool):
             return [ self.nodes[i] for i in pool ]
         def requestNodes(self,n):
@@ -172,7 +173,8 @@ class Job():
         def releaseNodes(self,id):
             for n in self.nodes:
                 if n['task']==id:
-                    print "releasing %s, core %s" % (n['host'],n['core'])
+                    if self.debug>0:
+                        print "releasing %s, core %s" % (n['host'],n['core'])
                     n['free'] = True
         def nodestring(self,i):
             if self.nodes[i]['free']:
@@ -190,15 +192,16 @@ class Job():
                  hostlist=None,delay=1.,
                  **kwargs):
         self.launcherdir = launcherdir
+        self.debug = kwargs.pop("debug",0)
         os.system("rm -rf %s ; mkdir %s" % (launcherdir,launcherdir) )
-        self.nodes = self.HostPool(nhosts,hostlist)
-        print "Starting job on %d hosts" % self.nodes.nhosts
+        self.nodes = self.HostPool(nhosts,hostlist,debug=self.debug)
+        if self.debug>0:
+            print "Starting job on %d hosts" % self.nodes.nhosts
         self.taskid = 0
-        self.tasks = self.TaskQueue();
+        self.tasks = self.TaskQueue(debug=self.debug);
         self.maxsimul = 0; self.completed = 0
         self.queueExhausted = False
         self.ticks = 0; self.delay = delay
-        self.debug = kwargs.pop("debug",0)
         if commandgenerator is not None:
             self.commandgenerator = commandgenerator()
         else: self.commandgenerator = None
@@ -295,7 +298,7 @@ def launchercommandwrap(task,line):
     x = open(xfile,"w")
     x.write("#!/bin/bash\n\n")
     x.write(line+" # the actual command\n")
-    x.write("echo \"expiring "+str(id)+"\" # just a trace message\n")
+    #x.write("echo \"expiring "+str(id)+"\" # just a trace message\n")
     x.write("touch "+stamp+" # let the event loop know that the job is finished\n")
     x.close(); os.chmod(xfile,stat.S_IXUSR | stat.S_IRUSR | stat.S_IWUSR)
     return xfile
@@ -408,22 +411,23 @@ class TACCDynamicLauncherJob(LauncherJob):
         LauncherJob.__init__(self,hostlist=hostlist,
                              **kwargs)
 
-def ClassicLauncher(commandfile,cores=1):
-    job = LauncherJob(commandfile=commandfile,cores=cores)
+def ClassicLauncher(commandfile,**kwargs):
+    cores = kwargs.pop("cores",1)
+    job = LauncherJob(commandfile=commandfile,cores=cores,**kwargs)
     while True:
         state = job.tick() # delay, recognize expiries, start new jobs
         if state is not None and re.match('^finished',state):
             break
 
-def CoreLauncher(commandfile):
-    job = LauncherJob(commandfile=commandfile,cores="file")
+def CoreLauncher(commandfile,**kwargs):
+    job = LauncherJob(commandfile=commandfile,cores="file",**kwargs)
     while True:
         state = job.tick() # delay, recognize expiries, start new jobs
         if state is not None and re.match('^finished',state):
             break
 
-def DynamicLauncher(generator):
-    job = LauncherJob(commandobject=generator)
+def DynamicLauncher(generator,**kwargs):
+    job = LauncherJob(commandobject=generator,**kwargs)
     while True:
         state = job.tick() # delay, recognize expiries, start new jobs
         if state is not None and re.match('^finished',state):
