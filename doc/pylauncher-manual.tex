@@ -8,7 +8,7 @@
 \begin{document}
 \title{User Guide for the Python Launcher at TACC}
 \author{Victor Eijkhout}
-\date{Version 1.3, August 2012}
+\date{Version 1.5, October 2012}
 \maketitle
 
 The python launcher is a utility\footnote{We add the qualification
@@ -24,8 +24,8 @@ programming may be required.
 
 The launcher module is used inside a batch script. If you do not know
 how to write a batch script, please consult the userguide for your
-cluster of choice. Inside your batch script, you invoke a launcher
-script, which is a short python program:
+cluster of choice. Inside your batch script, you execute a launcher
+script with python:
 \begin{verbatim}
 # .... the usual batch script stuff
 module load pylauncher
@@ -50,7 +50,9 @@ Running the pylauncher leaves behind a temporary directory {\tt
 number. This directory can safely be deleted after the launcher job
 finishes.
 
-\section{Simple use cases}
+\section{Use cases}
+
+\subsection{Classic launcher mode}
 
 In the `classic launcher' setup, the user has made a file containing
 commandlines. These commandlines are executed by having this in the
@@ -69,10 +71,11 @@ Blank lines are allowed in the commandlines file, and comment lines
 starting with \n{\char`\#} are ignored.
 
 The batch job that calls the script will execute these commandlines on
-all the nodes and cores that have been requested (again, see the
-userguide if you do not yet know how to do this). Each line is
+all the nodes and cores that have been requested. Each line is
 executed in a separate shell, and this shell inherits the user
 environment and starts in the current working directory.
+
+\subsection{Launching multithreaded jobs}
 
 In the classic launcher setup each commandline is executed on a single
 core. If the commandline calls a multithreaded program, and therefore
@@ -93,7 +96,28 @@ ncores2,commandline2
 ... et cetera
 \end{verbatim}
 
-\section{A dynamic launcher}
+\subsection{Launching MPI jobs}
+
+What if you have a large number of MPI jobs that need a relatively
+small core count? The python launcher can accomodate this with 
+\begin{verbatim}
+pylauncher.MPILauncher("mpicommandlines",cores=4)
+\end{verbatim}
+for a constant core count, or
+\begin{verbatim}
+pylauncher.MPILauncher("mpicommandlines",cores="file")
+\end{verbatim}
+for a variable core count, declared in the file:
+\begin{verbatim}
+ncores1,commandline1
+ncores2,commandline2
+... et cetera
+\end{verbatim}
+Unfortunately in this mode the batch output file will contain a lot of
+noise, since each commandline is treated as a separate parallel job,
+submitted with \n{ibrun}.
+
+\subsection{A dynamic launcher}
 
 The following example code is meant to cover the use case where the
 job list is dynamically generated, possibly in response to jobs on the
@@ -152,6 +176,15 @@ class joblist():
 job = pylauncher.DynamicLauncher(
     joblist( [ "command1", "command2", "command3" ] )
     )
+\end{verbatim}
+
+\section{Tracing}
+
+You can trace the workings of the launcher, to see when jobs start and
+finish, and where they are scheduled, by adding a \n{debug} value to
+the launcher call:
+\begin{verbatim}
+pylauncher.ClassicLauncher("commandlines",debug=1)
 \end{verbatim}
 
 \section{Customization}
