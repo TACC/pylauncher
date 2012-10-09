@@ -1,4 +1,4 @@
-"""pylauncher.py version 1.4 2012/08/09
+"""pylauncher.py version 1.5 2012/10/09
 
 A python based launcher utility for packaging sequential or
 low parallel jobs in one big parallel job
@@ -7,6 +7,8 @@ Author: Victor Eijkhout
 eijkhout@tacc.utexas.edu
 
 Change log
+1.5
+- Adding affinity control
 1.4
 - CD'ing to current directory fixed
 1.3
@@ -26,6 +28,13 @@ import subprocess
 import sys
 import time
 
+class LauncherException(Exception):
+    """A very basic exception mechanism"""
+    def __init__(self,str):
+        self.str = str
+        def __str__(self):
+            return self.str
+                                
 class Task():
     def __init__(self,command,tasksize,id):
         self.size = tasksize
@@ -76,13 +85,12 @@ class Job():
     class TaskQueue():
         def __init__(self):
             self.queue = []; self.running = []; self.completed = []
-            self.maxsimul = 0; self.submitdelay = 1
+            self.maxsimul = 0; self.submitdelay = 0
         def isEmpty(self):
             return self.queue==[] and self.running==[]
         def startQueued(self,nodes):
             tqueue = copy.copy(self.queue)
             for t in tqueue:
-                #print "finding pool for ",t
                 pool = nodes.requestNodes(t.size)
                 if pool is not None:
                     if self.submitdelay>0:
@@ -100,6 +108,7 @@ class Job():
                 if t.hasCompleted():
                     self.running.remove(t)
                     self.completed.append(t)
+                    print ".. job completed:",t.id
                     return t.id
             return None
         def __repr__(self):
@@ -120,19 +129,30 @@ class Job():
             f.close()
     class HostPool():
         def __init__(self,nhosts=None,hostlist=None):
-            if not hostlist==None:
+            """Create a list of host dictionaries. Input is either nhosts,
+            the number of processes your machine supports,
+            or hostlist, a list of host names.
+            hostlist items can be `host' or `host;core' """
+            if hostlist is not None:
                 nhosts = len(hostlist)
                 self.nodes = [ {'free':True,'task':-1}
                                for i in range(nhosts) ]
                 i=0
                 for h in hostlist:
-                    self.nodes[i]['host'] = h; i+=1
-            else:
-                self.nodes = [ {'free':True,'task':-1,'host':None}
+                    hh = h.split(';')
+                    if len(hh)==2:
+                        host = hh[0]; core = hh[1]
+                    else:
+                        host = hh; core = None
+                    self.nodes[i]['host'] = host; self.nodes[i]['core'] = core
+                    i+=1
+            elif nhosts is not None:
+                self.nodes = [ {'free':True,'task':-1,'host':None,'core':None}
                                for i in range(nhosts) ]
+            else: raise LauncherException("HostPool creation needs n or list")
             self.nhosts = nhosts
         def hosts(self,pool):
-            return [ self.nodes[i]['host'] for i in pool ]
+            return [ self.nodes[i] for i in pool ]
         def requestNodes(self,n):
             start = 0; found = False    
             while not found:
@@ -149,9 +169,10 @@ class Job():
             for n in pool:
                 self.nodes[n]['free'] = False
                 self.nodes[n]['task'] = id
-        def releasenodes(self,id):
+        def releaseNodes(self,id):
             for n in self.nodes:
                 if n['task']==id:
+                    print "releasing %s, core %s" % (n['host'],n['core'])
                     n['free'] = True
         def nodestring(self,i):
             if self.nodes[i]['free']:
@@ -177,13 +198,14 @@ class Job():
         self.maxsimul = 0; self.completed = 0
         self.queueExhausted = False
         self.ticks = 0; self.delay = delay
+        self.debug = kwargs.pop("debug",0)
         if commandgenerator is not None:
             self.commandgenerator = commandgenerator()
         else: self.commandgenerator = None
-        self.completionTest = kwargs.pop("completionTest",
-                                         defaultCompletionTest)
-        self.completionTestPrep = kwargs.pop("completionTestPrep",
-                                           defaultCompletionTestPrep)
+        self.completionTest = \
+            kwargs.pop("completionTest",defaultCompletionTest)
+        self.completionTestPrep = \
+            kwargs.pop("completionTestPrep",defaultCompletionTestPrep)
         self.commandobject = commandobject
         Task.commandwrap = commandwrap
         Task.commandprefixer = commandprefixer
@@ -211,9 +233,12 @@ class Job():
         time.sleep(self.delay)
         self.ticks += 1; self.tasks.savestate()
         # if self.ticks==self.crashtick: return "finished"
-        print "\nt=",self.ticks,"\n",self.tasks,"\n",self.nodes
+        if self.debug>0:
+            print "\nt=",self.ticks,"\n",self.tasks,"\n",self.nodes
         if self.queueExhausted and self.tasks.isEmpty():
-            print "\n====\nJob completed:\n#tasks = %d\n#hosts = %d\n" % (self.completed,len(self.nodes))
+            if self.debug>0:
+                print "\n====\nJob completed:\n#tasks = %d\n#hosts = %d\n" % \
+                      (self.completed,len(self.nodes))
             return "finished"
         self.tasks.startQueued(self.nodes)
         if self.completionTestPrep is not None:
@@ -221,7 +246,7 @@ class Job():
         completeID = self.tasks.findCompleted()
         if not completeID is None:
             self.completed += 1
-            self.nodes.releasenodes(completeID)
+            self.nodes.releaseNodes(completeID)
             if self.commandobject is not None:
                 self.commandobject.expire(completeID)
             return "expired "+str(completeID)
@@ -306,21 +331,23 @@ def launcherCompletionTestPrep(job):
 # this is executed by a Task
 def launcherCompletionTest(task):
     q = task.job.launcherdir+"/"+defaultExpireStamp(task.id)
-    #print "test %s in %s" % (q,str(task.job.stamps))
     r = q in task.job.stamps
-    #print "result",r
     return r
 
 #
 # different ways of starting up a job
 def launcherssher(task,line,hosts,poolsize):
-    env = "" ; pwd = ""
+    """for an ssh'ing launcher we use the first host"""
+    h = hosts['nodes'][0]; host = h['host']; core = h['core']
+    print "launch on host %s, core %s" % (host,str(core))
+    env = "" ; pwd = "" ; numa = ""
+    if core is not None: numa = "numactl --physcpubind=%s" % core
     for e in os.environ:
         if e=="PWD" : pwd = os.environ[e]
         if not re.search("[; ]",os.environ[e]):
             env += "%s=\"%s\" " % (e,os.environ[e])
-    return "ssh %s \"cd %s ; env %s %s &\"" % \
-           (hosts['nodes'][0],pwd,env,line)
+    return "ssh %s \"cd %s ; env %s %s %s &\"" % \
+           (host,pwd,env,numa,line)
 def launcheribrunner(task,line,hosts,poolsize):
     command =  "ibrun -n %d -o %d %s & " % \
               (len(hosts['nodes']),hosts['offset'],line)
@@ -341,9 +368,10 @@ class LauncherJob(Job):
              ("launcherdir",
               os.getcwd()+"/"+"pylauncher_tmpdir."+os.getenv("JOB_ID"))
         commandfile = kwargs.pop("commandfile",None)
+        commandprefixer = kwargs.pop("commandprefixer",launcherssher)
+        defaultcores = kwargs.pop("cores",1)
         commandgenerator = kwargs.pop("commandgenerator",None)
         commandobject = kwargs.pop("commandobject",None)
-        defaultcores = kwargs.pop("cores",1)
         if commandgenerator is None and commandobject is None:
             if commandfile is None:
                 print "Error: needs commandfile or commandgenerator"
@@ -358,18 +386,20 @@ class LauncherJob(Job):
                      commandwrap=launchercommandwrap,
                      completionTest=launcherCompletionTest,
                      completionTestPrep=launcherCompletionTestPrep,
-                     commandprefixer=launcherssher,
+                     commandprefixer=commandprefixer,
                      hostlist=hostlist,
                      **kwargs)
 
 def launchergetpehosts():
+    """Parse the $PE_HOSTFILE and make a hostlist;
+    hosts with multiplicity turn into host;0 host;1 ..."""
     hostfile = os.environ["PE_HOSTFILE"]
     hostfile = open(hostfile,"r")
     hostlist = []
     for h in hostfile.readlines():
-        line =h.strip(); line = line.split(); host = line[0]; n = line[1]
+        line = h.strip(); line = line.split(); host = line[0]; n = line[1]
         for i in range(int(n)):
-            hostlist.append(host)
+            hostlist.append(host+";"+str(i))
     return hostlist
 
 class TACCDynamicLauncherJob(LauncherJob):
@@ -394,6 +424,15 @@ def CoreLauncher(commandfile):
 
 def DynamicLauncher(generator):
     job = LauncherJob(commandobject=generator)
+    while True:
+        state = job.tick() # delay, recognize expiries, start new jobs
+        if state is not None and re.match('^finished',state):
+            break
+
+def MPILauncher(commandfile,**kwargs):
+    job = LauncherJob(commandfile=commandfile,
+                      commandprefixer=launcheribrunner,
+                      cores="file",**kwargs)
     while True:
         state = job.tick() # delay, recognize expiries, start new jobs
         if state is not None and re.match('^finished',state):
