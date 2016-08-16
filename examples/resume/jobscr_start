@@ -1,0 +1,18 @@
+#!/bin/bash
+
+#SBATCH   -p development
+#SBATCH   -J pylauncher_resume_test
+#SBATCH   -o pylauncher_resume_test.o%j
+
+# we have 1000 lines of 15 seconds means 250 minutes
+# on 32 cores that's 8 minutes, so we give it 4
+
+#SBATCH   -n 32
+#SBATCH   -N 2
+#SBATCH   -t 0:04:00
+
+#SBATCH -A A-ccsc
+
+module load python
+PYTHONPATH=../../:${PYTHONPATH}  python example_classic_launcher.py
+#PYTHONPATH=..:${PYTHONPATH}  python example_resume_launcher.py

@@ -1,0 +1,13 @@
+#!/bin/bash
+
+#SBATCH   -p development
+#SBATCH   -J pylaunchertest
+#SBATCH   -o pylaunchertest.o%j
+#SBATCH   -n 32
+#SBATCH   -N 2
+#SBATCH   -t 0:10:00
+#SBATCH -A A-ccsc
+
+module load python
+#PYTHONPATH=..:${PYTHONPATH}  python example_classic_launcher.py
+PYTHONPATH=../..:${PYTHONPATH}  python example_resume_launcher.py

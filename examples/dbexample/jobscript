@@ -1,0 +1,22 @@
+#!/bin/bash
+#SBATCH -J pylaunchertest
+#SBATCH -o pylaunchertest.o%j    # Output and error file name (%j expands to jobID)
+#SBATCH -n 16           # Total number of mpi tasks requested
+#SBATCH -p development  # Queue (partition) name -- normal, development, etc.
+#SBATCH -t 00:01:00     # Run time (hh:mm:ss) - 1.5 hours
+#SBATCH --reservation TACC-Training-2013-09-27
+#SBATCH -A project
+##SBATCH --mail-type=ALL
+##SBATCH --mail-user=you@somewhere.edu
+
+cat >dblauncher.py <<EOF
+import pylauncher
+
+pylauncher.ClassicLauncher("db_command_lines",debug="job")
+EOF
+
+python dblauncher.py
+
+
+
+

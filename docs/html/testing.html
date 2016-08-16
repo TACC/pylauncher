@@ -1,0 +1,210 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Testing &mdash; PyLauncher 2.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '2.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="PyLauncher 2.0 documentation" href="index.html" />
+    <link rel="prev" title="Tracing and profiling" href="trace.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="trace.html" title="Tracing and profiling"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyLauncher 2.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="testing">
+<h1>Testing<a class="headerlink" href="#testing" title="Permalink to this headline">¶</a></h1>
+<p>The pylauncher.py source file has a large number of unittests
+that are designed for the nosetests framework: all routines and classes
+starting with <tt class="docutils literal"><span class="pre">test</span></tt> are only for testing purposes.</p>
+<span class="target" id="module-pylauncher"></span><dl class="class">
+<dt id="pylauncher.ListCommandlineGenerator">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">ListCommandlineGenerator</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#ListCommandlineGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.ListCommandlineGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>A generator from an explicit list of commandlines.</p>
+<ul class="simple">
+<li>cores is 1 by default, other constants allowed.</li>
+</ul>
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.CountedCommandGenerator">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">CountedCommandGenerator</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#CountedCommandGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.CountedCommandGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>This class is only for the unit tests, it produces a string of <a href="#id1"><span class="problematic" id="id2">`</span></a>echo 0&#8217;, <a href="#id3"><span class="problematic" id="id4">`</span></a>echo 1&#8217;
+et cetera commands.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>nmax</strong> &#8211; (keyword, default=-1) maximum number of commands to generate, negative for no maximum</li>
+<li><strong>command</strong> &#8211; (keyword, default==``echo``) the command that will do the counting; sometimes it&#8217;s a good idea to replace this with <tt class="docutils literal"><span class="pre">/bin/true</span></tt></li>
+<li><strong>catch</strong> &#8211; (keyword, default None) file where to catch output</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.SleepCommandGenerator">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">SleepCommandGenerator</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#SleepCommandGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.SleepCommandGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generator of commandlines <a href="#id5"><span class="problematic" id="id6">`</span></a>echo 0 ; sleep trand&#8217;, <a href="#id7"><span class="problematic" id="id8">`</span></a>echo 1 ; sleep trand&#8217;
+where the sleep is a random amount.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>tmax</strong> &#8211; (keyword, default 5) maximum sleep time</li>
+<li><strong>tmin</strong> &#8211; (keyword, default 1) minimum sleep time</li>
+<li><strong>barrier</strong> &#8211; (keyword, default 0) if &gt;0, insert a barrier statement every that many lines</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.RandomSleepTask">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">RandomSleepTask</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#RandomSleepTask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.RandomSleepTask" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make a task that sleeps for a random amount of time.
+This is for use in many many unit tests.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>taskid</strong> &#8211; unique identifier (keyword, required)</li>
+<li><strong>t</strong> &#8211; maximum running time (keyword, optional; default=10)</li>
+<li><strong>tmin</strong> &#8211; minimum running time (keyword, optional; default=1)</li>
+<li><strong>completion</strong> &#8211; Completion object (keyword, optional; if you leave this unspecified, the next two parameters become relevant</li>
+<li><strong>stampdir</strong> &#8211; name of the directory where to leave the stamp file (optional, default=current dir)</li>
+<li><strong>stamproot</strong> &#8211; filename stemp for the stamp file (optional, default=&#8221;sleepexpire&#8221;)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.OneNodePool">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">OneNodePool</tt><big>(</big><em>node</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#OneNodePool"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.OneNodePool" title="Permalink to this definition">¶</a></dt>
+<dd><p>This class is mostly for testing: it allows for a node to function
+as a host pool so that one can start a task on it.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pylauncher.MakeRandomCommandFile">
+<tt class="descclassname">pylauncher.</tt><tt class="descname">MakeRandomCommandFile</tt><big>(</big><em>fn</em>, <em>ncommand</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#MakeRandomCommandFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.MakeRandomCommandFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make file with commandlines and occasional comments and blanks.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>cores</strong> &#8211; (keyword, default=1) corecount, if this is 1 we put nothing in the file, larger values and &#8220;file&#8221; (for random) go into the file</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="pylauncher.MakeRandomSleepFile">
+<tt class="descclassname">pylauncher.</tt><tt class="descname">MakeRandomSleepFile</tt><big>(</big><em>fn</em>, <em>ncommand</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#MakeRandomSleepFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.MakeRandomSleepFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>make file with sleep commandlines and occasional comments and blanks</p>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="trace.html"
+                        title="previous chapter">Tracing and profiling</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/testing.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="trace.html" title="Tracing and profiling"
+             >previous</a> |</li>
+        <li><a href="index.html">PyLauncher 2.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Victor Eijkhout.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

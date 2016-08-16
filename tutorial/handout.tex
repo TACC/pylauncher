@@ -1,0 +1,108 @@
+\documentclass[12pt]{artikel3}
+
+\usepackage{pslatex}
+
+\def\n#{\bgroup \catcode`\_=12 \catcode`\>=12 \catcode`\<=12
+  \catcode`\&=12 \catcode`\^=12 \catcode`\~=12 \def\\{\char`\\}\relax
+  \tt \let\next=}
+
+\title{Pylauncher Lab}
+\author{Victor Eijkhout}
+\date{Throughput Computing Workshop, September 27}
+\begin{document}
+\maketitle
+
+\section{Setting up the environment for the tutorial}
+
+\begin{itemize}
+\item Make sure you have python available:
+\begin{verbatim}
+module load python
+\end{verbatim}
+\item Make sure the pylauncher is available:
+  \begin{itemize}
+  \item Normally you would do:
+\begin{verbatim}
+module load pylauncher
+\end{verbatim}
+  \item but for this lab we'll use the latest version of the launcher
+\begin{verbatim}
+tar fxz ~train00/pylauncher.tar.gz
+cd pylauncher
+\end{verbatim}
+  \end{itemize}
+\item You can run the examples by submitting batch jobs, but here we will do everything interactively.
+Request one compute node with
+\begin{verbatim}
+/usr/bin/srun -n 16 -p normal \
+  --reservation="TACC-Training-2013-09-27" -A PROJECTNUMBER \
+  -t 0:30:00 --pty /bin/bash -l
+\end{verbatim}
+(for two nodes, change the 16 to 32, et cetera)
+where \n{PROJECTNUMBER} is
+\begin{itemize}
+\item  \n{20130927DataIntensive} if you signed up through TACC, or
+\item \n{TG-TRA120009} if you signed up through XSEDE.
+\end{itemize}
+\item You should now be in the \n{pylauncher} directory. Do:
+\begin{verbatim}
+export PYTHONPATH=`pwd`:$PYTHONPATH
+\end{verbatim}
+(this is normally not necessary if you load the module)
+and go to the tutorial directory:
+\begin{verbatim}
+cd tutorial
+\end{verbatim}
+\end{itemize}
+
+\section{A simple launcher example}
+
+\begin{itemize}
+\item Run the python file \n{random_commandline.py} to generate a file with commandlines. Inspect the resulting file.
+\item Compile the \n{random_wait} program:
+\begin{verbatim}
+cc -O -o random_wait random_wait.c
+\end{verbatim}
+\item Run the example:
+\begin{verbatim}
+python run_random.py
+\end{verbatim}
+after a minute or two you get summary output.
+\item You should now have a directory with a name
+  \n{pylauncher_tmpdir123456}. The number is your job number. An
+  interactive session with \n{srun} is actually a type of batch job,
+  so you get the number of that job.
+  \begin{itemize}
+  \item Take a look in that directory. Do you see that for each task number there are three files?
+  \item  Do \n{ls -s}. You'll see that files with a name \n{expire123} have zero size. 
+  \item Take a look at one of the \n{exec123} files. On their last
+    line is the command that they should execute, followed by a
+    \n{touch} command that is the source of the \n{expire00} file.
+  \item Finally, there are the \n{out99} files, which contain the
+    standard output (and stderr) of the corresponding \n{exec} file.
+  \end{itemize}
+\item Since we're running interactively, maybe you want some output on
+  what the launcher is doing. Add \n{debug="job"} as parameter to the
+  launcher call.
+\item Try running the example again. Take a close look at the error
+  message.\par The PyLauncher wants a unique working directory for
+  each run, and since interactively we are still in the same run you
+  need to remove the working directory of the previous python call
+  with \n{rm -rf pylauncher_tmpdir1234567}. Now you can run the example again.
+\item The output scrolls by rather fast. Use Control-S to stop it and
+  Control-Q to resume. When it's stopped, can you understand what it's
+  reporting?
+\end{itemize}
+
+\section{Further examples}
+
+\begin{itemize}
+\item If you use \n{PYL_ID} in a commandline, it gets replaced dynamically by the task number.
+\item Edit the \n{random_commandlines.py} file to use \n{PYL_ID} instead of a random number.
+\item Run the \n{run_random.py}.
+\item Go into the workdirectory that was generated. Take a look at a
+  few \n{out99} files. Can you confirm that everything worked the way
+  it should?
+\end{itemize}
+
+\end{document}

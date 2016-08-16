@@ -1,0 +1,273 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>A quick tutorial &mdash; PyLauncher 2.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '2.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="PyLauncher 2.0 documentation" href="index.html" />
+    <link rel="next" title="Implementation" href="implementation.html" />
+    <link rel="prev" title="Introduction and general usage" href="introduction.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="implementation.html" title="Implementation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="introduction.html" title="Introduction and general usage"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyLauncher 2.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="a-quick-tutorial">
+<h1>A quick tutorial<a class="headerlink" href="#a-quick-tutorial" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="setup">
+<h2>Setup<a class="headerlink" href="#setup" title="Permalink to this headline">¶</a></h2>
+<p>You need to have the files <tt class="docutils literal"><span class="pre">pylauncher.py</span></tt> and <tt class="docutils literal"><span class="pre">hostlist.py</span></tt> in your <tt class="docutils literal"><span class="pre">PYTHONPATH</span></tt>.
+If you are at TACC, do <tt class="docutils literal"><span class="pre">module</span> <span class="pre">load</span> <span class="pre">pylauncher</span></tt> and all is good.</p>
+</div>
+<div class="section" id="batch-operation">
+<h2>Batch operation<a class="headerlink" href="#batch-operation" title="Permalink to this headline">¶</a></h2>
+<p>The most common usage scenario is to use the launcher to bundle many small jobs
+into a single batch submission on a cluster. In that case, just put</p>
+<blockquote>
+<div><p>module load python</p>
+<p>python your_launcher_file.py</p>
+</div></blockquote>
+<p>in the jobscript.</p>
+<p>If you are using TACC&#8217;s stampede cluster, and you want to run the launcher script
+on the Intel Xeon PHI co-processor, do</p>
+<blockquote>
+<div>micrun /mic/python your_launcher_file.py</div></blockquote>
+<p>where &#8216;/mic/python&#8217; is the path to a python that is compiled for MIC.
+Currently no such python is officially available on Stampede.</p>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<p>There is an <tt class="docutils literal"><span class="pre">examples</span></tt> subdirectory with some simple scenarios
+of how to invoke the pylauncher.</p>
+<div class="section" id="single-core-jobs">
+<h3>Single-core jobs<a class="headerlink" href="#single-core-jobs" title="Permalink to this headline">¶</a></h3>
+<p>In the simplest scenario, we have a file of commandlines,
+each to be executed on a single core.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#!/usr/bin/env python</span>
+
+<span class="kn">import</span> <span class="nn">pylauncher</span>
+
+<span class="c">##</span>
+<span class="c">## Emulate the classic launcher, using a one liner</span>
+<span class="c">##</span>
+
+<span class="c">#pylauncher.ClassicLauncher(&quot;corecommandlines&quot;,debug=&quot;job+host+task&quot;)</span>
+<span class="n">pylauncher</span><span class="o">.</span><span class="n">ClassicLauncher</span><span class="p">(</span><span class="s">&quot;commandlines&quot;</span><span class="p">,</span><span class="n">debug</span><span class="o">=</span><span class="s">&quot;job&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>where the commandlines file is:</p>
+<div class="highlight-python"><pre>#
+# Automatically generated commandlines
+#
+echo "command 0"; sleep 21
+echo "command 1"; sleep 14
+echo "command 2"; sleep 23
+echo "command 3"; sleep 13
+echo "command 4"; sleep 29
+echo "command 5"; sleep 12
+echo "command 6"; sleep 23
+</pre>
+</div>
+</div>
+<div class="section" id="constant-count-multi-core-jobs">
+<h3>Constant count multi-core jobs<a class="headerlink" href="#constant-count-multi-core-jobs" title="Permalink to this headline">¶</a></h3>
+<p>The next example uses again a file of commandlines, but now the
+launcher invocation specifies a core count that is to be used for
+each job.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#!/usr/bin/env python</span>
+
+<span class="kn">import</span> <span class="nn">pylauncher</span>
+
+<span class="c">##</span>
+<span class="c">## Emulate the classic launcher, using a one liner</span>
+<span class="c">##</span>
+
+<span class="n">pylauncher</span><span class="o">.</span><span class="n">ClassicLauncher</span><span class="p">(</span><span class="s">&quot;commandlines&quot;</span><span class="p">,</span>
+                           <span class="n">debug</span><span class="o">=</span><span class="s">&quot;job+task+host+exec+command&quot;</span><span class="p">,</span>
+                           <span class="n">cores</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="variable-count-multi-core-jobs">
+<h3>Variable count multi-core jobs<a class="headerlink" href="#variable-count-multi-core-jobs" title="Permalink to this headline">¶</a></h3>
+<p>If we have multithreaded jobs, but each has its own core count,
+we add the core count to the file of commandlines, and we tell
+the launcher invocation that that is where the counts are found.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#!/usr/bin/env python</span>
+
+<span class="kn">import</span> <span class="nn">pylauncher</span>
+
+<span class="c">##</span>
+<span class="c">## Emulate the classic launcher, using a one liner</span>
+<span class="c">##</span>
+
+<span class="n">pylauncher</span><span class="o">.</span><span class="n">ClassicLauncher</span><span class="p">(</span><span class="s">&quot;corecommandlines&quot;</span><span class="p">,</span>
+                           <span class="n">debug</span><span class="o">=</span><span class="s">&quot;job+task+host+exec+command&quot;</span><span class="p">,</span>
+                           <span class="n">cores</span><span class="o">=</span><span class="s">&quot;file&quot;</span><span class="p">,</span>
+                           <span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python"><pre>#
+# Automatically generated commandlines
+#
+5,echo "command 0"; sleep 21
+5,echo "command 1"; sleep 14
+5,echo "command 2"; sleep 23
+5,echo "command 3"; sleep 13
+5,echo "command 4"; sleep 29
+5,echo "command 5"; sleep 12
+5,echo "command 6"; sleep 23
+</pre>
+</div>
+</div>
+<div class="section" id="mpi-parallel-jobs">
+<h3>MPI parallel jobs<a class="headerlink" href="#mpi-parallel-jobs" title="Permalink to this headline">¶</a></h3>
+<p>If your program uses the MPI library and you want to run multiple
+instances simultaneously, use the <tt class="docutils literal"><span class="pre">IbrunLauncher</span></tt>.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#!/usr/bin/env python</span>
+
+<span class="kn">import</span> <span class="nn">pylauncher</span>
+
+<span class="n">pylauncher</span><span class="o">.</span><span class="n">IbrunLauncher</span><span class="p">(</span><span class="s">&quot;parallellines&quot;</span><span class="p">,</span><span class="n">cores</span><span class="o">=</span><span class="s">&quot;file&quot;</span><span class="p">,</span>
+                         <span class="n">debug</span><span class="o">=</span><span class="s">&quot;job+host+task+exec&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python"><pre>4,./parallel 0 30
+4,./parallel 1 30
+4,./parallel 2 30
+4,./parallel 3 30
+4,./parallel 4 30
+4,./parallel 5 30
+4,./parallel 6 30
+4,./parallel 7 30
+4,./parallel 8 30
+4,./parallel 9 30
+</pre>
+</div>
+<p>This example uses a provided program, <tt class="docutils literal"><span class="pre">parallel.c</span></tt> of two parameters:</p>
+<ul class="simple">
+<li>the job number</li>
+<li>the number of seconds running time</li>
+</ul>
+<p>The program will report the size of its communicator, that is,
+on how many cores it is running.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">A quick tutorial</a><ul>
+<li><a class="reference internal" href="#setup">Setup</a></li>
+<li><a class="reference internal" href="#batch-operation">Batch operation</a></li>
+<li><a class="reference internal" href="#examples">Examples</a><ul>
+<li><a class="reference internal" href="#single-core-jobs">Single-core jobs</a></li>
+<li><a class="reference internal" href="#constant-count-multi-core-jobs">Constant count multi-core jobs</a></li>
+<li><a class="reference internal" href="#variable-count-multi-core-jobs">Variable count multi-core jobs</a></li>
+<li><a class="reference internal" href="#mpi-parallel-jobs">MPI parallel jobs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="introduction.html"
+                        title="previous chapter">Introduction and general usage</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="implementation.html"
+                        title="next chapter">Implementation</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/tutorial.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="implementation.html" title="Implementation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="introduction.html" title="Introduction and general usage"
+             >previous</a> |</li>
+        <li><a href="index.html">PyLauncher 2.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Victor Eijkhout.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

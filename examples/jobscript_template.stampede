@@ -1,0 +1,12 @@
+#!/bin/bash
+
+#SBATCH   -p QUEUE
+#SBATCH   -J pylaunchertest
+#SBATCH   -o pylaunchertest.o%j
+#SBATCH   -n CORES
+#SBATCH   -N NODES
+#SBATCH   -t 0:10:00
+#SBATCH -A A-ccsc                  # replace by your own project
+
+module load python
+PYTHONPATH=..:${PYTHONPATH} SSH RUN EXECUTABLE.py

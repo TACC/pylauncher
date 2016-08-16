@@ -1,0 +1,7 @@
+Pylauncher database example.
+
+This example uses the pylauncher to run a script "todb.py" that writes
+to a database. The script contains the address of the database, the
+password is in a separate file named ".dbrc".
+
+

@@ -1,0 +1,883 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Implementation &mdash; PyLauncher 2.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '2.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="PyLauncher 2.0 documentation" href="index.html" />
+    <link rel="next" title="TACC specifics and extendability to other installations" href="extend.html" />
+    <link rel="prev" title="A quick tutorial" href="tutorial.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="extend.html" title="TACC specifics and extendability to other installations"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="tutorial.html" title="A quick tutorial"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyLauncher 2.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-pylauncher">
+<span id="implementation"></span><h1>Implementation<a class="headerlink" href="#module-pylauncher" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="commandline-generation">
+<h2>Commandline generation<a class="headerlink" href="#commandline-generation" title="Permalink to this headline">¶</a></h2>
+<p>The term &#8216;commandline&#8217; has a technical meaning:
+a commandline is a two-element list or a tuple where the first member is the
+Unix command and the second is a core count. These commandline tuples are generated
+by a couple of types of generators.</p>
+<p>The <tt class="docutils literal"><span class="pre">CommandlineGenerator</span></tt> base class handles the
+basics of generating commandlines.
+Most of the time you will use the derived class <tt class="docutils literal"><span class="pre">FileCommandlineGenerator</span></tt> which
+turns a file of Unix commands into commandlines.</p>
+<p>Most of the time a commandline generator will run until some supply of
+commands run out. However,
+the <tt class="docutils literal"><span class="pre">DynamicCommandlineGenerator</span></tt> class runs forever,
+or at least until you tell it to stop, so it is good for
+lists that are dynamically replenished.</p>
+<dl class="class">
+<dt id="pylauncher.CommandlineGenerator">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">CommandlineGenerator</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#CommandlineGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.CommandlineGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>An iteratable class that generates a stream of <tt class="docutils literal"><span class="pre">Commandline</span></tt> objects.</p>
+<p>The behaviour of the generator depends on the <tt class="docutils literal"><span class="pre">nmax</span></tt> parameter:</p>
+<ul class="simple">
+<li>nmax is None: exhaust the original list</li>
+<li>nmax &gt; 0: keep popping until the count is reached; if the initial list is shorter, someone will have to fill it, which this class is not capable of</li>
+<li>nmax == 0 : iterate indefinitely, wait for someone to call the <tt class="docutils literal"><span class="pre">finish</span></tt> method</li>
+</ul>
+<p>In the second and third scenario it can be the case that the list is empty.
+In that case, the generator will yield a COMMAND that is <tt class="docutils literal"><span class="pre">stall</span></tt>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>list</strong> &#8211; (keyword, default [] ) initial list of Commandline objects</li>
+<li><strong>nax</strong> &#8211; (keyword, default None) see above for explanation</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="pylauncher.CommandlineGenerator.finish">
+<tt class="descname">finish</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#CommandlineGenerator.finish"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.CommandlineGenerator.finish" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tell the generator to stop after the commands list is depleted</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.CommandlineGenerator.next">
+<tt class="descname">next</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#CommandlineGenerator.next"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.CommandlineGenerator.next" title="Permalink to this definition">¶</a></dt>
+<dd><p>Produce the next Commandline object, or return an object telling that the
+generator is stalling or has stopped</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt>
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">CommandlineGenerator</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#CommandlineGenerator"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>An iteratable class that generates a stream of <tt class="docutils literal"><span class="pre">Commandline</span></tt> objects.</p>
+<p>The behaviour of the generator depends on the <tt class="docutils literal"><span class="pre">nmax</span></tt> parameter:</p>
+<ul class="simple">
+<li>nmax is None: exhaust the original list</li>
+<li>nmax &gt; 0: keep popping until the count is reached; if the initial list is shorter, someone will have to fill it, which this class is not capable of</li>
+<li>nmax == 0 : iterate indefinitely, wait for someone to call the <tt class="docutils literal"><span class="pre">finish</span></tt> method</li>
+</ul>
+<p>In the second and third scenario it can be the case that the list is empty.
+In that case, the generator will yield a COMMAND that is <tt class="docutils literal"><span class="pre">stall</span></tt>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>list</strong> &#8211; (keyword, default [] ) initial list of Commandline objects</li>
+<li><strong>nax</strong> &#8211; (keyword, default None) see above for explanation</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="pylauncher.CommandlineGenerator.abort">
+<tt class="descname">abort</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#CommandlineGenerator.abort"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.CommandlineGenerator.abort" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stop the generator, even if there are still elements in the commands list</p>
+</dd></dl>
+
+<dl class="method">
+<dt>
+<tt class="descname">finish</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#CommandlineGenerator.finish"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Tell the generator to stop after the commands list is depleted</p>
+</dd></dl>
+
+<dl class="method">
+<dt>
+<tt class="descname">next</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#CommandlineGenerator.next"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Produce the next Commandline object, or return an object telling that the
+generator is stalling or has stopped</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.FileCommandlineGenerator">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">FileCommandlineGenerator</tt><big>(</big><em>filename</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#FileCommandlineGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.FileCommandlineGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pylauncher.CommandlineGenerator" title="pylauncher.CommandlineGenerator"><tt class="xref py py-class docutils literal"><span class="pre">pylauncher.CommandlineGenerator</span></tt></a></p>
+<p>A generator for commandline files:
+blank lines and lines starting with the comment character &#8216;#&#8217; are ignored</p>
+<ul class="simple">
+<li>cores is 1 by default, other constants allowed.</li>
+<li>cores==&#8217;file&#8217; means the file has &lt;&lt; count,command &gt;&gt; lines</li>
+<li>if the file has core counts, but you don&#8217;t specify the &#8216;file&#8217; value, they are ignored.</li>
+</ul>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>filename</strong> &#8211; (required) name of the file with commandlines</li>
+<li><strong>cores</strong> &#8211; (keyword, default 1) core count to be used for all commands</li>
+<li><strong>dependencies</strong> &#8211; (keyword, default False) are there task dependencies?</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.DynamicCommandlineGenerator">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">DynamicCommandlineGenerator</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#DynamicCommandlineGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.DynamicCommandlineGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pylauncher.CommandlineGenerator" title="pylauncher.CommandlineGenerator"><tt class="xref py py-class docutils literal"><span class="pre">pylauncher.CommandlineGenerator</span></tt></a></p>
+<p>A CommandlineGenerator with an extra method:</p>
+<p><tt class="docutils literal"><span class="pre">append</span></tt>: add a Commandline object to the list</p>
+<p>The &#8216;nmax=0&#8217; parameter value makes the generator keep expecting new stuff.</p>
+<dl class="method">
+<dt id="pylauncher.DynamicCommandlineGenerator.append">
+<tt class="descname">append</tt><big>(</big><em>command</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#DynamicCommandlineGenerator.append"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.DynamicCommandlineGenerator.append" title="Permalink to this definition">¶</a></dt>
+<dd><p>Append a unix command to the internal structure of the generator</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.DirectoryCommandlineGenerator">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">DirectoryCommandlineGenerator</tt><big>(</big><em>command_directory</em>, <em>commandfile_root</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#DirectoryCommandlineGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.DirectoryCommandlineGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pylauncher.DynamicCommandlineGenerator" title="pylauncher.DynamicCommandlineGenerator"><tt class="xref py py-class docutils literal"><span class="pre">pylauncher.DynamicCommandlineGenerator</span></tt></a></p>
+<p>A CommandlineGenerator object based on finding files in a directory.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>command_directory</strong> &#8211; (directory name, required) directory where commandlines are found; unlike launcher job work directories, this can be reused.</li>
+<li><strong>commandfile_root</strong> &#8211; (string, required) only files that start with this, followed by a dash, are inspected for commands. A file can contain more than one command.</li>
+<li><strong>cores</strong> &#8211; (keyword, optional, default 1) core count for the commandlines.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="pylauncher.DirectoryCommandlineGenerator.next">
+<tt class="descname">next</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#DirectoryCommandlineGenerator.next"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.DirectoryCommandlineGenerator.next" title="Permalink to this definition">¶</a></dt>
+<dd><p>List the directory and iterate over the commandfiles:</p>
+<ul class="simple">
+<li>ignore any open files, which are presumably still being written</li>
+<li>if they are marked as scheduled, ignore</li>
+<li>if there is a file <tt class="docutils literal"><span class="pre">finish-nnn</span></tt>, mark job nnn as finished</li>
+<li>if they are not yet scheduled, call <tt class="docutils literal"><span class="pre">append</span></tt> with a <tt class="docutils literal"><span class="pre">Commandline</span></tt> object</li>
+</ul>
+<p>If the finish name is present, and all scheduled jobs are finished, finish the generator.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="host-management">
+<h2>Host management<a class="headerlink" href="#host-management" title="Permalink to this headline">¶</a></h2>
+<p>We have an abstract concept of a node, which is a slot for a job.
+Host pools are the management structure for these nodes:
+you can query a host pool for sufficient nodes to run a multiprocess job.</p>
+<p>A host pool has associated with it an executor object, which represents
+the way tasks (see below) are started on nodes in that pool. Executors are also
+discussed below.</p>
+<dl class="class">
+<dt id="pylauncher.Node">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">Node</tt><big>(</big><em>host=None</em>, <em>core=None</em>, <em>nodeid=-1</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#Node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.Node" title="Permalink to this definition">¶</a></dt>
+<dd><p>A abstract object for a slot to execute a job. Most of the time
+this will correspond to a core.</p>
+<p>A node can have a task associated with it or be free.</p>
+<dl class="method">
+<dt id="pylauncher.Node.isfree">
+<tt class="descname">isfree</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#Node.isfree"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.Node.isfree" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test whether a node is occupied</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.Node.occupyWithTask">
+<tt class="descname">occupyWithTask</tt><big>(</big><em>taskid</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#Node.occupyWithTask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.Node.occupyWithTask" title="Permalink to this definition">¶</a></dt>
+<dd><p>Occupy a node with a taskid</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.Node.release">
+<tt class="descname">release</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#Node.release"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.Node.release" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make a node unoccupied</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.HostList">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">HostList</tt><big>(</big><em>list=</em><span class="optional">[</span><span class="optional">]</span>, <em>tag=''</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#HostList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.HostList" title="Permalink to this definition">¶</a></dt>
+<dd><p>Object describing a list of hosts. Each host is a dictionary
+with a <tt class="docutils literal"><span class="pre">host</span></tt> and <tt class="docutils literal"><span class="pre">core</span></tt> field.</p>
+<p>Arguments:</p>
+<ul class="simple">
+<li>list : list of hostname strings</li>
+<li>tag : something like <tt class="docutils literal"><span class="pre">.tacc.utexas.edu</span></tt> may be necessary to ssh to hosts in the list</li>
+</ul>
+<p>This is an iteratable object; it yields the host/core dictionary objects.</p>
+<dl class="method">
+<dt id="pylauncher.HostList.append">
+<tt class="descname">append</tt><big>(</big><em>h</em>, <em>c=0</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#HostList.append"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.HostList.append" title="Permalink to this definition">¶</a></dt>
+<dd><p>Arguments:</p>
+<ul class="simple">
+<li>h : hostname</li>
+<li>c (optional, default zero) : core number</li>
+</ul>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.HostPoolBase">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">HostPoolBase</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#HostPoolBase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.HostPoolBase" title="Permalink to this definition">¶</a></dt>
+<dd><p>A base class that defines some methods and sets up
+the basic data structures.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>commandexecutor</strong> &#8211; (keyword, optional, default=``LocalExecutor``) the <tt class="docutils literal"><span class="pre">Executor</span></tt> object for this host pool</li>
+<li><strong>workdir</strong> &#8211; (keyword, optional) the workdir for the command executor</li>
+<li><strong>debug</strong> &#8211; (keyword, optional) a string of debug types; if this contains &#8216;host&#8217;, anything derived from <tt class="docutils literal"><span class="pre">HostPoolBase</span></tt> will do a debug trace</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="pylauncher.HostPoolBase.append_node">
+<tt class="descname">append_node</tt><big>(</big><em>host='localhost'</em>, <em>core=0</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#HostPoolBase.append_node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.HostPoolBase.append_node" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a new item in this pool by specifying either a Node object
+or a hostname plus core number. This function is called in a loop when a
+<tt class="docutils literal"><span class="pre">HostPool</span></tt> is created from a <tt class="docutils literal"><span class="pre">HostList</span></tt> object.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.HostPoolBase.final_report">
+<tt class="descname">final_report</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#HostPoolBase.final_report"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.HostPoolBase.final_report" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a string that reports how many tasks were run on each node.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.HostPoolBase.occupyNodes">
+<tt class="descname">occupyNodes</tt><big>(</big><em>locator</em>, <em>taskid</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#HostPoolBase.occupyNodes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.HostPoolBase.occupyNodes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Occupy nodes with a taskid</p>
+<p>Argument:
+* locator : HostLocator object
+* taskid : like the man says</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.HostPoolBase.release">
+<tt class="descname">release</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#HostPoolBase.release"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.HostPoolBase.release" title="Permalink to this definition">¶</a></dt>
+<dd><p>If the executor opens ssh connections, we want to close them cleanly.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.HostPoolBase.releaseNodesByTask">
+<tt class="descname">releaseNodesByTask</tt><big>(</big><em>taskid</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#HostPoolBase.releaseNodesByTask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.HostPoolBase.releaseNodesByTask" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a task id, release the nodes that are associated with it</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.HostPoolBase.request_nodes">
+<tt class="descname">request_nodes</tt><big>(</big><em>request</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#HostPoolBase.request_nodes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.HostPoolBase.request_nodes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Request a number of nodes; this returns a HostLocator object</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.HostPoolBase.unique_hostnames">
+<tt class="descname">unique_hostnames</tt><big>(</big><em>pool=None</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#HostPoolBase.unique_hostnames"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.HostPoolBase.unique_hostnames" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a list of unique hostnames. In general each hostname appears
+16 times or so in a HostPool since each core is listed.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.HostPool">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">HostPool</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#HostPool"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.HostPool" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="trace.html#pylauncher.HostPoolBase" title="pylauncher.HostPoolBase"><tt class="xref py py-class docutils literal"><span class="pre">pylauncher.HostPoolBase</span></tt></a></p>
+<p>A structure to manage a bunch of Node objects.
+The main internal object is the <tt class="docutils literal"><span class="pre">nodes</span></tt> member, which 
+is a list of Node objects.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>nhosts</strong> &#8211; the number of slots in the pool; this will use the localhost</li>
+<li><strong>hostlist</strong> &#8211; HostList object; this takes preference over the previous option</li>
+<li><strong>commandexecutor</strong> &#8211; (optional) a prefixer routine, by default LocalExecutor</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.HostLocator">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">HostLocator</tt><big>(</big><em>pool=None</em>, <em>extent=None</em>, <em>offset=None</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#HostLocator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.HostLocator" title="Permalink to this definition">¶</a></dt>
+<dd><p>A description of a subset from a HostPool. A locator
+object is typically created when a task asks for a set of nodes
+from a HostPool. Thus, a locator inherits the executor
+from the host pool from which it is taken.</p>
+<p>The only locator objects allowed at the moment are consecutive subsets.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>pool</strong> &#8211; HostPool (optional)</li>
+<li><strong>extent</strong> &#8211; number of nodes requested</li>
+<li><strong>offset</strong> &#8211; location of the first node in the pool</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.DefaultHostPool">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">DefaultHostPool</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#DefaultHostPool"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.DefaultHostPool" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pylauncher.HostPool" title="pylauncher.HostPool"><tt class="xref py py-class docutils literal"><span class="pre">pylauncher.HostPool</span></tt></a></p>
+<p>A HostPool object based on the hosts obtained from the
+<tt class="docutils literal"><span class="pre">HostListByName</span></tt> function, and using the <tt class="docutils literal"><span class="pre">SSHExecutor</span></tt> function.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="task-management">
+<h2>Task management<a class="headerlink" href="#task-management" title="Permalink to this headline">¶</a></h2>
+<p>Tasks are generated internally from a <tt class="docutils literal"><span class="pre">TaskGenerator</span></tt> object that
+the user can specify. The <tt class="docutils literal"><span class="pre">TaskQueue</span></tt> object is created internally
+in a <tt class="docutils literal"><span class="pre">LauncherJob</span></tt>.  For the <tt class="docutils literal"><span class="pre">completion</span></tt> argument of the <tt class="docutils literal"><span class="pre">TaskGenerator</span></tt>,
+see below.</p>
+<dl class="class">
+<dt id="pylauncher.Task">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">Task</tt><big>(</big><em>command</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#Task"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.Task" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Task is an abstract object associated with a commandline</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>command</strong> &#8211; (required) Commandline object; note that this contains the core count</li>
+<li><strong>completion</strong> &#8211; (keyword, optional) Completion object; if unspecified the trivial completion is used.</li>
+<li><strong>taskid</strong> &#8211; (keyword) identifying number of this task; has to be unique in a job, also has to be equal to the taskid of the completion</li>
+<li><strong>debug</strong> &#8211; (keyword, optional) string of debug keywords</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="pylauncher.Task.hasCompleted">
+<tt class="descname">hasCompleted</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#Task.hasCompleted"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.Task.hasCompleted" title="Permalink to this definition">¶</a></dt>
+<dd><p>Execute the completion test of this Task</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.Task.line_with_completion">
+<tt class="descname">line_with_completion</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#Task.line_with_completion"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.Task.line_with_completion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the task&#8217;s commandline with completion attached</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.Task.start_on_nodes">
+<tt class="descname">start_on_nodes</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#Task.start_on_nodes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.Task.start_on_nodes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Start the task.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>pool</strong> &#8211; HostLocator object (keyword, required) : this describes the nodes on which to start the task</li>
+<li><strong>commandexecutor</strong> &#8211; (keyword, optional) prefixer routine, by default the commandexecutor of the pool is used</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>This sets <tt class="docutils literal"><span class="pre">self.startime</span></tt> to right before the execution begins. We do not keep track
+of the endtime, but instead set <tt class="docutils literal"><span class="pre">self.runningtime</span></tt> in the <tt class="docutils literal"><span class="pre">hasCompleted</span></tt> routine.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.TaskQueue">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">TaskQueue</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#TaskQueue"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.TaskQueue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Object that does the maintains a list of Task objects.
+This is internally created inside a <tt class="docutils literal"><span class="pre">LauncherJob</span></tt> object.</p>
+<dl class="method">
+<dt id="pylauncher.TaskQueue.enqueue">
+<tt class="descname">enqueue</tt><big>(</big><em>task</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#TaskQueue.enqueue"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.TaskQueue.enqueue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a task to the queue</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.TaskQueue.final_report">
+<tt class="descname">final_report</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#TaskQueue.final_report"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.TaskQueue.final_report" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a string describing the max and average runtime for each task.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.TaskQueue.find_recently_completed">
+<tt class="descname">find_recently_completed</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#TaskQueue.find_recently_completed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.TaskQueue.find_recently_completed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the first recently completed task.
+Note the return, not yield.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.TaskQueue.isEmpty">
+<tt class="descname">isEmpty</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#TaskQueue.isEmpty"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.TaskQueue.isEmpty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test whether the queue is empty and no tasks running</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.TaskQueue.startQueued">
+<tt class="descname">startQueued</tt><big>(</big><em>hostpool</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#TaskQueue.startQueued"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.TaskQueue.startQueued" title="Permalink to this definition">¶</a></dt>
+<dd><p>for all queued, try to find nodes to run it on;
+the hostpool argument is a HostPool object</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.TaskGenerator">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">TaskGenerator</tt><big>(</big><em>commandlines</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#TaskGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.TaskGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>iterator class that can yield the following:</p>
+<ul class="simple">
+<li>a Task instance, or</li>
+<li>the keyword <tt class="docutils literal"><span class="pre">stall</span></tt>; this indicates that the commandline generator is stalling and this will be resolved when the outer environment does an <tt class="docutils literal"><span class="pre">append</span></tt> on the commandline generator.</li>
+<li>the <tt class="docutils literal"><span class="pre">pylauncherBarrierString</span></tt>; in this case the outer environment should not call the generator until all currently running tasks have concluded.</li>
+<li>the keyword <tt class="docutils literal"><span class="pre">stop</span></tt>; this means that the commandline generator is exhausted. The <tt class="docutils literal"><span class="pre">next</span></tt> function can be called repeatedly on a stopped generator.</li>
+</ul>
+<p>You can iterate over an instance, or call the <tt class="docutils literal"><span class="pre">next</span></tt> method. The <tt class="docutils literal"><span class="pre">next</span></tt> method
+can accept an imposed taskcount number.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>commandlinegenerator</strong> &#8211; either a list of unix commands, or a CommandlineGenerator object</li>
+<li><strong>completion</strong> &#8211; (optional) a function of one variable (the task id) that returns Completion objects</li>
+<li><strong>debug</strong> &#8211; (optional) string of requested debug modes</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="pylauncher.TaskGenerator.next">
+<tt class="descname">next</tt><big>(</big><em>imposedcount=None</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#TaskGenerator.next"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.TaskGenerator.next" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deliver a Task object, or a special string:</p>
+<ul class="simple">
+<li>&#8220;stall&#8221; : the commandline generator will give more, all in good time</li>
+<li>&#8220;stop&#8221; : we are totally done</li>
+</ul>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="pylauncher.TaskGeneratorIterate">
+<tt class="descclassname">pylauncher.</tt><tt class="descname">TaskGeneratorIterate</tt><big>(</big><em>gen</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#TaskGeneratorIterate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.TaskGeneratorIterate" title="Permalink to this definition">¶</a></dt>
+<dd><p>In case you want to iterate over a TaskGenerator, 
+use this generator routine</p>
+</dd></dl>
+
+<div class="section" id="executors">
+<h3>Executors<a class="headerlink" href="#executors" title="Permalink to this headline">¶</a></h3>
+<p>At some point a task needs to be executed. It does that by applying the <tt class="docutils literal"><span class="pre">execute</span></tt>
+method of the <tt class="docutils literal"><span class="pre">Executor</span></tt> object of the <tt class="docutils literal"><span class="pre">HostPool</span></tt>. (The thinking
+behind attaching the execution to a host pool is that
+different hostpools have different execution mechanisms.)
+Executing a task takes a commandline and a host locator on which to execute it;
+different classes derived from <tt class="docutils literal"><span class="pre">Executor</span></tt> correspond to different spawning
+mechanisms.</p>
+<dl class="class">
+<dt id="pylauncher.Executor">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">Executor</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#Executor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.Executor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class for starting a commandline on some actual computing device.</p>
+<p>All derived classes need to define a <tt class="docutils literal"><span class="pre">execute</span></tt> method.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>catch_output</strong> &#8211; (keyword, optional, default=True) state whether command output gets caught, or just goes to stdout</li>
+<li><strong>workdir</strong> &#8211; (optional, default=&#8221;pylauncher_tmpdir_exec&#8221;) directory for exec and out files</li>
+<li><strong>debug</strong> &#8211; (optional) string of debug modes; include &#8220;exec&#8221; to trace this class</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Important note: the <tt class="docutils literal"><span class="pre">workdir</span></tt> should not already exist. You have to remove it yourself.</p>
+<dl class="method">
+<dt id="pylauncher.Executor.workdir_is_safe">
+<tt class="descname">workdir_is_safe</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#Executor.workdir_is_safe"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.Executor.workdir_is_safe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test that the working directory is (in) a subdirectory of the cwd</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.Executor.wrap">
+<tt class="descname">wrap</tt><big>(</big><em>command</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#Executor.wrap"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.Executor.wrap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Take a commandline, write it to a small file, and return the 
+commandline that sources that file</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.LocalExecutor">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">LocalExecutor</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#LocalExecutor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.LocalExecutor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pylauncher.Executor" title="pylauncher.Executor"><tt class="xref py py-class docutils literal"><span class="pre">pylauncher.Executor</span></tt></a></p>
+<p>Execute a commandline locally, in the background.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>prefix</strong> &#8211; (keyword, optional, default null string) for recalcitrant shells, the possibility to specify &#8216;/bin/sh&#8217; or so</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.SSHExecutor">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">SSHExecutor</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#SSHExecutor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.SSHExecutor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pylauncher.Executor" title="pylauncher.Executor"><tt class="xref py py-class docutils literal"><span class="pre">pylauncher.Executor</span></tt></a></p>
+<p>Prepend a command with an ssh to the pool;
+this also does a <tt class="docutils literal"><span class="pre">cd</span></tt> to the current directory, and 
+sets up the current environment.</p>
+<p>Note: environment variables with a space, semicolon, or parentheses
+are not transferred.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>command</strong> &#8211; a unix command, including semicolons and whatnot</li>
+<li><strong>pool</strong> &#8211; a HostLocator object</li>
+<li><strong>workdir</strong> &#8211; if this is None, the ssh connection will cd to the current directory, otherwise it will go to this workdir. If this is a relative path, it is taken relative to the current directory.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="pylauncher.SSHExecutor.execute">
+<tt class="descname">execute</tt><big>(</big><em>usercommand</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#SSHExecutor.execute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.SSHExecutor.execute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Execute a commandline by</p>
+<ul class="simple">
+<li>making an ssh connection to the host locator; this uses <tt class="docutils literal"><span class="pre">paramiko</span></tt>;</li>
+<li>cd to the current directory;</li>
+<li>setting up the environment (we filter out variables with semicolon, space, or parentheses in the name or value); and</li>
+<li>executing the command in the background</li>
+</ul>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>pool</strong> &#8211; (required) either a Node or HostLocator</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.IbrunExecutor">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">IbrunExecutor</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#IbrunExecutor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.IbrunExecutor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pylauncher.Executor" title="pylauncher.Executor"><tt class="xref py py-class docutils literal"><span class="pre">pylauncher.Executor</span></tt></a></p>
+<p>An Executor derived class for the shift/offset version of ibrun
+that is in use at TACC</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>pool</strong> &#8211; (required) <tt class="docutils literal"><span class="pre">HostLocator</span></tt> object</li>
+<li><strong>stdout</strong> &#8211; (optional) a file that is open for writing; by default <tt class="docutils literal"><span class="pre">subprocess.PIPE</span></tt> is used</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="pylauncher.IbrunExecutor.execute">
+<tt class="descname">execute</tt><big>(</big><em>command</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#IbrunExecutor.execute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.IbrunExecutor.execute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Much like <tt class="docutils literal"><span class="pre">SSHExecutor.execute()</span></tt>, except that it prefixes
+with <tt class="docutils literal"><span class="pre">ibrun</span> <span class="pre">-n</span> <span class="pre">-o</span></tt></p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="task-completion">
+<h3>Task Completion<a class="headerlink" href="#task-completion" title="Permalink to this headline">¶</a></h3>
+<p>Task management is largely done internally. The one aspect that a user
+could customize is that of the completion mechanism: by default each
+commandline that gets executed leaves a zero size file behind that is
+branded with the task number. The TaskQueue object uses that to detect
+that a task is finished, and therefore that its Node objects can be
+released.</p>
+<dl class="class">
+<dt id="pylauncher.Completion">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">Completion</tt><big>(</big><em>taskid=0</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#Completion"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.Completion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Define a completion object for a task.</p>
+<p>The base class doesn&#8217;t do a lot: it immediately returns true on the 
+completion test.</p>
+<dl class="method">
+<dt id="pylauncher.Completion.attach">
+<tt class="descname">attach</tt><big>(</big><em>txt</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#Completion.attach"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.Completion.attach" title="Permalink to this definition">¶</a></dt>
+<dd><p>Attach a completion to a command, giving a new command</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.Completion.test">
+<tt class="descname">test</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#Completion.test"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.Completion.test" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test whether the task has completed</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.FileCompletion">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">FileCompletion</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#FileCompletion"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.FileCompletion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pylauncher.Completion" title="pylauncher.Completion"><tt class="xref py py-class docutils literal"><span class="pre">pylauncher.Completion</span></tt></a></p>
+<p>FileCompletion is the most common type of completion. It appends
+to a command the creation of a zero size file with a unique name.
+The completion test then tests for the existence of that file.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>taskid</strong> &#8211; (keyword, required) this has to be unique. Unfortunately we can not test for that.</li>
+<li><strong>stampdir</strong> &#8211; (keyword, optional, default is self.stampdir, which is &#8221;.&#8221;) directory where the stampfile is left</li>
+<li><strong>stamproot</strong> &#8211; (keyword, optional, default is &#8220;expire&#8221;) root of the stampfile name</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="pylauncher.FileCompletion.attach">
+<tt class="descname">attach</tt><big>(</big><em>txt</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#FileCompletion.attach"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.FileCompletion.attach" title="Permalink to this definition">¶</a></dt>
+<dd><p>Append a &#8216;touch&#8217; command to the txt argument</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.FileCompletion.stampname">
+<tt class="descname">stampname</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#FileCompletion.stampname"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.FileCompletion.stampname" title="Permalink to this definition">¶</a></dt>
+<dd><p>Internal function that gives the name of the stamp file,
+including directory path</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.FileCompletion.test">
+<tt class="descname">test</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#FileCompletion.test"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.FileCompletion.test" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test for the existence of the stamp file</p>
+</dd></dl>
+
+</dd></dl>
+
+<p>Task generators need completions dynamically generated since they need
+to receive a job id. You could for instance specify code such as the
+following; see the example launchers.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">completion</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span><span class="n">FileCompletion</span><span class="p">(</span> <span class="n">taskid</span><span class="o">=</span><span class="n">x</span><span class="p">,</span>
+             <span class="n">stamproot</span><span class="o">=</span><span class="s">&quot;expire&quot;</span><span class="p">,</span><span class="n">stampdir</span><span class="o">=</span><span class="s">&quot;workdir&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="jobs">
+<h2>Jobs<a class="headerlink" href="#jobs" title="Permalink to this headline">¶</a></h2>
+<p>All of the above components are pulled together in the LauncherJob class.
+Writing your own launcher this way is fairly easy;
+see the TACC section for some examples of launchers.</p>
+<dl class="class">
+<dt id="pylauncher.LauncherJob">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">LauncherJob</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#LauncherJob"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.LauncherJob" title="Permalink to this definition">¶</a></dt>
+<dd><p>LauncherJob class. Keyword arguments:</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>hostpool</strong> &#8211; a HostPool instance (required)</li>
+<li><strong>taskgenerator</strong> &#8211; a TaskGenerator instance (required)</li>
+<li><strong>delay</strong> &#8211; between task checks  (optional)</li>
+<li><strong>debug</strong> &#8211; list of keywords (optional)</li>
+<li><strong>gather_output</strong> &#8211; (keyword, optional, default None) filename to gather all command output</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="pylauncher.LauncherJob.tick">
+<tt class="descname">tick</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#LauncherJob.tick"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.LauncherJob.tick" title="Permalink to this definition">¶</a></dt>
+<dd><p>This routine does a single time step in a launcher&#8217;s life, and reports back
+to the user. Specifically:</p>
+<ul class="simple">
+<li>It tries to start any currently queued jobs. Also:</li>
+<li>If any jobs are finished, it detects exactly one, and reports its ID to the user in a message <tt class="docutils literal"><span class="pre">expired</span> <span class="pre">123</span></tt></li>
+<li>If there are no finished jobs, it invokes the task generator; this can result in a new task and the return message is <tt class="docutils literal"><span class="pre">continuing</span></tt></li>
+<li>if the generator stalls, that is, more tasks will come in the future but none are available now, the message is <tt class="docutils literal"><span class="pre">stalling</span></tt></li>
+<li>if the generator is finished and all jobs have finished, the message is <tt class="docutils literal"><span class="pre">finished</span></tt></li>
+</ul>
+<p>After invoking the task generator, a short sleep is inserted (see the <tt class="docutils literal"><span class="pre">delay</span></tt> parameter)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pylauncher.LauncherJob.run">
+<tt class="descname">run</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#LauncherJob.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.LauncherJob.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invoke the launcher job, and call <tt class="docutils literal"><span class="pre">tick</span></tt> until all jobs are finished.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Implementation</a><ul>
+<li><a class="reference internal" href="#commandline-generation">Commandline generation</a></li>
+<li><a class="reference internal" href="#host-management">Host management</a></li>
+<li><a class="reference internal" href="#task-management">Task management</a><ul>
+<li><a class="reference internal" href="#executors">Executors</a></li>
+<li><a class="reference internal" href="#task-completion">Task Completion</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#jobs">Jobs</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="tutorial.html"
+                        title="previous chapter">A quick tutorial</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="extend.html"
+                        title="next chapter">TACC specifics and extendability to other installations</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/implementation.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="extend.html" title="TACC specifics and extendability to other installations"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="tutorial.html" title="A quick tutorial"
+             >previous</a> |</li>
+        <li><a href="index.html">PyLauncher 2.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Victor Eijkhout.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

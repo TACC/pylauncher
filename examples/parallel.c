@@ -5,6 +5,9 @@
 
 int main(int argc,char **argv) {
   int jobno,slp,mytid,ntids;
+  char outfile[5+5+5+1]; 
+  FILE *f;
+
   MPI_Init(&argc,&argv);
   MPI_Comm_size(MPI_COMM_WORLD,&ntids);
   MPI_Comm_rank(MPI_COMM_WORLD,&mytid);
@@ -13,6 +16,13 @@ int main(int argc,char **argv) {
   }
   jobno = atoi(argv[1]);
   slp = atoi(argv[2]);
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  sprintf(outfile,"pytmp-%04d-%04d",jobno,mytid);
+  f = fopen(outfile,"w");
+  fprintf(f,"%d/%d working\n",mytid,ntids);
+  fclose(f);
+
   if (mytid==0) {
     printf("Job %d on %d processors\n",jobno,ntids);
   }

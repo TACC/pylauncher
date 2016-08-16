@@ -1,0 +1,219 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tracing and profiling &mdash; PyLauncher 2.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '2.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="PyLauncher 2.0 documentation" href="index.html" />
+    <link rel="next" title="Testing" href="testing.html" />
+    <link rel="prev" title="TACC specifics and extendability to other installations" href="extend.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="testing.html" title="Testing"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="extend.html" title="TACC specifics and extendability to other installations"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">PyLauncher 2.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="tracing-and-profiling">
+<h1>Tracing and profiling<a class="headerlink" href="#tracing-and-profiling" title="Permalink to this headline">¶</a></h1>
+<p>It is possible to generate trace output during a run and profiling
+(or summary) information at the end.</p>
+<div class="section" id="module-pylauncher">
+<span id="trace-output"></span><h2>Trace output<a class="headerlink" href="#module-pylauncher" title="Permalink to this headline">¶</a></h2>
+<p>You can get various kinds of trace output on your job. This is done by
+specifying a <tt class="docutils literal"><span class="pre">debug=....</span></tt> parameter to the creation of the various classes.
+For the easy case, pass <tt class="docutils literal"><span class="pre">debug=&quot;job+host+task&quot;</span></tt> to a launcher object.</p>
+<p>Here is a list of the keywords and what they report on:</p>
+<ul class="simple">
+<li>host: for <tt class="docutils literal"><span class="pre">HostPool</span></tt> objects.</li>
+<li>command: for <tt class="docutils literal"><span class="pre">CommandlineGenerator</span></tt> objects.</li>
+<li>task: for <tt class="docutils literal"><span class="pre">Task</span></tt> and <tt class="docutils literal"><span class="pre">TaskGenerator</span></tt> objects.</li>
+<li>exec: for <tt class="docutils literal"><span class="pre">Executor</span></tt> objects. For the SSHExecutor this prints out the contents of the temporary file containing the whole environment definition.</li>
+<li>ssh: for <tt class="docutils literal"><span class="pre">SSHExecutor</span></tt> objects.</li>
+<li>job: for <tt class="docutils literal"><span class="pre">LauncherJob</span></tt> objects.</li>
+</ul>
+</div>
+<div class="section" id="final-reporting">
+<h2>Final reporting<a class="headerlink" href="#final-reporting" title="Permalink to this headline">¶</a></h2>
+<p>Various classes can produce a report. This is intended to be used at the
+end of a job, but you can do it really at any time. The predefined launchers
+such as <tt class="docutils literal"><span class="pre">ClassicLauncher</span></tt>
+print out this stuff by default.</p>
+<dl class="class">
+<dt id="pylauncher.HostPoolBase">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">HostPoolBase</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#HostPoolBase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.HostPoolBase" title="Permalink to this definition">¶</a></dt>
+<dd><p>A base class that defines some methods and sets up
+the basic data structures.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>commandexecutor</strong> &#8211; (keyword, optional, default=``LocalExecutor``) the <tt class="docutils literal"><span class="pre">Executor</span></tt> object for this host pool</li>
+<li><strong>workdir</strong> &#8211; (keyword, optional) the workdir for the command executor</li>
+<li><strong>debug</strong> &#8211; (keyword, optional) a string of debug types; if this contains &#8216;host&#8217;, anything derived from <tt class="docutils literal"><span class="pre">HostPoolBase</span></tt> will do a debug trace</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="pylauncher.HostPoolBase.final_report">
+<tt class="descname">final_report</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#HostPoolBase.final_report"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.HostPoolBase.final_report" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a string that reports how many tasks were run on each node.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.TaskQueue">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">TaskQueue</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#TaskQueue"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.TaskQueue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Object that does the maintains a list of Task objects.
+This is internally created inside a <tt class="docutils literal"><span class="pre">LauncherJob</span></tt> object.</p>
+<dl class="method">
+<dt id="pylauncher.TaskQueue.final_report">
+<tt class="descname">final_report</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#TaskQueue.final_report"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.TaskQueue.final_report" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a string describing the max and average runtime for each task.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="pylauncher.LauncherJob">
+<em class="property">class </em><tt class="descclassname">pylauncher.</tt><tt class="descname">LauncherJob</tt><big>(</big><em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pylauncher.html#LauncherJob"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.LauncherJob" title="Permalink to this definition">¶</a></dt>
+<dd><p>LauncherJob class. Keyword arguments:</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>hostpool</strong> &#8211; a HostPool instance (required)</li>
+<li><strong>taskgenerator</strong> &#8211; a TaskGenerator instance (required)</li>
+<li><strong>delay</strong> &#8211; between task checks  (optional)</li>
+<li><strong>debug</strong> &#8211; list of keywords (optional)</li>
+<li><strong>gather_output</strong> &#8211; (keyword, optional, default None) filename to gather all command output</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="pylauncher.LauncherJob.final_report">
+<tt class="descname">final_report</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pylauncher.html#LauncherJob.final_report"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.LauncherJob.final_report" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a string describing the total running time, as well as
+including the final report from the embedded <tt class="docutils literal"><span class="pre">HostPool</span></tt> and <tt class="docutils literal"><span class="pre">TaskQueue</span></tt>
+objects.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Tracing and profiling</a><ul>
+<li><a class="reference internal" href="#module-pylauncher">Trace output</a></li>
+<li><a class="reference internal" href="#final-reporting">Final reporting</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="extend.html"
+                        title="previous chapter">TACC specifics and extendability to other installations</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="testing.html"
+                        title="next chapter">Testing</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/trace.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="testing.html" title="Testing"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="extend.html" title="TACC specifics and extendability to other installations"
+             >previous</a> |</li>
+        <li><a href="index.html">PyLauncher 2.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, Victor Eijkhout.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

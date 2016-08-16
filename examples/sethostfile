@@ -1,5 +1,0 @@
-pushd /opt/sge6.2/execd_spool/c*
-cd active_jobs/*
-export PE_HOSTFILE=`pwd`/pe_hostfile
-popd
-

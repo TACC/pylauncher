@@ -1,0 +1,17 @@
+#!/bin/bash
+
+##
+## a job script for running the pylauncher unit tests
+##
+
+#SBATCH   -p normal
+#SBATCH   -J pylauncherunittest
+#SBATCH   -o pylauncherunittest.o%j
+#SBATCH   -n 32
+#SBATCH   -N 2
+#SBATCH   -t 0:10:00
+#SBATCH -A A-ccsc
+
+module load python
+PYTHONPATH=..:${PYTHONPATH}  nosetests ../pylauncher.py
+

@@ -1,0 +1,16 @@
+This is a short example of interfacing the pylauncher
+to another running application.
+
+If you want to test this on your local machine:
+
+1. Run the server in the background: "python server.py &"
+2. Run the driver in the foreground: "python driver.py"
+3. You'll see screen output where the server echoes the 
+  incoming commands.
+4. After completion, you can inspect the output that was caught:
+  "cat pylauncher_tmpNone/out*"
+
+TODO
+- custom port
+- instead of localhost, use process zero of the hostlist
+- try returning results through the socket.

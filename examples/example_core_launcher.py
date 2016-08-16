@@ -6,8 +6,7 @@ import pylauncher
 ## Emulate the classic launcher, using a one liner
 ##
 
-pylauncher.ClassicLauncher("corecommandlines",
+pylauncher.ClassicLauncher("commandlines",
                            debug="job+task+host+exec+command",
-                           cores="file",
-                           )
+                           cores=2)
 

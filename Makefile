@@ -1,5 +1,77 @@
-info :
-	@echo "make clean"
+info ::
+	@echo
+	@echo "================================================"
+	@echo "This is the makefile for the pylauncher utility."
+	@echo "Mostly this is just administrative stuff"
+	@echo "that only works for the author of the utility."
+	@echo
+	@echo "For questions contact"
+	@echo "Victor Eijkhout, eijkhout@tacc.utexas.edu"
+	@echo "================================================"
+	@echo
+	@echo "make rules:"
 
-clean :
-	/bin/rm -f *~ *.pyc doc/*.{aux,toc,log}
+info ::
+	@echo "make docs : regenerate all documentation"
+	@echo "make html,latexpdf,man : specific type only"
+.PHONY: docs
+html latexpdf man ::
+	make doctype DOCTYPE=$@
+docs:
+	make doctype DOCTYPE=html
+	make doctype DOCTYPE=latexpdf
+	make doctype DOCTYPE=man
+DOCTYPE = html
+doctype:
+	@export PYTHONPATH=`pwd`:$PYTHONPATH ; \
+	  cd docs/rst ; \
+	  echo "making docs in ${DOCTYPE} format" ; \
+	  make ${DOCTYPE}
+	@case ${DOCTYPE} in \
+	( html ) \
+	  rm -rf docs/${DOCTYPE}  ; \
+	  cp -r docs/rst/_build/${DOCTYPE} docs/${DOCTYPE} ;; \
+	( man ) \
+	  rm -rf docs/${DOCTYPE}  ; \
+	  cp -r docs/rst/_build/${DOCTYPE} docs/${DOCTYPE} ;; \
+	( latexpdf ) \
+	  cp docs/rst/_build/latex/PyLauncher.pdf docs ;; \
+	esac
+
+info ::
+	@echo "make bundle : make a tarfile"
+bundle :
+	cd .. ; \
+	  cp -r pylauncher-bitbucket pylauncher ; \
+	  rm -rf pylauncher/.hg ; \
+	  tar fcz pylauncher.tar.gz pylauncher ; \
+	  rm -rf pylauncher
+
+info ::
+	@echo "make upload : copy html docs to the TACC website"
+upload :
+	cp docs/launcher.pptx docs/PyLauncher.pdf ${HOME}/DropBox/Scicomp
+	scp -r docs/html/* ve343@sftp.austin.utexas.edu:/DepartmentalDirectories/tacc/home/veijkhout/public_html/pylauncher_docs/
+info ::
+	@echo "make github"
+.PHONY: github
+GITDIR = ${HOME}/Projects/pylauncher/pylauncher-github-tacc
+github : clean
+	cp -rf * ${GITDIR}
+	cd ${GITDIR} ; git add * ; git commit -m "pylauncher update" ; git push
+
+info ::
+	@echo "make unittests [VERBOSE=1 (default 0)]"
+.PHONY: unittests
+NOSE = nosetests-2.7
+VERBOSE = 0
+unittests :
+	@${NOSE} ` case ${VERBOSE} in ( yes | y | 1 ) echo "--verbose" ;; esac` pylauncher.py
+
+info ::
+	@echo "make clean"
+clean ::
+	/bin/rm -rf *~ *.pyc pylauncher_tmp* *expire* queuestate* unittestlines
+	/bin/rm -rf docs/rst/_build docs/rst/*~
+	cd examples ; make clean
+	cd tutorial ; make clean
