@@ -1,5 +1,5 @@
 docstring = \
-"""pylauncher.py version 2.3 UNRELEASED
+"""pylauncher.py version 2.5 UNRELEASED
 
 A python based launcher utility for packaging sequential or
 low parallel jobs in one big parallel job
@@ -10,6 +10,8 @@ eijkhout@tacc.utexas.edu
 
 changelog = """
 Change log
+2.5
+- incorporates Stampede2, minor other edits
 2.4
 - incorporates Lonestar5
 2.3
@@ -846,7 +848,7 @@ class Task():
         """
         self.pool = kwargs.pop("pool",None)
         if self.pool is None:
-            self.pool = LocalHostPool(n=self.size,debug=self.debugs
+            self.pool = LocalHostPool(nhosts=self.size,debug=self.debugs
                                       ).request_nodes(self.size)
         elif isinstance(self.pool,(Node)):
             if self.size>1:
@@ -886,7 +888,6 @@ class Task():
             % (self.taskid,self.command,self.size)
         return s
 
-<<<<<<< HEAD
 class testCompletions():
     def setup(self):
         # get rid of old workdirs
@@ -922,199 +923,6 @@ class testCompletions():
         time.sleep(1)
         assert(os.path.isfile("launchtest/expirefoo7"))
         os.system("rm -rf launchtest")
-=======
-####
-#### General Job class:
-#### the user has to write all the functions
-#### for job wrapping, starting, and testing 
-#### whether a job has ended
-####
-def nowrap(txt):
-    return txt
-def nowraptwo(task,txt,p,n):
-    return txt
-def istrue(s,i):
-    return True
-class Job():
-    class TaskQueue():
-        def __init__(self,debug=0):
-            self.queue = []; self.running = []; self.completed = []
-            self.maxsimul = 0; self.submitdelay = 0; self.debug = debug
-        def isEmpty(self):
-            return self.queue==[] and self.running==[]
-        def startQueued(self,nodes):
-            tqueue = copy.copy(self.queue)
-            for t in tqueue:
-                pool = nodes.requestNodes(t.size)
-                if pool is not None:
-                    if self.submitdelay>0:
-                        time.sleep(self.submitdelay)
-                    t.startonnodes(
-                        {'nodes':nodes.hosts(pool),'offset':pool[0]})
-                    nodes.occupyNodes(pool,t.id)
-                    self.queue.remove(t)
-                    self.running.append(t)
-                    self.maxsimul = max(self.maxsimul,len(self.running))
-        def enqueue(self,task):
-            self.queue.append(task)
-        def findCompleted(self):
-            for t in self.running:
-                if t.hasCompleted():
-                    self.running.remove(t)
-                    self.completed.append(t)
-                    if self.debug>0:
-                        print ".. job completed:",t.id
-                    return t.id
-            return None
-        def __repr__(self):
-            return "completed: "+str([ t.id for t in self.completed])+";"+\
-                   "\nqueued: "+str([ t.id for t in self.queue])+";"+\
-                   "\nrunning: "+str([ t.id for t in self.running])+"."
-        def savestate(self):
-            f = open("queuestate","w")
-            f.write("queued\n")
-            for t in self.queue:
-                f.write(t.command+"\n")
-            f.write("running\n")
-            for t in self.running:
-                f.write(t.command+"\n")
-            f.write("completed\n")
-            for t in self.completed:
-                f.write(t.command+"\n")
-            f.close()
-    class HostPool():
-        def __init__(self,nhosts=None,hostlist=None,debug=0):
-            """Create a list of host dictionaries. Input is either nhosts,
-            the number of processes your machine supports,
-            or hostlist, a list of host names.
-            hostlist items can be `host' or `host;core' """
-            if hostlist is not None:
-                nhosts = len(hostlist)
-                self.nodes = [ {'free':True,'task':-1}
-                               for i in range(nhosts) ]
-                i=0
-                for h in hostlist:
-                    hh = h.split(';')
-                    if len(hh)==2:
-                        host = hh[0]; core = hh[1]
-                    else:
-                        host = hh; core = None
-                    self.nodes[i]['host'] = host; self.nodes[i]['core'] = core
-                    i+=1
-            elif nhosts is not None:
-                self.nodes = [ {'free':True,'task':-1,'host':None,'core':None}
-                               for i in range(nhosts) ]
-            else: raise LauncherException("HostPool creation needs n or list")
-            self.nhosts = nhosts; self.debug = debug
-        def hosts(self,pool):
-            return [ self.nodes[i] for i in pool ]
-        def requestNodes(self,n):
-            start = 0; found = False    
-            while not found:
-                if start+n>self.nhosts:
-                    return None
-                for i in range(start,start+n):
-                    found = self.nodes[i]['free']
-                    if not found:
-                        start = i+1; break
-            if found:
-                return range(start,start+n)
-            else: return None
-        def occupyNodes(self,pool,id):
-            for n in pool:
-                self.nodes[n]['free'] = False
-                self.nodes[n]['task'] = id
-        def releaseNodes(self,id):
-            for n in self.nodes:
-                if n['task']==id:
-                    if self.debug>0:
-                        print "releasing %s, core %s" % (n['host'],n['core'])
-                    n['free'] = True
-        def nodestring(self,i):
-            if self.nodes[i]['free']:
-                return "X"
-            else: return self.nodes[i]['task']
-        def __repr__(self):
-            return str ([ "%d,:%s" % (i,self.nodestring(i))
-                          for i in range(self.nhosts) ]
-                        )
-        def __len__(self):
-            return self.nhosts
-    def __init__(self,nhosts=1,launcherdir="pylauncher_tmpdir",
-                 commandgenerator=None,commandobject=None,
-                 commandwrap=nowrap,commandprefixer=nowraptwo,
-                 hostlist=None,delay=1.,
-                 **kwargs):
-        self.launcherdir = launcherdir
-        self.debug = kwargs.pop("debug",0)
-        os.system("rm -rf %s ; mkdir %s" % (launcherdir,launcherdir) )
-        self.nodes = self.HostPool(nhosts,hostlist,debug=self.debug)
-        if self.debug>0:
-            print "Starting job on %d hosts" % self.nodes.nhosts
-        self.taskid = 0
-        self.tasks = self.TaskQueue(debug=self.debug);
-        self.maxsimul = 0; self.completed = 0
-        self.queueExhausted = False
-        self.ticks = 0; self.delay = delay
-        if commandgenerator is not None:
-            self.commandgenerator = commandgenerator()
-        else: self.commandgenerator = None
-        self.completionTest = \
-            kwargs.pop("completionTest",defaultCompletionTest)
-        self.completionTestPrep = \
-            kwargs.pop("completionTestPrep",defaultCompletionTestPrep)
-        self.commandobject = commandobject
-        Task.commandwrap = commandwrap
-        Task.commandprefixer = commandprefixer
-        #Task.completionTest = completionTest
-        #Task.completionTestPrep = completionTestPrep
-    def newtask(self):
-        if self.commandgenerator is not None:
-            self.nexttask = self.commandgenerator.next()
-        elif self.commandobject is not None:
-            self.nexttask = self.commandobject.generate()
-        else:
-            print "ERROR can not generate next task"; sys.exit(1)
-        r = self.nexttask; # print r
-        newcommand,tasksize = r
-        if newcommand=="stop":
-            self.queueExhausted = True
-            return None
-        elif newcommand=="stall":
-            return None
-        self.taskid += 1
-        commandline = newcommand
-        task = Task(commandline,tasksize,self.taskid)
-        return task
-    def tick(self):
-        time.sleep(self.delay)
-        self.ticks += 1; self.tasks.savestate()
-        # if self.ticks==self.crashtick: return "finished"
-        if self.debug>0:
-            print "\nt=",self.ticks,"\n",self.tasks,"\n",self.nodes
-        if self.queueExhausted and self.tasks.isEmpty():
-            if self.debug>0:
-                print "\n====\nJob completed:\n#tasks = %d\n#hosts = %d\n" % \
-                      (self.completed,len(self.nodes))
-            return "finished"
-        self.tasks.startQueued(self.nodes)
-        if self.completionTestPrep is not None:
-            self.completionTestPrep(self)
-        completeID = self.tasks.findCompleted()
-        if not completeID is None:
-            self.completed += 1
-            self.nodes.releaseNodes(completeID)
-            if self.commandobject is not None:
-                self.commandobject.expire(completeID)
-            return "expired "+str(completeID)
-        if not self.queueExhausted:
-            while True:
-                newrequest = self.newtask() # make new job and enqueue it
-                if newrequest is  None: break
-                newrequest.setJob(self)
-                self.tasks.enqueue(newrequest)
-        return None
->>>>>>> e441ac193d35754b404de291a95b2e4dc5b5cddd
 
 class RandomSleepTask(Task):
     """Make a task that sleeps for a random amount of time.
@@ -1143,7 +951,6 @@ class RandomSleepTask(Task):
         command = SleepCommandGenerator(nmax=1,tmax=t,tmin=tmin).next()
         Task.__init__(self,Commandline(command),taskid=taskid,completion=completion,**kwargs)
         
-<<<<<<< HEAD
 class testTasksOnSingleNode():
     stampname = "pylauncher_tmp_singlenode_tasktest"
     def setup(self):
@@ -1151,7 +958,7 @@ class testTasksOnSingleNode():
         tmpdir = os.getcwd()+"/"+Executor.default_workdir
         if os.path.isdir(tmpdir):
             shutil.rmtree(tmpdir)
-        self.pool = LocalHostPool(n=1)#OneNodePool( Node(HostName()) )
+        self.pool = LocalHostPool(nhosts=1)#OneNodePool( Node(HostName()) )
     def testLeaveStampOnOneNode(self):
         """testLeaveStampOnOneNode: leave a stamp on a one-node pool"""
         nsleep = 5
@@ -1176,19 +983,21 @@ class testTasks():
     stampname = "pylauncher_tmp_tasktest"
     def setup(self):
         # stamp dir
-        self.stampdir = os.getcwd()+"/"+RandomDir()+"_tasktestdir"
-        if os.path.isdir(self.stampdir):
-            shutil.rmtree(self.stampdir)
-        os.mkdir(self.stampdir)
+        self.stampdir = MakeRandomDir() # os.getcwd()+"/"+RandomDir()+"_tasktestdir"
+        # if os.path.isdir(self.stampdir):
+        #     shutil.rmtree(self.stampdir)
+        # os.mkdir(self.stampdir)
         # tmp dir
-        self.tmpdir = os.getcwd()+"/"+RandomDir()+"_workdir"
-        if os.path.isdir(self.tmpdir):
-            shutil.rmtree(self.tmpdir)
-        os.mkdir(self.tmpdir)
+        self.tmpdir = MakeRandomDir() # os.getcwd()+"/"+RandomDir()+"_workdir"
+        # if os.path.isdir(self.tmpdir):
+        #     shutil.rmtree(self.tmpdir)
+        # os.mkdir(self.tmpdir)
         #
         os.system( "rm -f %s*" % FileCompletion.stamproot )
         os.system( "rm -f %s*" % RandomSleepTask.stamproot )
-        self.ntasks = 10; self.pool = LocalHostPool(n=self.ntasks,workdir=os.getcwd()+"/"+RandomDir())
+        self.workdir = MakeRandomDir()
+        self.ntasks = 10
+        self.pool = LocalHostPool(nhosts=self.ntasks,workdir=self.workdir) # os.getcwd()+"/"+RandomDir())
     def testImmediateIssue(self):
         """testImmediateIssue: make sure tasks are run in the background"""
         import time
@@ -1259,53 +1068,6 @@ class testTasks():
         stamps = [ f for f in dircontent if re.match("%s" % stamproot,f) ]
         print "stamps:",sorted(stamps)
         assert(len(stamps)==self.ntasks)
-=======
-def launchercommandwrap(task,line):
-    id = task.id
-    stamp = task.job.launcherdir+"/"+defaultExpireStamp(id)
-    xfile = task.job.launcherdir+"/exec"+str(id)
-    x = open(xfile,"w")
-    x.write("#!/bin/bash\n\n")
-    x.write(line+" # the actual command\n")
-    #x.write("echo \"expiring "+str(id)+"\" # just a trace message\n")
-    x.write("touch "+stamp+" # let the event loop know that the job is finished\n")
-    x.close(); os.chmod(xfile,stat.S_IXUSR | stat.S_IRUSR | stat.S_IWUSR)
-    return xfile
-def launcherqsubwrap(task,line):
-    id = task.id
-    stamp = task.job.launcherdir+"/"+defaultExpireStamp(id)
-    xfile = task.job.launcherdir+"/exec"+str(id)
-    x = open(xfile,"w")
-    x.write("""#!/bin/bash
-
-#$   -q development
-#$   -V
-#$   -cwd
-#$   -pe 1way 12
-#$   -l h_rt=0:20:00
-#$   -N launchtest
-#$   -j y
-#$   -o $JOB_NAME.oe$JOB_ID
-## #$   -M eijkhout@tacc.utexas.edu
-## #$   -m e
-#$ -A A-ccsc
-
-ibrun """+line+"\n")
-    x.write("echo \"expiring "+str(id)+"\" # just a trace message\n")
-    x.write("touch "+stamp+" # let the event loop know that the job is finished\n")
-    x.close()
-    #print "Creating file <%s> for executing <%s>" % (xfile,line)
-    return xfile
-# this is executed by a Job
-def launcherCompletionTestPrep(job):
-    star = job.launcherdir+"/"+defaultExpireStamproot()+"*"
-    job.stamps = glob.glob(star)
-# this is executed by a Task
-def launcherCompletionTest(task):
-    q = task.job.launcherdir+"/"+defaultExpireStamp(task.id)
-    r = q in task.job.stamps
-    return r
->>>>>>> e441ac193d35754b404de291a95b2e4dc5b5cddd
 
 #
 # different ways of starting up a job
@@ -1598,7 +1360,8 @@ def testStartTaskOnPool():
     fn = "pwd.utest"; word = str(random.random())
     os.system("/bin/rm -f %s" % fn)
     task = Task( Commandline("echo %s > %s" % (word,fn)) )
-    task.start_on_nodes(); time.sleep(1)
+    task.start_on_nodes(pool=LocalHostPool(nhosts=1).request_nodes(1))
+    time.sleep(1)
     with open(fn,"r") as f:
         for l in f:
             l = l.strip(); print l
@@ -1688,7 +1451,7 @@ def ClusterName():
 
 def ClusterHasSharedFileSystem():
     """This test is only used in some unit tests"""
-    return ClusterName() in ["ls4","ls5","stampede","mic"]
+    return ClusterName() in ["ls4","ls5","stampede","stampede2","mic"]
 
 def JobId():
     """This function is installation dependent: it inspects the environment variable
@@ -1698,7 +1461,7 @@ def JobId():
     hostname = ClusterName()
     if hostname=="ls4":
         return os.environ["JOB_ID"]
-    elif hostname in ["ls5","stampede"]:
+    elif hostname in ["ls5","stampede","stampede2"]:
         return os.environ["SLURM_JOB_ID"]
     else:
         return None
@@ -1720,6 +1483,8 @@ def HostListByName(**kwargs):
         return SLURMHostList(tag="",**kwargs)
     elif cluster=="stampede":
         return SLURMHostList(tag=".stampede.tacc.utexas.edu",**kwargs)
+    elif cluster=="stampede2":
+        return SLURMHostList(tag=".stampede2.tacc.utexas.edu",**kwargs)
     elif cluster=="mic":
         return HostList( ["localhost" for i in range(60)] )
     else:
@@ -1764,6 +1529,8 @@ def testPEhostpools():
         assert(len(pool)%24==0)
     elif cluster=="stampede":
         assert(len(pool)%16==0)
+    elif cluster=="stampede2":
+        assert(len(pool)>0)
     elif cluster=="ls4":
         assert(len(pool)%12==0)
     else:
@@ -1776,20 +1543,21 @@ def testPEhostpools():
 class LocalHostPool(HostPool):
     """A host pool based on just the localhost, using the ``LocalExecutor``. This is for testing purposes.
 
-    :param n: (keyword, optional, default=1) number of times the localhost should be listed
+    :param nhosts: (keyword, optional, default=1) number of times the localhost should be listed
     :param workdir: (keyword, optional) workdir for the commandexecutor
     """
     def __init__(self,**kwargs):
-        n = kwargs.pop("n",1)
+        nhosts = kwargs.pop("nhosts",1)
         self.debug = kwargs.pop("debug","")
+        self.workdir=kwargs.pop("workdir",MakeRandomDir())
         HostPool.__init__(
-            self,nhosts=n,commandexecutor=LocalExecutor(
-                debug=self.debug,
-                workdir=kwargs.pop("workdir",None),
+            self, nhosts=nhosts,workdir=self.workdir,
+            commandexecutor=LocalExecutor(
+                debug=self.debug,workdir=self.workdir,
+                #workdir=kwargs.pop("workdir",None),
                 force_workdir=kwargs.pop("force_workdir",False)),
             debug=self.debug,**kwargs)
 
-<<<<<<< HEAD
 def testHostPoolWorkdirforcing():
     os.system("/bin/rm -rf "+Executor.default_workdir)
     os.mkdir(Executor.default_workdir)
@@ -2006,34 +1774,6 @@ class TaskGenerator():
 
 def TaskGeneratorIterate( gen ):
     """In case you want to iterate over a TaskGenerator, use this generator routine"""
-=======
-def ClassicLauncher(commandfile,**kwargs):
-    cores = kwargs.pop("cores",1)
-    job = LauncherJob(commandfile=commandfile,cores=cores,**kwargs)
-    while True:
-        state = job.tick() # delay, recognize expiries, start new jobs
-        if state is not None and re.match('^finished',state):
-            break
-
-def CoreLauncher(commandfile,**kwargs):
-    job = LauncherJob(commandfile=commandfile,cores="file",**kwargs)
-    while True:
-        state = job.tick() # delay, recognize expiries, start new jobs
-        if state is not None and re.match('^finished',state):
-            break
-
-def DynamicLauncher(generator,**kwargs):
-    job = LauncherJob(commandobject=generator,**kwargs)
-    while True:
-        state = job.tick() # delay, recognize expiries, start new jobs
-        if state is not None and re.match('^finished',state):
-            break
-
-def MPILauncher(commandfile,**kwargs):
-    job = LauncherJob(commandfile=commandfile,
-                      commandprefixer=launcheribrunner,
-                      cores="file",**kwargs)
->>>>>>> e441ac193d35754b404de291a95b2e4dc5b5cddd
     while True:
         t = gen.next()
         if t=="stop":
@@ -2214,13 +1954,13 @@ class Executor():
         if os.path.isfile(self.workdir):
             raise LauncherException(
                 "Serious problem creating executor workdir <<%s>>" % self.workdir)
-        elif os.path.isdir(self.workdir):
-            if force_workdir:
-                os.system("/bin/rm -rf %s" % self.workdir)
-            else:
-                raise LauncherException(
-                    "I will not reuse an executor workdir <<%s>>" % self.workdir)
-        os.mkdir(self.workdir)
+        elif not os.path.isdir(self.workdir):
+            os.mkdir(self.workdir)
+            # if force_workdir:
+            #     os.system("/bin/rm -rf %s" % self.workdir)
+            # else:
+            #     raise LauncherException(
+            #         "I will not reuse an executor workdir <<%s>>" % self.workdir)
         if not self.workdir_is_safe():
             raise LauncherException("Unsafe working dir <<%s>>; pls remove" % self.workdir)
         if len(kwargs)>0:
@@ -2236,11 +1976,22 @@ class Executor():
         return
     def release_from_node(self,node):
         return
+    def smallfilenames(self):
+        execfilename = "%s/%s%d" % (self.workdir,self.execstring,self.count)
+        if self.catch_output:
+            if self.append_output is not None:
+                execoutname = self.append_output
+            else: 
+                execoutname =  "%s/%s%d" % (self.workdir,self.outstring,self.count)
+        else:
+            execoutname = ""
+        self.count += 1
+        return execfilename,execoutname
     def wrap(self,command):
         """Take a commandline, write it to a small file, and return the 
         commandline that sources that file
         """
-        execfilename = "%s/%s%d" % (self.workdir,self.execstring,self.count)
+        execfilename,execoutname = self.smallfilenames()
         if os.path.isfile(execfilename):
             raise LauncherException("exec file already exists <<%s>>" % execfilename)
         f = open(execfilename,"w")
@@ -2252,17 +2003,16 @@ class Executor():
         if self.catch_output:
             if self.append_output is not None:
                 pipe = ">>"
-                execoutname = self.append_output
+                #execoutname = self.append_output
             else: 
                 pipe = ">"
-                execoutname =  "%s/%s%d" % (self.workdir,self.outstring,self.count)
+                #execoutname =  "%s/%s%d" % (self.workdir,self.outstring,self.count)
             wrappedcommand = "%s %s %s 2>&1" % (execfilename,pipe,execoutname)
         else:
             wrappedcommand = execfilename
         DebugTraceMsg("file <<%s>>\ncontains <<%s>>\nnew commandline <<%s>>" % \
                           (execfilename,command,wrappedcommand),
                       self.debug,prefix="Exec")
-        self.count += 1
         return wrappedcommand
     def execute(self,command,**kwargs):
         raise LauncherException("Should not call default execute")
@@ -2357,7 +2107,7 @@ def testLocalHostPool():
     tmpdir = os.getcwd()+"/"+Executor.default_workdir
     if os.path.isdir(tmpdir):
         shutil.rmtree(tmpdir)
-    pool = LocalHostPool(n=2,debug="host+exec")
+    pool = LocalHostPool(nhosts=2,debug="host+exec")
     tval = 3
     t1 = RandomSleepTask(taskid=1,t=tval,tmin=tval)
     t2 = RandomSleepTask(taskid=2,t=tval,tmin=tval)
@@ -2380,7 +2130,11 @@ def ssh_client(host,debug=False):
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     if debug:
         print "Create paramiko ssh client to",host
-    ssh.connect(host,port=6999)
+    if re.search('stampede2',host):
+        # stampede2 accepts ssh from node to itself at default port
+        ssh.connect(host)
+    else:
+        ssh.connect(host,port=6999)
     return ssh
 
 class SSHExecutor(Executor):
@@ -2822,10 +2576,12 @@ int main(int argc,char **argv) {
     def testIbrunNodeOccupy(self):
         """testIbrunNodeOccupy: put two parallel tests on the host pool;
         one each on half of the pool."""
-        ibrun_executor = IbrunExecutor(debug="exec",workdir=RandomDir())
+        self.workdir = MakeRandomDir()
+        ibrun_executor = IbrunExecutor(debug="exec",workdir=self.workdir)
         pool = DefaultHostPool(commandexecutor=ibrun_executor)
         if len(pool)%2==1:
-            raise LauncherException("Default hostpool has odd length")
+            raise LauncherException("Default hostpool <<%s>> has odd length" \
+                                    % str( [ str(n.hostname) for n in pool.nodes ] ) )
         nnodes = len(pool)/2
         nslp = 4
         # put a task on half the nodes
@@ -3037,12 +2793,9 @@ class TestLocalLauncherJobs():
     def removecommandfile(self):
         os.system("rm -f %s" % self.fn)
     def setup(self):
-        self.launcherdir = RandomDir()
+        self.launcherdir = MakeRandomDir()
         self.makecommandfile() # this sets self.ncommand
-        tmpdir = os.getcwd()+"/"+Executor.default_workdir
-        if os.path.isdir(tmpdir):
-            shutil.rmtree(tmpdir)
-        self.hostpool = LocalHostPool(n=self.ncommand,workdir=RandomDir())
+        self.hostpool = LocalHostPool(nhosts=self.ncommand,workdir=self.launcherdir)
     def makecommandfile(self):
         """make a commandlines file"""
         self.fn = "unittestlines"; self.ncommand = 6; self.maxsleep = 4
@@ -3413,9 +3166,11 @@ def testChDir():
 
 def testParamJob():
     # first make a C program that parses its argument
-    testprog_name = NoRandomFile() # "pylauncher_tmp_prog_print_id"
-    #os.system("rm -f %s*" % testprog_name)
-    with open(testprog_name+".c",'w') as testprog:
+    testdir = MakeRandomDir()
+    testprog_name = "print_program"
+    print "Making c program <<%s>> in <<%s>>" % (testprog_name,testdir)
+    os.system("pwd")
+    with open( os.path.join(testdir,testprog_name+".c"),'w') as testprog:
         testprog.write("""
 #include <stdlib.h>
 #include <stdio.h>
@@ -3425,7 +3180,7 @@ int main(int argc,char **argv) {
   return 0;
 }
 """)
-    os.system("mpicc -o %s %s.c" % (testprog_name,testprog_name))
+    os.system("cd %s && mpicc -o %s %s.c" % (testdir,testprog_name,testprog_name))
     os.system("/bin/rm -rf %s" % Executor.default_workdir)
     #
     # fn = RandomFile(); ntask = 10
@@ -3452,7 +3207,7 @@ int main(int argc,char **argv) {
 #     ntasks = 4; nsleep = 4
 #     launcherdir = RandomDir(); os.system("/bin/rm -rf %s" % launcherdir)
 #     hostpool = LocalHostPool(
-#         n=2*ntasks,workdir=launcherdir,force_workdir=True)
+#         nhosts=2*ntasks,workdir=launcherdir,force_workdir=True)
 #     fn = RandomFile(); comms = SleepCommandGenerator(tmin=nsleep,tmax=nsleep)
 #     commandfile = open( fn, "w")
 #     for i in range(ntasks):
