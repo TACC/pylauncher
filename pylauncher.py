@@ -1451,7 +1451,7 @@ def ClusterName():
 
 def ClusterHasSharedFileSystem():
     """This test is only used in some unit tests"""
-    return ClusterName() in ["ls4","ls5","stampede","stampede2","mic"]
+    return ClusterName() in ["ls4","ls5","maverick","stampede","stampede2","mic"]
 
 def JobId():
     """This function is installation dependent: it inspects the environment variable
@@ -1461,7 +1461,7 @@ def JobId():
     hostname = ClusterName()
     if hostname=="ls4":
         return os.environ["JOB_ID"]
-    elif hostname in ["ls5","stampede","stampede2"]:
+    elif hostname in ["ls5","maverick","stampede","stampede2"]:
         return os.environ["SLURM_JOB_ID"]
     else:
         return None
@@ -1471,6 +1471,7 @@ def HostListByName(**kwargs):
 
     * ``ls4``: Lonestar4, using SGE
     * ``ls5``: Lonestar5, using SLURM
+    * ``maverick``: Maverick, using SLURM
     * ``stampede``: Stampede, using SLURM
     * ``mic``: Intel Xeon PHI co-processor attached to a compute node
 
@@ -1481,6 +1482,8 @@ def HostListByName(**kwargs):
         return SGEHostList(tag=".ls4.tacc.utexas.edu",**kwargs)
     elif cluster=="ls5": # ls5 nodes don't have fully qualified hostname
         return SLURMHostList(tag="",**kwargs)
+    elif cluster=="maverick":
+        return SLURMHostList(tag=".maverick.tacc.utexas.edu",**kwargs)
     elif cluster=="stampede":
         return SLURMHostList(tag=".stampede.tacc.utexas.edu",**kwargs)
     elif cluster=="stampede2":
@@ -1527,6 +1530,8 @@ def testPEhostpools():
     pool = DefaultHostPool()
     if cluster=="ls5":
         assert(len(pool)%24==0)
+    elif cluster=="maverick":
+        assert(len(pool)%20==0)
     elif cluster=="stampede":
         assert(len(pool)%16==0)
     elif cluster=="stampede2":
@@ -2130,7 +2135,7 @@ def ssh_client(host,debug=False):
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     if debug:
         print "Create paramiko ssh client to",host
-    if re.search('stampede2',host):
+    if re.search('stampede2',host) or re.search('maverick',host):
         # stampede2 accepts ssh from node to itself at default port
         ssh.connect(host)
     else:
@@ -2224,15 +2229,14 @@ class testPermanentSSHconnection():
     def testRemoteSSH(self):
         """testRemoteSSH: This tests whether we we ssh to the right host.
         Create a task that pipes the output of `hostname' to a file,
-        then read that file (why do we do this with subprocess? 
-        it uses the shared filesystem anyway) and compare the contents
-        to where we ssh'ed."""
+        then read that file (using shared file system if present) 
+        and compare the contents to where we ssh'ed."""
         hosts = DefaultHostPool().unique_hostnames()
         if len(hosts)>1:
             print "available hosts:",hosts
             self.setup()
             pool = HostPool(hostlist=HostList([hosts[1]]),
-                            commandexecutor=SSHExecutor())
+                            commandexecutor=SSHExecutor(debug="exec"))
             fn = "testremotessh"; fn = os.getcwd()+"/"+fn
             t = Task( Commandline("hostname > %s; sleep 1" % fn) )
             t.start_on_nodes(pool=HostLocator(pool=pool,extent=1,offset=0))
