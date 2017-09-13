@@ -100,3 +100,13 @@ This example uses a provided program, ``parallel.c`` of two parameters:
 The program will report the size of its communicator, that is,
 on how many cores it is running.
 
+----------------
+Job restarting
+----------------
+
+If your job runs out of time, it will leave a file ``queuestate`` that
+describes which tasks were completed, which ones were running, and
+which ones were still scheduled to fun. You can submit a job using the
+``ResumeClassicLauncher``:
+
+.. literalinclude:: ../../examples/resume/example_resume_launcher.py
