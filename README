@@ -3,6 +3,7 @@ This is the README file for the
   PyLauncher
 
 by 
+
   Victor Eijkhout
   eijkhout@tacc.utexas.edu
   
@@ -17,7 +18,7 @@ Sources
 
 The latest version of the pylauncher is always available from the 
 repository:
-https://bitbucket.org/VictorEijkhout/pylauncher
+https://github.com/TACC/pylauncher
 
 The only required sources for running are pylaucher.py and hostlist.py 
 (if the latter is already installed on your system you don't even need that.)

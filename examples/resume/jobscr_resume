@@ -9,5 +9,5 @@
 #SBATCH -A A-ccsc
 
 module load python
-#PYTHONPATH=..:${PYTHONPATH}  python example_classic_launcher.py
+
 PYTHONPATH=../..:${PYTHONPATH}  python example_resume_launcher.py

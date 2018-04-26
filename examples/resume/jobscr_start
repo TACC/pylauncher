@@ -14,5 +14,12 @@
 #SBATCH -A A-ccsc
 
 module load python
+##
+## first make the commandlines files
+##
+PYTHONPATH=../../:${PYTHONPATH} python ../make_commandlines.py 1000 10 20
+
+##
+## then run the launcher
+##
 PYTHONPATH=../../:${PYTHONPATH}  python example_classic_launcher.py
-#PYTHONPATH=..:${PYTHONPATH}  python example_resume_launcher.py

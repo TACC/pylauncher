@@ -1,5 +1,5 @@
 docstring = \
-"""pylauncher.py version 2.5 UNRELEASED
+"""pylauncher.py version 2.6 UNRELEASED
 
 A python based launcher utility for packaging sequential or
 low parallel jobs in one big parallel job
@@ -10,6 +10,8 @@ eijkhout@tacc.utexas.edu
 
 changelog = """
 Change log
+2.6
+- better host detection for s2-skx
 2.5
 - incorporates Stampede2, minor other edits
 2.4
@@ -97,7 +99,7 @@ def NoRandomDir():
         shutil.rmtree(dirname)
     return dirname
 def MakeRandomDir():
-    dirname = NoRandomDir()
+    dirname = RandomDir()
     if not os.path.isdir(dirname): os.mkdir(dirname)
     return dirname
 def RandomFile(base=""):
@@ -1434,6 +1436,14 @@ def ClusterName():
     """Assuming that a node name is along the lines of ``c123-456.cluster.tacc.utexas.edu``
     this returns the second member. Otherwise it returns None.
     """
+    # name detection based on environment variables
+    if "TACC_SYSTEM" in os.environ:
+        system = os.environ["TACC_SYSTEM"]
+        if "TACC_NODE_TYPE" in os.environ:
+            system += "-" + os.environ["TACC_NODE_TYPE"]
+        return system
+
+    # name detection by splitting TACC hostname
     longname = HostName(); namesplit = longname.split(".")
     # case: mic on stampede
     nodesplit = namesplit[0].split("-")
@@ -1486,7 +1496,7 @@ def HostListByName(**kwargs):
         return SLURMHostList(tag=".maverick.tacc.utexas.edu",**kwargs)
     elif cluster=="stampede":
         return SLURMHostList(tag=".stampede.tacc.utexas.edu",**kwargs)
-    elif cluster=="stampede2":
+    elif cluster in ["stampede2","stampede2-skx"]:
         return SLURMHostList(tag=".stampede2.tacc.utexas.edu",**kwargs)
     elif cluster=="mic":
         return HostList( ["localhost" for i in range(60)] )
@@ -3185,7 +3195,7 @@ int main(int argc,char **argv) {
 }
 """)
     os.system("cd %s && mpicc -o %s %s.c" % (testdir,testprog_name,testprog_name))
-    os.system("/bin/rm -rf %s" % Executor.default_workdir)
+    ###??? os.system("/bin/rm -rf %s" % Executor.default_workdir)
     #
     # fn = RandomFile(); ntask = 10
     # with open(fn,"w") as commandfile:
