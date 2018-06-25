@@ -1,5 +1,5 @@
 docstring = \
-"""pylauncher.py version 2.7 UNRELEASED
+"""pylauncher.py version 3.0 UNRELEASED
 
 A python based launcher utility for packaging sequential or
 low parallel jobs in one big parallel job
@@ -10,9 +10,12 @@ eijkhout@tacc.utexas.edu
 
 changelog = """
 Change log
+3.0
+- gradually going over to python3, only print syntax for now
+- setting PYLAUNCHER_ENABLED for Lmod
+
 2.7
 - more compact task reporting
-- going over to python3
 2.6
 - better host detection for s2-skx
 2.5
@@ -75,7 +78,7 @@ def DebugTraceMsg(msg,sw=False,prefix=""):
     global runtime,debugtracefile
     if not sw: return
     if msg[0]=="\n":
-        print()
+        print
         msg = msg[1:]
     longprefix = ""#"[t=%5.3f] " % time.time()-runtime
     if prefix!="":
@@ -291,7 +294,7 @@ class CommandlineGenerator():
         DebugTraceMsg("gettingthe commandline generator to abort",
                       self.debug,prefix="Cmd")
         self.stopped = True
-    def __next__(self):
+    def next(self):
         """Produce the next Commandline object, or return an object telling that the
         generator is stalling or has stopped"""
         if self.stopped:
@@ -310,10 +313,7 @@ class CommandlineGenerator():
             self.njobs += 1; return j
         else:
             return Commandline("stall")
-    def __iter__(self):
-        return self
-    def next(self): # python 2 compatibility
-        return self.__next__()
+    def __iter__(self): return self
     def __len__(self): return len(self.list)
 
 def testGeneratorList():
@@ -336,7 +336,6 @@ class testGeneratorStuff():
         gen = CommandlineGenerator(list=clist,nmax=len(clist)+1)
         count = 0
         for g in gen:
-            print("gen %d" % (count+1))
             count += 1; gen.list.append(5) # this should be in an inherited class
         print("seen %d commands" % count)
         assert(count==len(clist)+1)
@@ -675,7 +674,7 @@ class testDirectoryCommandlineGenerators():
         """testDirectoryCommandlineGeneratorFromZero: start with empty directory"""
         # first we create the generator on an empty directory
         gen = DirectoryCommandlineGenerator(self.dirname,self.fileroot)
-        g = gen.__next__()
+        g = gen.next()
         assert(g["command"]=="stall")
         # create the command files
         self.makefiles()
@@ -693,7 +692,7 @@ class testDirectoryCommandlineGenerators():
         assert(r=="stalling")
         # now actually make the files
         self.makefiles()
-        print("files:",self.files)
+        print "files:",self.files
         assert(len(self.files)==len(self.nums)+1)
         # now process the files
         starttime = time.time()
@@ -701,7 +700,8 @@ class testDirectoryCommandlineGenerators():
             r = j.tick(); print(r)
             if r=="finished": break
             if time.time()-starttime>self.nsleep+len(self.nums)*j.delay+1:
-                print("This is taking too long"); assert(False)
+                print("This is taking too long")
+                assert(False)
         assert(True)
 
 def MakeRandomCommandFile(fn,ncommand,**kwargs):
@@ -2516,7 +2516,7 @@ class testLeaveSSHOutput():
         taskid = RandomID()
         start = time.time()
         tmpdir = self.dirs[0]; tmpfile = RandomFile(); absdir = os.getcwd()+"/"+tmpdir
-        print("going to create %s in %s" % (tmpfile,tmpdir))
+        print "going to create %s in %s" % (tmpfile,tmpdir)
         t = Task( Commandline("cd %s; touch %s" % (absdir,tmpfile)),
                   taskid=taskid,
                   completion=FileCompletion(taskid=taskid),debug="task+exec+ssh")
@@ -2538,7 +2538,7 @@ class testLeaveSSHOutput():
         taskid = RandomID()
         start = time.time()
         tmpdir = self.dirs[0]; tmpfile = RandomFile(); absdir = os.getcwd()+"/"+tmpdir
-        print("going to create %s in %s" % (tmpfile,tmpdir))
+        print "going to create %s in %s" % (tmpfile,tmpdir)
         t = Task( Commandline("cd %s; touch %s" % (tmpdir,tmpfile)),
                   taskid=taskid,
                   completion=FileCompletion(taskid=taskid),debug="task+exec+ssh")
@@ -3464,6 +3464,8 @@ def MICLauncher(commandfile,**kwargs):
         debug=debug,**kwargs)
     job.run()
     print(job.final_report())
+
+os.environ["PYLAUNCHER_ENABLED"] = "1"
 
 if __name__=="__main__":
     testPEhostpools()

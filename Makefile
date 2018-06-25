@@ -51,7 +51,8 @@ info ::
 	@echo "make upload : copy html docs to the TACC website"
 upload :
 	cp docs/launcher.pptx docs/PyLauncher.pdf ${HOME}/DropBox/Scicomp
-	scp -r docs/html/* ve343@sftp.austin.utexas.edu:/DepartmentalDirectories/tacc/home/veijkhout/public_html/pylauncher_docs/
+	# html upload disabled
+
 info ::
 	@echo "make github"
 .PHONY: github
@@ -66,12 +67,15 @@ info ::
 NOSE = nosetests-2.7
 VERBOSE = 0
 unittests :
-	@${NOSE} ` case ${VERBOSE} in ( yes | y | 1 ) echo "--verbose" ;; esac` pylauncher.py
+	@${NOSE} \
+	  ` case ${VERBOSE} in ( yes | y | 1 ) echo "--verbose" ;; esac` \
+	  pylauncher.py
 
 info ::
 	@echo "make clean"
 clean ::
-	/bin/rm -rf *~ *.pyc pylauncher_tmp* *expire* queuestate* unittestlines
-	/bin/rm -rf docs/rst/_build docs/rst/*~
+	@/bin/rm -rf *~ *.pyc __pycache__ \
+	  pylauncher_tmp* *expire* queuestate* unittestlines \
+	  docs/rst/_build docs/rst/*~
 	cd examples ; make clean
 	cd tutorial ; make clean

@@ -7,8 +7,6 @@
 #                    Thomas Bellman <bellman@nsc.liu.se> and
 #                    Pär Andersson <paran@nsc.liu.se>,
 #                    National Supercomputer Centre
-#
-# Edits for python3: Victor Eijkhout (eijkhout@tacc.utexas.edu)
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,7 +34,7 @@ corner cases the behaviour of this module have not been compared for
 compatibility with pdsh/dshbak/SLURM et al.
 """
 
-__version__ = "1.17"
+__version__ = "1.14"
 
 import re
 import itertools
@@ -76,12 +74,12 @@ def expand_hostlist(hostlist, allow_duplicates=False, sort=False):
         elif c == "]": bracket_level -= 1
 
         if bracket_level > 1:
-            raise BadHostlist("nested brackets")
+            raise BadHostlist, "nested brackets"
         elif bracket_level < 0:
-            raise BadHostlist("unbalanced brackets")
+            raise BadHostlist, "unbalanced brackets"
 
     if bracket_level > 0:
-        raise BadHostlist("unbalanced brackets")
+        raise BadHostlist, "unbalanced brackets"
 
     if not allow_duplicates:
         results = remove_duplicates(results)
@@ -118,7 +116,7 @@ def expand_part(s):
     # Combine our list with the list from the expansion of the rest
     # (but guard against too large results first)
     if len(us_expanded) * len(rest_expanded) > MAX_SIZE:
-        raise BadHostlist("results too large")
+        raise BadHostlist, "results too large"
 
     return [us_part + rest_part
             for us_part in us_expanded
@@ -144,7 +142,7 @@ def expand_range(prefix, range_):
     # Otherwise split low-high
     m = re.match(r'^([0-9]+)-([0-9]+)$', range_)
     if not m:
-        raise BadHostlist("bad range")
+        raise BadHostlist, "bad range"
 
     (s_low, s_high) = m.group(1,2)
     low = int(s_low)
@@ -152,9 +150,9 @@ def expand_range(prefix, range_):
     width = len(s_low)
 
     if high < low:
-        raise BadHostlist("start > stop")
+        raise BadHostlist, "start > stop"
     elif high - low > MAX_SIZE:
-        raise BadHostlist("range too large")
+        raise BadHostlist, "range too large"
 
     results = []
     for i in xrange(low, high+1):
@@ -200,7 +198,7 @@ def collect_hostlist(hosts, silently_discard_bad = False):
             if silently_discard_bad:
                 continue
             else:
-                raise BadHostlist("forbidden character")
+                raise BadHostlist, "forbidden character"
 
         left_right.append((host, ""))
 
@@ -378,11 +376,11 @@ def parse_slurm_tasks_per_node(s):
             else:
                 repetitions = int(repetitions)
             if repetitions > MAX_SIZE:
-                raise BadHostlist("task list repetitions too large")
+                raise BadHostlist, "task list repetitions too large"
             for i in range(repetitions):
                 res.append(tasks)
         else:
-            raise BadHostlist("bad task list syntax")
+            raise BadHostlist, "bad task list syntax"
     return res
 
 #

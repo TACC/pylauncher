@@ -29,7 +29,7 @@ submit :
 	@export HOSTNAME=`hostname -f | awk -F "." '{print $$2}'` ; \
 	  export found="no" ; \
 	  case $$HOSTNAME in \
-	    ( stampede ) export found="yes" ;; \
+	    ( stampede2 ) export found="yes" ;; \
 	    ( ls5 ) export found="yes" ;; \
 	    esac ; \
 	  if [ "$$found" = "no" ] ; then echo "Unknown host `hostname -f`" ; exit 1 ; fi ; \
