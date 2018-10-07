@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from pylauncher import *
+from pylauncher3 import *
 
 ##
 ## A directory based launcher, largely copied from the ClassicLauncher definition

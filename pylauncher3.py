@@ -59,7 +59,7 @@ import stat
 import subprocess
 import sys
 import time
-import hostlist as hs
+import hostlist3 as hs
 
 class LauncherException(Exception):
     """A very basic exception mechanism"""
@@ -637,7 +637,7 @@ class testDirectoryCommandlineGenerators():
     def makejob(self,gen):
         debug="job+command+task"; workdir = NoRandomDir()
         return LauncherJob( 
-            hostpool=HostPool( hostlist=HostListByName(),
+            hostpool=HostPool( hostlist=HostListByName(debug=debug),
                                commandexecutor=SSHExecutor(workdir=workdir,debug=debug),
                                debug=debug ),
             taskgenerator=TaskGenerator( gen,
@@ -692,7 +692,7 @@ class testDirectoryCommandlineGenerators():
         assert(r=="stalling")
         # now actually make the files
         self.makefiles()
-        print "files:",self.files
+        print("files:",self.files)
         assert(len(self.files)==len(self.nums)+1)
         # now process the files
         starttime = time.time()
@@ -1322,10 +1322,14 @@ class HostPool(HostPoolBase):
             raise LauncherException("hostlist argument needs to be derived from HostList")
         nhosts = kwargs.pop("nhosts",None)
         if hostlist is not None:
+            if self.debug:
+                print("Making hostpool on %s" % str(hostlist))
             nhosts = len(hostlist)
             for h in hostlist:
                 self.append_node(host=h['host'],core = h['core'])
         elif nhosts is not None:
+            if self.debug:
+                print("Making hostpool size %d on localhost" % nhosts)
             localhost = HostName()
             hostlist = [ localhost for i in range(nhosts) ]
             for i in range(nhosts):
@@ -1425,6 +1429,8 @@ class HostList():
     def __iter__(self):
         for h in self.hostlist:
             yield h
+    def __str__(self):
+        return str(self.hostlist)
 
 ####
 #### Customizable section
@@ -1480,7 +1486,7 @@ def ClusterName():
 
 def ClusterHasSharedFileSystem():
     """This test is only used in some unit tests"""
-    return ClusterName() in ["ls4","ls5","maverick","stampede","stampede2","mic"]
+    return ClusterName() in ["ls4","ls5","maverick","stampede","stampede2","stampede2-knl","stampede2-skx","mic"]
 
 def JobId():
     """This function is installation dependent: it inspects the environment variable
@@ -1490,7 +1496,7 @@ def JobId():
     hostname = ClusterName()
     if hostname=="ls4":
         return os.environ["JOB_ID"]
-    elif hostname in ["ls5","maverick","stampede","stampede2"]:
+    elif hostname in ["ls5","maverick","stampede","stampede2","stampede2-knl","stampede2-skx"]:
         return os.environ["SLURM_JOB_ID"]
     else:
         return None
@@ -1506,24 +1512,29 @@ def HostListByName(**kwargs):
 
     We return a trivial hostlist otherwise.
     """
+    debugs = kwargs.pop("debug","")
+    debug = re.search("host",debugs)
     cluster = ClusterName()
     if cluster=="ls4":
-        return SGEHostList(tag=".ls4.tacc.utexas.edu",**kwargs)
+        hostlist = SGEHostList(tag=".ls4.tacc.utexas.edu",**kwargs)
     elif cluster=="ls5": # ls5 nodes don't have fully qualified hostname
-        return SLURMHostList(tag="",**kwargs)
+        hostlist = SLURMHostList(tag="",**kwargs)
     elif cluster=="maverick":
-        return SLURMHostList(tag=".maverick.tacc.utexas.edu",**kwargs)
+        hostlist = SLURMHostList(tag=".maverick.tacc.utexas.edu",**kwargs)
     elif cluster=="stampede":
-        return SLURMHostList(tag=".stampede.tacc.utexas.edu",**kwargs)
-    elif cluster in ["stampede2","stampede2-skx"]:
-        return SLURMHostList(tag=".stampede2.tacc.utexas.edu",**kwargs)
+        hostlist = SLURMHostList(tag=".stampede.tacc.utexas.edu",**kwargs)
+    elif cluster in ["stampede2","stampede2-knl","stampede2-skx"]:
+        hostlist = SLURMHostList(tag=".stampede2.tacc.utexas.edu",**kwargs)
     elif cluster=="mic":
-        return HostList( ["localhost" for i in range(60)] )
+        hostlist = HostList( ["localhost" for i in range(60)] )
     else:
-        return HostList(hostlist=[HostName()])
+        hostlist = HostList(hostlist=[HostName()])
+    if debug:
+        print("Hostlist on %s : %s" % (cluster,str(hostlist)))
+    return hostlist
         
 def testTACChostlist():
-    for h in HostListByName():
+    for h in HostListByName(debug="host"):
         print("hostfile line:",h)
         assert( 'core' in h and 'host' in h )
         host = h["host"].split(".")
@@ -1535,7 +1546,7 @@ class DefaultHostPool(HostPool):
     """
     def __init__(self,**kwargs):
         debugs = kwargs.pop("debug","")
-        hostlist = kwargs.pop("hostlist",HostListByName())
+        hostlist = kwargs.pop("hostlist",HostListByName(debug=debugs))
         commandexecutor = kwargs.pop("commandexecutor",None)
         if commandexecutor is None:
             if ClusterName() is not None:
@@ -1563,7 +1574,7 @@ def testPEhostpools():
         assert(len(pool)%20==0)
     elif cluster=="stampede":
         assert(len(pool)%16==0)
-    elif cluster=="stampede2":
+    elif cluster in ["stampede2","stampede2-knl","stampede2-skx"]:
         assert(len(pool)>0)
     elif cluster=="ls4":
         assert(len(pool)%12==0)
@@ -2516,7 +2527,7 @@ class testLeaveSSHOutput():
         taskid = RandomID()
         start = time.time()
         tmpdir = self.dirs[0]; tmpfile = RandomFile(); absdir = os.getcwd()+"/"+tmpdir
-        print "going to create %s in %s" % (tmpfile,tmpdir)
+        print("going to create %s in %s" % (tmpfile,tmpdir))
         t = Task( Commandline("cd %s; touch %s" % (absdir,tmpfile)),
                   taskid=taskid,
                   completion=FileCompletion(taskid=taskid),debug="task+exec+ssh")
@@ -2538,7 +2549,7 @@ class testLeaveSSHOutput():
         taskid = RandomID()
         start = time.time()
         tmpdir = self.dirs[0]; tmpfile = RandomFile(); absdir = os.getcwd()+"/"+tmpdir
-        print "going to create %s in %s" % (tmpfile,tmpdir)
+        print("going to create %s in %s" % (tmpfile,tmpdir))
         t = Task( Commandline("cd %s; touch %s" % (tmpdir,tmpfile)),
                   taskid=taskid,
                   completion=FileCompletion(taskid=taskid),debug="task+exec+ssh")
@@ -3165,7 +3176,7 @@ class TestSSHLauncherJobs():
 class testIBRUNLauncherJobs():
     def setup(self):
         self.launcherdir = NoRandomDir()
-        self.hostpool = HostPool( hostlist=HostListByName(),
+        self.hostpool = HostPool( hostlist=HostListByName(debug="host"),
                  commandexecutor=IbrunExecutor(workdir=self.launcherdir,debug="exec,ssh"),
                                   debug="host,task")
         self.makecommandfile()
@@ -3357,7 +3368,7 @@ def ClassicLauncher(commandfile,*args,**kwargs):
     else:
         generator = FileCommandlineGenerator(commandfile,cores=cores,debug=debug)
     job = LauncherJob(
-        hostpool=HostPool( hostlist=HostListByName(),
+        hostpool=HostPool( hostlist=HostListByName(debug=debug),
             commandexecutor=SSHExecutor(workdir=workdir,debug=debug), debug=debug ),
         taskgenerator=TaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
@@ -3391,7 +3402,7 @@ def IbrunLauncher(commandfile,**kwargs):
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     cores = kwargs.pop("cores",4)
     job = LauncherJob(
-        hostpool=HostPool( hostlist=HostListByName(),
+        hostpool=HostPool( hostlist=HostListByName(debug=debug),
             commandexecutor=IbrunExecutor(workdir=workdir,debug=debug), debug=debug ),
         taskgenerator=TaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
@@ -3421,7 +3432,7 @@ class DynamicLauncher(LauncherJob):
         jobid = kwargs.pop("jobid",JobId())
         debug = kwargs.pop("debug","")
         hostpool = kwargs.pop("hostpool",
-            HostPool( hostlist=HostListByName(),
+            HostPool( hostlist=HostListByName(debug=debug),
                       commandexecutor=SSHExecutor(workdir=workdir,debug=debug), 
                       debug=debug ))
         workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
@@ -3452,7 +3463,7 @@ def MICLauncher(commandfile,**kwargs):
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     cores = kwargs.pop("cores",1)
     job = LauncherJob(
-        hostpool=HostPool( hostlist=HostListByName(),
+        hostpool=HostPool( hostlist=HostListByName(debug=debug),
             commandexecutor=LocalExecutor(
                 prefix="/bin/sh ",workdir=workdir,debug=debug), 
                            debug=debug ),

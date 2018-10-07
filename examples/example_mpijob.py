@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import pylauncher
+import pylauncher3
 
-pylauncher.IbrunLauncher("parallellines",cores="file",
+pylauncher3.IbrunLauncher("parallellines",cores="file",
                          debug="job+host+task+exec")

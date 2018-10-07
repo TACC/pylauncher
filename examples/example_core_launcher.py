@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
-import pylauncher
+import pylauncher3
 
 ##
 ## Emulate the classic launcher, using a one liner
 ##
 
-pylauncher.ClassicLauncher("commandlines",
+pylauncher3.ClassicLauncher("commandlines",
                            debug="job+task+host+exec+command",
                            cores=2)
 
