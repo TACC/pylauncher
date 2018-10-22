@@ -106,6 +106,18 @@ option to the launcher command.
 .. literalinclude:: ../../examples/example_truncate_launcher.py
 
 ----------------
+Job ID
+----------------
+
+The macro
+
+  ::
+
+  PYL_ID
+
+gets expanded to the task ID on the commandline.
+
+----------------
 Job restarting
 ----------------
 

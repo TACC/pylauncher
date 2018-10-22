@@ -1,36 +1,24 @@
 
-
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
-
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>Introduction and general usage &mdash; PyLauncher 2.0 documentation</title>
-    
-    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <title>Introduction and general usage &#8212; PyLauncher 2.0 documentation</title>
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '',
-        VERSION:     '2.0',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true
-      };
-    </script>
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
-    <link rel="top" title="PyLauncher 2.0 documentation" href="index.html" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="A quick tutorial" href="tutorial.html" />
     <link rel="prev" title="Welcome to PyLauncher’s documentation!" href="index.html" /> 
-  </head>
-  <body>
-    <div class="related">
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -45,14 +33,14 @@
         <li class="right" >
           <a href="index.html" title="Welcome to PyLauncher’s documentation!"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">PyLauncher 2.0 documentation</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">PyLauncher 2.0 documentation</a> &#187;</li> 
       </ul>
     </div>  
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
-          <div class="body">
+          <div class="body" role="main">
             
   <div class="section" id="module-pylauncher">
 <span id="introduction-and-general-usage"></span><h1>Introduction and general usage<a class="headerlink" href="#module-pylauncher" title="Permalink to this headline">¶</a></h1>
@@ -65,13 +53,13 @@ Many cluster scheduling systems do not allow you to
 submit a large number of small jobs (and it would probably
 lower your priority!) so it would be a good idea
 to package them into one large parallel job.</p>
-<p>Let&#8217;s say that you have 4000 serial jobs, and your cluster allows
+<p>Let’s say that you have 4000 serial jobs, and your cluster allows
 you to allocate 400 cores, then packing up the serial jobs could
 be executed on those 400 cores, in approximately the time of 10 serial jobs.</p>
 <p>The tool to do this packing is called a <em>parametric job launcher</em>.
-The &#8216;parametric&#8217; part refers to the fact that most of the time your
+The ‘parametric’ part refers to the fact that most of the time your
 serial jobs will be the same program, just invoked with a different input parameter.
-One also talks of a &#8216;parameter sweep&#8217; for the whole process.</p>
+One also talks of a ‘parameter sweep’ for the whole process.</p>
 <p>A simple launcher scenario would take a file with command lines,
 and give them out cyclicly to the available cores. This mode
 is not optimal, since one core could wind up with a few processes
@@ -86,7 +74,7 @@ to ignore.</p>
 <p>The pylauncher module supports such scenarios.</p>
 </div>
 <div class="section" id="here-s-what-i-want-to-know-do-i-have-to-learn-python">
-<h2>Here&#8217;s what I want to know: do I have to learn python?<a class="headerlink" href="#here-s-what-i-want-to-know-do-i-have-to-learn-python" title="Permalink to this headline">¶</a></h2>
+<h2>Here’s what I want to know: do I have to learn python?<a class="headerlink" href="#here-s-what-i-want-to-know-do-i-have-to-learn-python" title="Permalink to this headline">¶</a></h2>
 <p>Short answer: probably not. The pylauncher utility is
 written in python, and to use it you have to write a few lines of python.
 However, for most common scenarios there are example scripts that you
@@ -94,8 +82,8 @@ can just copy.</p>
 <p>Longer answer: only if you want to get ambitious.
 For common scenarios there are single function calls which you
 can copy from example scripts. However, the launcher is highly customizable,
-and to use that functionality you need to understand something about python&#8217;s
-classes and you may even have to code your own event loop. That&#8217;s the price you
+and to use that functionality you need to understand something about python’s
+classes and you may even have to code your own event loop. That’s the price you
 pay for a very powerful tool.</p>
 </div>
 <div class="section" id="realization">
@@ -112,8 +100,8 @@ By inspecting the source it should be clear how to customize
 the launcher for other schedulers and other environments.</p>
 <p>If you write such customizations, please contact the author.
 Ideally, you would fork the repository
-<a class="reference external" href="https://bitbucket.org/VictorEijkhout/pylauncher">https://bitbucket.org/VictorEijkhout/pylauncher</a>
-and let the author re-absorb that.</p>
+<a class="reference external" href="https://github.com/TACC/pylauncher">https://github.com/TACC/pylauncher</a>
+and generate a pull request.</p>
 </div>
 </div>
 
@@ -121,13 +109,13 @@ and let the author re-absorb that.</p>
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar">
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
   <h3><a href="index.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Introduction and general usage</a><ul>
 <li><a class="reference internal" href="#motivation">Motivation</a></li>
-<li><a class="reference internal" href="#here-s-what-i-want-to-know-do-i-have-to-learn-python">Here&#8217;s what I want to know: do I have to learn python?</a></li>
+<li><a class="reference internal" href="#here-s-what-i-want-to-know-do-i-have-to-learn-python">Here’s what I want to know: do I have to learn python?</a></li>
 <li><a class="reference internal" href="#realization">Realization</a></li>
 </ul>
 </li>
@@ -135,33 +123,34 @@ and let the author re-absorb that.</p>
 
   <h4>Previous topic</h4>
   <p class="topless"><a href="index.html"
-                        title="previous chapter">Welcome to PyLauncher&#8217;s documentation!</a></p>
+                        title="previous chapter">Welcome to PyLauncher’s documentation!</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="tutorial.html"
                         title="next chapter">A quick tutorial</a></p>
-  <h3>This Page</h3>
-  <ul class="this-page-menu">
-    <li><a href="_sources/introduction.txt"
-           rel="nofollow">Show Source</a></li>
-  </ul>
-<div id="searchbox" style="display: none">
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/introduction.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
+    <div class="searchformwrapper">
     <form class="search" action="search.html" method="get">
       <input type="text" name="q" />
       <input type="submit" value="Go" />
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
-    <p class="searchtip" style="font-size: 90%">
-    Enter search terms or a module, class or function name.
-    </p>
+    </div>
 </div>
 <script type="text/javascript">$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="related">
+    <div class="related" role="navigation" aria-label="related navigation">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -176,12 +165,12 @@ and let the author re-absorb that.</p>
         <li class="right" >
           <a href="index.html" title="Welcome to PyLauncher’s documentation!"
              >previous</a> |</li>
-        <li><a href="index.html">PyLauncher 2.0 documentation</a> &raquo;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">PyLauncher 2.0 documentation</a> &#187;</li> 
       </ul>
     </div>
-    <div class="footer">
-        &copy; Copyright 2013, Victor Eijkhout.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2013, Victor Eijkhout.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.7.
     </div>
   </body>
 </html>

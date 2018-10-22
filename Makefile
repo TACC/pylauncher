@@ -51,7 +51,9 @@ info ::
 	@echo "make upload : copy html docs to the TACC website"
 upload :
 	cp docs/launcher.pptx docs/PyLauncher.pdf ${HOME}/DropBox/Scicomp
-	# html upload disabled
+	@for f in ` git status | awk '/modified:/ {print $$2}' ` ; do \
+	  git add $$f ; \
+	done
 
 info ::
 	@echo "make github"
