@@ -13,7 +13,7 @@ Batch operation
 ===============
 
 The most common usage scenario is to use the launcher to bundle many small jobs
-into a single batch submission on a cluster. In that case, just put
+into a single batch submission on a cluster. In that case, put
 
   ::
 
@@ -24,16 +24,6 @@ into a single batch submission on a cluster. In that case, just put
   python your_launcher_file.py
 
 in the jobscript. 
-
-If you are using TACC's stampede cluster, and you want to run the launcher script
-on the Intel Xeon PHI co-processor, do
-
-  ::
-
-  micrun /mic/python your_launcher_file.py
-
-where '/mic/python' is the path to a python that is compiled for MIC.
-Currently no such python is officially available on Stampede.
 
 
 ========
@@ -99,6 +89,21 @@ This example uses a provided program, ``parallel.c`` of two parameters:
 
 The program will report the size of its communicator, that is,
 on how many cores it is running.
+
+----------------
+Job timeout
+----------------
+
+If individual tasks can take a varying amount of time and you may want
+to kill them when they overrun some limit, you can add the
+
+  ::
+
+  taskmaxruntime=30
+
+option to the launcher command.
+
+.. literalinclude:: ../../examples/example_truncate_launcher.py
 
 ----------------
 Job restarting
