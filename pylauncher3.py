@@ -2216,7 +2216,7 @@ def ssh_client(host,debug=False):
         # stampede2 accepts ssh from node to itself at default port
         ssh.connect(host)
     else:
-        ssh.connect(host,port=6999)
+        ssh.connect(host) # port=6999)
     return ssh
 
 class SSHExecutor(Executor):
