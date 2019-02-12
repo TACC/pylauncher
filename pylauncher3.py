@@ -893,6 +893,7 @@ class Task():
     def line_with_completion(self):
         """Return the task's commandline with completion attached"""
         line = re.sub("PYL_ID",str(self.taskid),self.command)
+        self.actual_command = line
         return self.completion.attach(line)
     def isRunning(self):
         return self.has_started
