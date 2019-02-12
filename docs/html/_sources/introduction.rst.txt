@@ -74,5 +74,6 @@ the launcher for other schedulers and other environments.
 
 If you write such customizations, please contact the author.
 Ideally, you would fork the repository
-https://bitbucket.org/VictorEijkhout/pylauncher
-and let the author re-absorb that.
+https://github.com/TACC/pylauncher
+and generate a pull request.
+
