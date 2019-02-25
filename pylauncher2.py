@@ -10,6 +10,8 @@ eijkhout@tacc.utexas.edu
 
 changelog = """
 Change log
+3.0
+- remove 6999 port after ls5 upgrade
 2.7
 - more compact task reporting
 2.6
@@ -2192,11 +2194,7 @@ def ssh_client(host,debug=False):
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     if debug:
         print "Create paramiko ssh client to",host
-    if re.search('stampede2',host) or re.search('maverick',host):
-        # stampede2 accepts ssh from node to itself at default port
-        ssh.connect(host)
-    else:
-        ssh.connect(host,port=6999)
+    ssh.connect(host)
     return ssh
 
 class SSHExecutor(Executor):
