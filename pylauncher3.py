@@ -300,12 +300,14 @@ class CommandlineGenerator():
         if self.stopped:
             DebugTraceMsg("stopping the commandline generator",
                           self.debug,prefix="Cmd")
-            raise StopIteration
+            return Commandline("stop")
+            #raise StopIteration
         elif ( len(self.list)==0 and self.nmax!=0 ) or \
                 ( self.nmax>0 and self.njobs==self.nmax ):
             DebugTraceMsg("time to stop commandline generator",
                           self.debug,prefix="Cmd")
-            raise StopIteration
+            return Commandline("stop")
+            #raise StopIteration
         elif len(self.list)>0:
             j = self.list[0]; self.list = self.list[1:]
             DebugTraceMsg("Popping command off list <<%s>>" % str(j),
@@ -2627,13 +2629,19 @@ class IbrunExecutor(Executor):
         pool = kwargs.pop("pool",None)
         if pool is None:
             raise LauncherException("SSHExecutor needs explicit HostPool")
+        wrapped_command = self.wrap(command)
         stdout = kwargs.pop("stdout",subprocess.PIPE)
-        full_commandline =  "ibrun -o %d -n %d %s & " % \
-               (pool.offset,pool.extent,self.wrap(command))
-        DebugTraceMsg("executed commandline: <<%s>>" % full_commandline,
+        full_commandline \
+            = [ "ibrun","-o",str(pool.offset),"-n",str(pool.extent),
+                wrapped_command ] # not: "&"
+        full_commandline \
+            =  "ibrun -o %d -n %d %s" % \
+               (pool.offset,pool.extent,wrapped_command)
+        DebugTraceMsg("executed commandline: <<%s>>" % str(full_commandline),
                       self.debug,prefix="Exec")
         p = subprocess.Popen(full_commandline,
-                             shell=True,stdout=stdout)
+                             shell=True,
+                             stdout=stdout)
         self.popen_object = p
     def terminate(self):
         if self.popen_object is not None:
@@ -2839,7 +2847,8 @@ class LauncherJob():
         return message
     def handle_enqueueing(self):
         message = None
-        try:
+        #try:
+        if True:
             task = self.taskgenerator.next()
             if task==pylauncherBarrierString:
                 message = "stalling"
@@ -2848,11 +2857,13 @@ class LauncherJob():
             elif task=="stall":
                 message = "stalling"
                 DebugTraceMsg("stalling",self.debug,prefix="Job")
+            elif task=="stop":
+                message = self.finish_or_continue()
+                DebugTraceMsg("rolling till completion",self.debug,prefix="Job")
             else:
                 self.enqueue_task(task)
                 message = "enqueueing"
-        except:
-            message = self.finish_or_continue()
+            # except: message = self.finish_or_continue()
         return message
     def post_process(self,taskid):
         DebugTraceMsg("Task %s expired" % str(taskid),self.debug,prefix="Job")
