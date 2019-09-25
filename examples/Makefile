@@ -1,7 +1,7 @@
 info ::
 	@echo "================================================================"
 	@echo " This makefile tries to make it easy to run and submit example programs"
-	@echo " supported clusters: stampede"
+	@echo " supported clusters: stampede2 ls5"
 	@echo "================================================================"
 	@echo 
 	@echo "Available make rules:"
