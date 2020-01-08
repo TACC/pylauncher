@@ -1528,6 +1528,8 @@ def HostListByName(**kwargs):
         hostlist = SLURMHostList(tag=".stampede.tacc.utexas.edu",**kwargs)
     elif cluster in ["stampede2","stampede2-knl","stampede2-skx"]:
         hostlist = SLURMHostList(tag=".stampede2.tacc.utexas.edu",**kwargs)
+    elif cluster=="frontera":
+        hostlist = SLURMHostList(tag=".frontera.tacc.utexas.edu",**kwargs)
     elif cluster=="mic":
         hostlist = HostList( ["localhost" for i in range(60)] )
     else:
