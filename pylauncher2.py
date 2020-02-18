@@ -59,6 +59,7 @@ import sys
 import time
 import hostlist as hs
 
+
 class LauncherException(Exception):
     """A very basic exception mechanism"""
     def __init__(self,str):
@@ -1444,6 +1445,27 @@ class SLURMHostList(HostList):
             for i in range(int(n)):
                 self.append(h,i)
 
+class PBSHostList(HostList):
+    def __init__(self,**kwargs):
+        HostList.__init__(self,kwargs)
+        hostfile = os.environ["PBS_NODEFILE"]
+        with open(hostfile,'r') as hostfile:
+            myhostlist = hostfile.readlines()
+        for i in range(len(myhostlist)):
+            myhostlist[i] = myhostlist[i].rstrip()
+        # Get the unique hostnames in the list
+        unique_hostnames = set(myhostlist)
+        # Get the number of each host and place in the Hostlist format.
+        for hostname in unique_hostnames:
+            count = 0
+            for line in myhostlist:
+                if line == hostname:
+                    count += 1
+            self.append(hostname,count)
+            print str(hostname)+':'+str(count)
+        
+
+
 def ClusterName():
     """Assuming that a node name is along the lines of ``c123-456.cluster.tacc.utexas.edu``
     this returns the second member. Otherwise it returns None.
@@ -1468,6 +1490,9 @@ def ClusterName():
         if len(namesplit)>1 and re.match("c[0-9]",namesplit[0]):
             return namesplit[1]
         else: return None
+    # Non-TACC example, this is for Georgia Institute of Technology's PACE
+    if "pace" in namesplit:
+        return namesplit[1]
     # case: unknown
     return None
 
@@ -1485,6 +1510,8 @@ def JobId():
         return os.environ["JOB_ID"]
     elif hostname in ["ls5","maverick","stampede","stampede2"]:
         return os.environ["SLURM_JOB_ID"]
+    elif hostname in ["pace"]:
+        return os.environ["PBS_JOBID"]
     else:
         return None
 
@@ -1510,6 +1537,8 @@ def HostListByName(**kwargs):
         return SLURMHostList(tag=".stampede.tacc.utexas.edu",**kwargs)
     elif cluster in ["stampede2","stampede2-skx"]:
         return SLURMHostList(tag=".stampede2.tacc.utexas.edu",**kwargs)
+    elif cluster  in ["pace"]:
+        return PBSHostList(**kwargs)
     elif cluster=="mic":
         return HostList( ["localhost" for i in range(60)] )
     else:

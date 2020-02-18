@@ -1460,6 +1460,22 @@ class SLURMHostList(HostList):
             for i in range(int(n)):
                 self.append(h,i)
 
+class PBSHostList(HostList):
+    def __init__(self,**kwargs):
+        HostList.__init(self,kwargs)
+        hostfile = os.envrion["PBS_NODEFILE"]
+        with open(hostfile,'r') as hostfile:
+            myhostlist = hostfile.readlines()
+        # Get the unique hostnames in the list
+        unique_hostnames = set(myhostlist):
+        # Get the number of each host and place in the Hostlist format.
+        for hostname in unique_hostnames:
+            count = 0
+            for line in myhostlist:
+                if line == hostname:
+                    count += 1
+            self.append(hostname,count)
+
 def ClusterName():
     """Assuming that a node name is along the lines of ``c123-456.cluster.tacc.utexas.edu``
     this returns the second member. Otherwise it returns None.
