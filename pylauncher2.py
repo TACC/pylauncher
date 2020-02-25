@@ -2612,14 +2612,14 @@ class MPIExecutor(Executor):
     
     : param pool: (requires) ``HostLocator`` object
     : param stdout: (optional) a file that is opne for writing; by default ``subprocess.PIPE`` is used
-    : param mpiflavor: (optional) a switch 
+    : param mpiflavor: (optional) a switch to pick the right option for the hostfile since Intel uses ``-machinefile`` instead. 
 
     """
     def __init__(self,**kwargs):
         catch_output = kwargs.pop("catch_ouptut","foo")
         if catch_output != "foo": 
             raise LauncherException("MPIExecutor does not take catch_output parameter.")
-        Exceutor.__init__(self,catch_output=False,**kwargs)
+        Executor.__init__(self,catch_output=False,**kwargs)
         self.popen_object = None
     def execute(self,command,**kwargs):
         '''Because we do not have all the work that ibrun does on TACC systems, we will have 
@@ -2636,11 +2636,23 @@ class MPIExecutor(Executor):
         np = pool.extent
         machinelist = list()
         for i in range(int(pool.offset),(int(pool.offset)+int(pool.extent))):
-            machinelist.append(pool.nodes[i].hostname)
+            machinelist.append(pool.pool.nodes[i].hostname)
         stdout = kwargs.pop("stdout",subprocess.PIPE)
-        #full_commandline = 
-
-        
+        #mpiflavor = kwargs.pop("mpiflavor","default"),
+        hostfileswitch = '-hostfile '
+        #if mpiflavor == 'intel':
+        #    hostfileswitch = '-machinefile'
+        hostfilename = 'hostfile.'
+        hostfilenumber = 0
+        while os.path.exists(os.path.join(self.workdir,hostfilename+str(hostfilenumber))):
+            hostfilenumber += 1
+        with open(os.path.join(self.workdir,hostfilename+str(hostfilenumber)),'w') as myhostfile:
+            for machine in machinelist:
+                myhostfile.write(machine+'\n')
+        full_commandline = "mpirun -np {0} {1} {2} {3} ".format(np,hostfileswitch,os.path.join(self.workdir,hostfilename+str(hostfilenumber)),self.wrap(command))
+        DebugTraceMsg("executed commandline: <<%s>>" % full_commandline, self.debug,prefix="Exec")
+        p = subprocess.Popen(full_commandline,shell=True,stdout=stdout)
+        self.popen_object = p
     def terminate(self):
         if self.popen_object is not None:
             self.popen_object.terminate()
@@ -3440,14 +3452,15 @@ def MPILauncher(commandfile,**kwargs):
     debug = kwargs.pop("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     cores =  kwargs.pop("cores",4)
+    #mpiflavor = kwargs.pop("mpiflavor","default")
     job = LauncherJob(
         hostpool=HostPool( hostlist=HostListByName(),
-                           commandexecutor=MPIExecutor(workdir=workdir,debug=debug), debug=debug),
-        taskgenerator=TaskGenerator(
+            commandexecutor=MPIExecutor(workdir=workdir,debug=debug), debug=debug ),
+        taskgenerator=TaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            completion=lambda x:FileComplete(taskid=x,
-                                             stmproot="expire",stampdir=workdir),
-            debug=debug),
+            completion=lambda x:FileCompletion(taskid=x,
+                                      stamproot="expire",stampdir=workdir),
+            debug=debug ),
         debug=debug,**kwargs)
     job.run()
     print job.final_report()
@@ -3489,7 +3502,7 @@ class DynamicLauncher(LauncherJob):
     in environments that expect to "submit" jobs one at a time.
 
     This has two extra methods:
-    * append(commandline) : add commandline to the internal queueu
+    * append(commandline) : add commandline to the internal queue
     * none_waiting() : check that all commands are either running or finished
 
     Optional parameters have a default value that makes it behave like
