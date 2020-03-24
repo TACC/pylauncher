@@ -6,6 +6,8 @@ low parallel jobs in one big parallel job
 
 Author: Victor Eijkhout
 eijkhout@tacc.utexas.edu
+Modifications for PBS-based systems: Christopher Blanton
+chris.blanton@gatech.edu
 """
 
 changelog = """
@@ -1500,6 +1502,9 @@ def ClusterName():
         if len(namesplit)>1 and re.match("c[0-9]",namesplit[0]):
             return namesplit[1]
         else: return None
+    # Non-TACC example, this is for Georgia Instiute of Technology's PACE
+    if "pace" in namesplit:
+        return namesplit[1]
     # case: unknown
     return None
 
@@ -1548,6 +1553,8 @@ def HostListByName(**kwargs):
         hostlist = SLURMHostList(tag=".frontera.tacc.utexas.edu",**kwargs)
     elif cluster=="mic":
         hostlist = HostList( ["localhost" for i in range(60)] )
+    elif cluster in ['pace']:
+        return PBSHostList(**kwargs)
     else:
         hostlist = HostList(hostlist=[HostName()])
     if debug:
@@ -2626,6 +2633,58 @@ class testLeaveSSHOutput():
         content0 = os.listdir(self.dirs[0]); print(sorted(content0))
         stamps = [ f for f in content0 if re.search("expire",f) ]
         assert(len(stamps)==ntasks)
+
+class MPIExecutor(Executor):
+    """An Executor derive class for a generic mpirun
+    
+    : param pool: (requires) ``HostLocator`` object
+    : param stdout: (optional) a file that is opne for writing; by default ``subprocess.PIPE`` is used
+    : param mpiflavor: (optional) a switch to pick the right option for the hostfile since Intel uses ``-machinefile`` instead. 
+
+    """
+    def __init__(self,**kwargs):
+        catch_output = kwargs.pop("catch_ouptut","foo")
+        if catch_output != "foo": 
+            raise LauncherException("MPIExecutor does not take catch_output parameter.")
+        Executor.__init__(self,catch_output=False,**kwargs)
+        self.mpiflavor = kwargs.pop('mpiflavor','default')
+        self.popen_object = None
+    def execute(self,command,**kwargs):
+        '''Because we do not have all the work that ibrun does on TACC systems, we will have 
+        handle more parts.
+        We need to define a hostfile for the correct subset of the nodes,
+        '''
+        # find where to execute
+        pool = kwargs.pop("pool",None)
+        if pool is None:
+            raise LauncherException("SSHExecutor needs explicit HostPool")
+        stdout = kwargs.pop("stdout",subprocess.PIPE)
+        # construct the command line with environment, workdir, and expiration
+        # Construct a hostlist for use by mpirun
+        np = pool.extent
+        machinelist = list()
+        for i in range(int(pool.offset),(int(pool.offset)+int(pool.extent))):
+            machinelist.append(pool.pool.nodes[i].hostname)
+        stdout = kwargs.pop("stdout",subprocess.PIPE)
+        #mpiflavor = kwargs.pop("mpiflavor","default"),
+        hostfileswitch = '-hostfile '
+        #if mpiflavor == 'intel':
+        #    hostfileswitch = '-machinefile'
+        hostfilename = 'hostfile.'
+        hostfilenumber = 0
+        while os.path.exists(os.path.join(self.workdir,hostfilename+str(hostfilenumber))):
+            hostfilenumber += 1
+        with open(os.path.join(self.workdir,hostfilename+str(hostfilenumber)),'w') as myhostfile:
+            for machine in machinelist:
+                myhostfile.write(machine+'\n')
+        full_commandline = "mpirun -np {0} {1} {2} {3} ".format(np,hostfileswitch,os.path.join(self.workdir,hostfilename+str(hostfilenumber)),self.wrap(command))
+        DebugTraceMsg("executed commandline: <<%s>>" % full_commandline, self.debug,prefix="Exec")
+        p = subprocess.Popen(full_commandline,shell=True,stdout=stdout)
+        self.popen_object = p
+    def terminate(self):
+        if self.popen_object is not None:
+            self.popen_object.terminate()
+
 
 class IbrunExecutor(Executor):
     """An Executor derived class for the shift/offset version of ibrun

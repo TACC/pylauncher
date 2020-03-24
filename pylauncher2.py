@@ -6,6 +6,8 @@ low parallel jobs in one big parallel job
 
 Author: Victor Eijkhout
 eijkhout@tacc.utexas.edu
+Modifications for PBS-based systems: Christopher Blanton
+chris.blanton@gatech.edu
 """
 
 changelog = """
@@ -2612,7 +2614,7 @@ class MPIExecutor(Executor):
     
     : param pool: (requires) ``HostLocator`` object
     : param stdout: (optional) a file that is opne for writing; by default ``subprocess.PIPE`` is used
-    : param mpiflavor: (optional) a switch to pick the right option for the hostfile since Intel uses ``-machinefile`` instead. 
+    : param mpiflavor: (optional) a switch to pick the right option for the hostfile since Intel uses ``-machinefile`` instead. Options are ``default`` and ``intel`` 
 
     """
     def __init__(self,**kwargs):
@@ -2620,6 +2622,7 @@ class MPIExecutor(Executor):
         if catch_output != "foo": 
             raise LauncherException("MPIExecutor does not take catch_output parameter.")
         Executor.__init__(self,catch_output=False,**kwargs)
+        self.mpiflavor = kwargs.pop("mpiflavor","default")
         self.popen_object = None
     def execute(self,command,**kwargs):
         '''Because we do not have all the work that ibrun does on TACC systems, we will have 
@@ -2640,8 +2643,8 @@ class MPIExecutor(Executor):
         stdout = kwargs.pop("stdout",subprocess.PIPE)
         #mpiflavor = kwargs.pop("mpiflavor","default"),
         hostfileswitch = '-hostfile '
-        #if mpiflavor == 'intel':
-        #    hostfileswitch = '-machinefile'
+        if mpiflavor == 'intel':
+            hostfileswitch = '-machinefile'
         hostfilename = 'hostfile.'
         hostfilenumber = 0
         while os.path.exists(os.path.join(self.workdir,hostfilename+str(hostfilenumber))):
