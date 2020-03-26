@@ -9,8 +9,7 @@ eijkhout@tacc.utexas.edu
 Modifications for PBS-based systems: Christopher Blanton
 chris.blanton@gatech.edu
 """
-
-changelog = """
+otoelog = """
 Change log
 3.0
 - gradually going over to python3, only print syntax for now
@@ -1462,21 +1461,18 @@ class SLURMHostList(HostList):
             for i in range(int(n)):
                 self.append(h,i)
 
+
 class PBSHostList(HostList):
     def __init__(self,**kwargs):
-        HostList.__init(self,kwargs)
-        hostfile = os.envrion["PBS_NODEFILE"]
+        HostList.__init__(self,**kwargs)
+        hostfile = os.environ["PBS_NODEFILE"]
         with open(hostfile,'r') as hostfile:
             myhostlist = hostfile.readlines()
-        # Get the unique hostnames in the list
-        unique_hostnames = set(myhostlist):
-        # Get the number of each host and place in the Hostlist format.
-        for hostname in unique_hostnames:
-            count = 0
-            for line in myhostlist:
-                if line == hostname:
-                    count += 1
-            self.append(hostname,count)
+            #for host in myhostlist:
+            #    self.append(host.rstrip(),1)
+            for i in range(len(myhostlist)):
+                myhostlist[i] = myhostlist[i].rstrip()
+                self.append(myhostlist[i],1)
 
 def ClusterName():
     """Assuming that a node name is along the lines of ``c123-456.cluster.tacc.utexas.edu``
@@ -2639,15 +2635,14 @@ class MPIExecutor(Executor):
     
     : param pool: (requires) ``HostLocator`` object
     : param stdout: (optional) a file that is opne for writing; by default ``subprocess.PIPE`` is used
-    : param mpiflavor: (optional) a switch to pick the right option for the hostfile since Intel uses ``-machinefile`` instead. 
-
+    
     """
     def __init__(self,**kwargs):
         catch_output = kwargs.pop("catch_ouptut","foo")
         if catch_output != "foo": 
             raise LauncherException("MPIExecutor does not take catch_output parameter.")
+        self.hfswitch = kwargs.pop("hfswitch","-machinefile")
         Executor.__init__(self,catch_output=False,**kwargs)
-        self.mpiflavor = kwargs.pop('mpiflavor','default')
         self.popen_object = None
     def execute(self,command,**kwargs):
         '''Because we do not have all the work that ibrun does on TACC systems, we will have 
@@ -2666,10 +2661,7 @@ class MPIExecutor(Executor):
         for i in range(int(pool.offset),(int(pool.offset)+int(pool.extent))):
             machinelist.append(pool.pool.nodes[i].hostname)
         stdout = kwargs.pop("stdout",subprocess.PIPE)
-        #mpiflavor = kwargs.pop("mpiflavor","default"),
-        hostfileswitch = '-hostfile '
-        #if mpiflavor == 'intel':
-        #    hostfileswitch = '-machinefile'
+        #hfswitch = kwargs.pop("hfswitch","-machinefile")
         hostfilename = 'hostfile.'
         hostfilenumber = 0
         while os.path.exists(os.path.join(self.workdir,hostfilename+str(hostfilenumber))):
@@ -2677,13 +2669,14 @@ class MPIExecutor(Executor):
         with open(os.path.join(self.workdir,hostfilename+str(hostfilenumber)),'w') as myhostfile:
             for machine in machinelist:
                 myhostfile.write(machine+'\n')
-        full_commandline = "mpirun -np {0} {1} {2} {3} ".format(np,hostfileswitch,os.path.join(self.workdir,hostfilename+str(hostfilenumber)),self.wrap(command))
+        full_commandline = "mpirun -np {0} {1} {2} {3} ".format(np,self.hfswitch,os.path.join(self.workdir,hostfilename+str(hostfilenumber)),self.wrap(command))
         DebugTraceMsg("executed commandline: <<%s>>" % full_commandline, self.debug,prefix="Exec")
         p = subprocess.Popen(full_commandline,shell=True,stdout=stdout)
         self.popen_object = p
     def terminate(self):
         if self.popen_object is not None:
             self.popen_object.terminate()
+
 
 
 class IbrunExecutor(Executor):
@@ -3470,6 +3463,39 @@ def ClassicLauncher(commandfile,*args,**kwargs):
 
 def ResumeClassicLauncher(commandfile,**kwargs):
     ClassicLauncher(commandfile,resume=1,**kwargs)
+
+def MPILauncher(commandfile,**kwargs):
+    '''A LauncherJob for a file of small MPI jobs, for a system not using Ibrun
+    
+    The following values are specified using other functions.
+
+    * hostpool : determined via HostListByName
+    * commandexecutor : MPIExecutor
+    * taskgenerator : based on the ``commandfile`` argument
+    * complete : based on a diretory ``pylauncher_tmp`` with jobid environment variables attached
+
+    :param commandfile: name of files with commandlines (required)
+    :param cores: number of cores (keyword, optional, default=4, see ``FileCommandlineGenerator`` for more explanation)
+    :param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to resuse an already existing directory
+    :param debug: debug types string (optional, keyword)
+    :param hfswitch: Switch used to determine the hostifle switch used with your MPI distribution. Default is -machinefile (optional,keyword)
+    '''
+    jobid = JobId()
+    debug = kwargs.pop("debug","")
+    workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
+    cores =  kwargs.pop("cores",4)
+    hfswitch = kwargs.pop("hfswitch","-machinefile")
+    job = LauncherJob(
+        hostpool=HostPool( hostlist=HostListByName(),
+            commandexecutor=MPIExecutor(workdir=workdir,debug=debug,hfswitch=hfswitch), debug=debug ),
+        taskgenerator=TaskGenerator( 
+            FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
+            completion=lambda x:FileCompletion(taskid=x,
+                                      stamproot="expire",stampdir=workdir),
+            debug=debug ),
+        debug=debug,**kwargs)
+    job.run()
+    print(job.final_report())
 
 def IbrunLauncher(commandfile,**kwargs):
     """A LauncherJob for a file of small MPI jobs.
