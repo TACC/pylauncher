@@ -1518,6 +1518,8 @@ def JobId():
         return os.environ["JOB_ID"]
     elif hostname in ["ls5","maverick","stampede","stampede2","stampede2-knl","stampede2-skx"]:
         return os.environ["SLURM_JOB_ID"]
+    elif hostname in ["pace"]:
+        return os.environ["PBS_JOBID"]
     else:
         return None
 
