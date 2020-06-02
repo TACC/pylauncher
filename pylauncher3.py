@@ -1,5 +1,5 @@
 docstring = \
-"""pylauncher.py version 3.0 UNRELEASED
+"""pylauncher.py version 3.1
 
 A python based launcher utility for packaging sequential or
 low parallel jobs in one big parallel job
@@ -11,6 +11,9 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+3.1
+- Modifications for PBS-based systems: Christopher Blanton
+  Also: adding longhorn@tacc
 3.0
 - gradually going over to python3, only print syntax for now
 - setting PYLAUNCHER_ENABLED for Lmod
@@ -1524,12 +1527,14 @@ def JobId():
         return None
 
 def HostListByName(**kwargs):
-    """Give a proper hostlist. Currently this work for the following TACC hosts:
+    """Give a proper hostlist. Currently this work for the following hosts:
 
-    * ``ls4``: Lonestar4, using SGE
-    * ``ls5``: Lonestar5, using SLURM
-    * ``maverick``: Maverick, using SLURM
-    * ``stampede``: Stampede, using SLURM
+    * ``ls5``: Lonestar5 at TACC, using SLURM
+    * ``maverick``: Maverick at TACC, using SLURM
+    * ``stampede``: Stampede at TACC, using SLURM
+    * ``frontera`` : Frontera at TACC, using SLURM
+    * ``longhorn`` : Longhorn at TACC, using SLURM
+    * ``pace`` : PACE at Georgia Tech, using PBS
     * ``mic``: Intel Xeon PHI co-processor attached to a compute node
 
     We return a trivial hostlist otherwise.
@@ -1549,6 +1554,8 @@ def HostListByName(**kwargs):
         hostlist = SLURMHostList(tag=".stampede2.tacc.utexas.edu",**kwargs)
     elif cluster=="frontera":
         hostlist = SLURMHostList(tag=".frontera.tacc.utexas.edu",**kwargs)
+    elif cluster=="longhorn":
+        hostlist = SLURMHostList(tag=".longhorn.tacc.utexas.edu",**kwargs)
     elif cluster=="mic":
         hostlist = HostList( ["localhost" for i in range(60)] )
     elif cluster in ['pace']:
@@ -1602,8 +1609,8 @@ def testPEhostpools():
         assert(len(pool)%16==0)
     elif cluster in ["stampede2","stampede2-knl","stampede2-skx"]:
         assert(len(pool)>0)
-    elif cluster=="ls4":
-        assert(len(pool)%12==0)
+    elif cluster=="longhorn":
+        assert(len(pool)%40==0)
     else:
         print("Detecting host",cluster)
         assert(True)
@@ -2236,13 +2243,10 @@ def testLocalHostPool():
 def ssh_client(host,debug=False):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.load_system_host_keys()
     if debug:
         print("Create paramiko ssh client to",host)
-    if re.search('stampede2',host) or re.search('maverick',host):
-        # stampede2 accepts ssh from node to itself at default port
-        ssh.connect(host)
-    else:
-        ssh.connect(host) # port=6999)
+    ssh.connect(host)
     return ssh
 
 class SSHExecutor(Executor):
@@ -2274,7 +2278,10 @@ class SSHExecutor(Executor):
             node.ssh_client_unique = False
         else:
             print("making ssh client to host",host)
-            node.ssh_client = ssh_client(host,debug=self.debug)
+            try : 
+                node.ssh_client = ssh_client(host,debug=self.debug)
+            except: ## VLE is this an exception class? socket.gaierror as e:
+                print("\nParamiko could not create ssh client\n")
             node.ssh_client_unique = True
             self.node_client_dict[host] = node.ssh_client
     def release_from_node(self,node):
