@@ -1757,15 +1757,19 @@ class TaskQueue():
         f.write("completed\n")
         for t in self.completed: f.write("%s: %s\n" % (t.taskid,t.command))
         f.close()
-    def final_report(self):
+    def final_report(self,runningtime):
         """Return a string describing the max and average runtime for each task."""
         times = [ t.runningtime for t in self.completed]
         message = """# tasks completed: %d
 tasks aborted: %d
 max runningtime: %6.2f
 avg runningtime: %6.2f
+aggregate      : %6.2f
+speedup        : %6.2f
 """ % ( len(self.completed), len(self.aborted),
-        max( times ), sum( times )/len(self.completed) )
+        max( times ), sum( times )/len(self.completed),
+        sum( times ), sum( times )/runningtime,
+    )
         return message
 
 def testTaskQueue():
@@ -2110,7 +2114,7 @@ class Executor():
         if os.path.isfile(execfilename):
             raise LauncherException("exec file already exists <<%s>>" % execfilename)
         f = open(execfilename,"w")
-        f.write("#!/bin/bash\n"+command+"\n")
+        f.write("#!/bin/bash\nhostname\n"+command+"\n")
         f.close()
         os.chmod(execfilename,stat.S_IXUSR++stat.S_IXGRP+stat.S_IXOTH+\
                      stat.S_IWUSR++stat.S_IWGRP+stat.S_IWOTH+\
@@ -2243,7 +2247,6 @@ def testLocalHostPool():
 def ssh_client(host,debug=False):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.load_system_host_keys()
     if debug:
         print("Create paramiko ssh client to",host)
     ssh.connect(host)
@@ -2273,7 +2276,7 @@ class SSHExecutor(Executor):
     def setup_on_node(self,node):
         host = node.hostname
         DebugTraceMsg("Set up connection to <<%s>>" % host,self.debug,prefix="SSH")
-        if False and host in self.node_client_dict:
+        if host in self.node_client_dict:
             node.ssh_client = self.node_client_dict[host]
             node.ssh_client_unique = False
         else:
@@ -2988,7 +2991,8 @@ total running time: %6.2f
 
 %s
 ==========================
-""" % ( self.runningtime, self.queue.final_report(), self.hostpool.final_report() )
+""" % ( self.runningtime, self.queue.final_report(self.runningtime),
+        self.hostpool.final_report() )
         return message
 
 

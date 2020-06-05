@@ -8,5 +8,5 @@
 #SBATCH   -t 0:10:00
 #SBATCH -A A-ccsc                  # replace by your own project
 
-module load python
+module load python3
 PYTHONPATH=..:${PYTHONPATH} SSH RUN EXECUTABLE.py
