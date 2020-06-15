@@ -1,5 +1,5 @@
 docstring = \
-"""pylauncher.py version 3.1
+"""pylauncher.py version 3.2
 
 A python based launcher utility for packaging sequential or
 low parallel jobs in one big parallel job
@@ -11,6 +11,8 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+3.2
+- adding LocalLauncher and example
 3.1
 - Modifications for PBS-based systems: Christopher Blanton
   Also: adding longhorn@tacc
@@ -3500,7 +3502,7 @@ def LocalLauncher(commandfile,nhosts,*args,**kwargs):
     else:
         generator = FileCommandlineGenerator(commandfile,cores=cores,debug=debug)
     job = LauncherJob(
-        hostpool=LocalHostPool( nhosts=nhosts ),#commandexecutor=LocalExecutor(workdir=workdir,debug=debug), debug=debug ),
+        hostpool=LocalHostPool( nhosts=nhosts ),
         taskgenerator=TaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
             completion=lambda x:FileCompletion( taskid=x,
