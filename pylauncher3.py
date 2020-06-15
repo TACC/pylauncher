@@ -3474,6 +3474,42 @@ def ClassicLauncher(commandfile,*args,**kwargs):
     job.run()
     print(job.final_report())
 
+def LocalLauncher(commandfile,nhosts,*args,**kwargs):
+    """A LauncherJob for a file of single or multi-threaded commands, running locally
+
+    The following values are specified for your convenience:
+
+    * hostpool : based on HostListByName
+    * commandexecutor : SSHExecutor
+    * taskgenerator : based on the ``commandfile`` argument
+    * completion : based on a directory ``pylauncher_tmp`` with jobid environment variables attached
+
+    :param commandfile: name of file with commandlines (required)
+    :param resume: if 1,yes interpret the commandfile as a queuestate file
+    :param cores: number of cores (keyword, optional, default=1)
+    :param workdir: (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory
+    :param debug: debug types string (optional, keyword)
+    """
+    jobid = JobId()
+    debug = kwargs.pop("debug","")
+    workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
+    cores = kwargs.pop("cores",1)
+    resume = kwargs.pop("resume",None)
+    if resume is not None and not (resume=="0" or resume=="no"):
+        generator = StateFileCommandlineGenerator(commandfile,cores=cores,debug=debug)
+    else:
+        generator = FileCommandlineGenerator(commandfile,cores=cores,debug=debug)
+    job = LauncherJob(
+        hostpool=LocalHostPool( nhosts=nhosts ),#commandexecutor=LocalExecutor(workdir=workdir,debug=debug), debug=debug ),
+        taskgenerator=TaskGenerator( 
+            FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
+            completion=lambda x:FileCompletion( taskid=x,
+                                    stamproot="expire",stampdir=workdir),
+            debug=debug ),
+        debug=debug,**kwargs)
+    job.run()
+    print(job.final_report())
+
 def ResumeClassicLauncher(commandfile,**kwargs):
     ClassicLauncher(commandfile,resume=1,**kwargs)
 
