@@ -12,7 +12,8 @@ chris.blanton@gatech.edu
 otoelog = """
 Change log
 3.2
-- adding LocalLauncher and example
+- adding LocalLauncher and example,
+- adding RemoteLauncher & IbrunRemoteLauncher
 3.1
 - Modifications for PBS-based systems: Christopher Blanton
   Also: adding longhorn@tacc
@@ -1469,7 +1470,7 @@ class SLURMHostList(HostList):
 
 class PBSHostList(HostList):
     def __init__(self,**kwargs):
-        HostList.__init__(self,**kwargs)
+        HostList.__init__(self)
         hostfile = os.environ["PBS_NODEFILE"]
         with open(hostfile,'r') as hostfile:
             myhostlist = hostfile.readlines()
@@ -1478,6 +1479,23 @@ class PBSHostList(HostList):
             for i in range(len(myhostlist)):
                 myhostlist[i] = myhostlist[i].rstrip()
                 self.append(myhostlist[i],1)
+
+class ListHostList(HostList):
+    """A HostList class constructed from an explicit list of hosts.
+    Great for notebook applications where the resources are
+    externally acquired.
+
+    Keyword parameter:
+
+    :param ppn : processes per node, typically number of cores on a node
+
+    """
+    def __init__(self,hostlist,**kwargs):
+        HostList.__init__(self)
+        ppn = kwargs.get("ppn",1)
+        for h in hostlist:
+            for p in range(ppn):
+                self.append(h)
 
 def ClusterName():
     """Assuming that a node name is along the lines of ``c123-456.cluster.tacc.utexas.edu``
@@ -3569,6 +3587,70 @@ def IbrunLauncher(commandfile,**kwargs):
     cores = kwargs.pop("cores",4)
     job = LauncherJob(
         hostpool=HostPool( hostlist=HostListByName(debug=debug),
+            commandexecutor=IbrunExecutor(workdir=workdir,debug=debug), debug=debug ),
+        taskgenerator=TaskGenerator( 
+            FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
+            completion=lambda x:FileCompletion(taskid=x,
+                                      stamproot="expire",stampdir=workdir),
+            debug=debug ),
+        debug=debug,**kwargs)
+    job.run()
+    print(job.final_report())
+
+def RemoteLauncher(commandfile,hostlist,**kwargs):
+    """A LauncherJob for a file of single or multi-thread commands, executed remotely.
+
+    The following values are specified for your convenience:
+
+    * commandexecutor : IbrunExecutor
+    * taskgenerator : based on the ``commandfile`` argument
+    * completion : based on a directory ``pylauncher_tmp`` with jobid environment variables attached
+
+    :param commandfile: name of file with commandlines (required)
+    :param hostlist : list of hostnames
+    :param cores: number of cores (keyword, optional, default=4, see ``FileCommandlineGenerator`` for more explanation)
+    :param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory
+    :param debug: debug types string (optional, keyword)
+    """
+    jobid = "000"
+    debug = kwargs.pop("debug","")
+    workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
+    ppn = kwargs.pop("ppn",4)
+    cores = kwargs.pop("cores",1)
+    job = LauncherJob(
+        hostpool=HostPool( hostlist=ListHostList(hostlist,ppn=ppn),
+            commandexecutor=SSHExecutor(workdir=workdir,debug=debug), debug=debug ),
+        taskgenerator=TaskGenerator( 
+            FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
+            completion=lambda x:FileCompletion(taskid=x,
+                                      stamproot="expire",stampdir=workdir),
+            debug=debug ),
+        debug=debug,**kwargs)
+    job.run()
+    print(job.final_report())
+
+def IbrunRemoteLauncher(commandfile,hostlist,**kwargs):
+    """A LauncherJob for a file of small MPI jobs, executed remotely.
+
+    The following values are specified for your convenience:
+
+    * commandexecutor : IbrunExecutor
+    * taskgenerator : based on the ``commandfile`` argument
+    * completion : based on a directory ``pylauncher_tmp`` with jobid environment variables attached
+
+    :param commandfile: name of file with commandlines (required)
+    :param hostlist : list of hostnames
+    :param cores: number of cores (keyword, optional, default=4, see ``FileCommandlineGenerator`` for more explanation)
+    :param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory
+    :param debug: debug types string (optional, keyword)
+    """
+    jobid = 000
+    debug = kwargs.pop("debug","")
+    workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
+    ppn = kwargs.pop("ppn",4)
+    cores = kwargs.pop("cores",4)
+    job = LauncherJob(
+        hostpool=HostPool( hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
             commandexecutor=IbrunExecutor(workdir=workdir,debug=debug), debug=debug ),
         taskgenerator=TaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
