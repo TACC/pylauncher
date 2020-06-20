@@ -2670,7 +2670,7 @@ class MPIExecutor(Executor):
     
     """
     def __init__(self,**kwargs):
-        catch_output = kwargs.pop("catch_ouptut","foo")
+        catch_output = kwargs.pop("catch_output","foo")
         if catch_output != "foo": 
             raise LauncherException("MPIExecutor does not take catch_output parameter.")
         self.hfswitch = kwargs.pop("hfswitch","-machinefile")
@@ -2739,6 +2739,42 @@ class IbrunExecutor(Executor):
         full_commandline \
             =  "ibrun -o %d -n %d %s" % \
                (pool.offset,pool.extent,wrapped_command)
+        DebugTraceMsg("executed commandline: <<%s>>" % str(full_commandline),
+                      self.debug,prefix="Exec")
+        p = subprocess.Popen(full_commandline,
+                             shell=True,
+                             stdout=stdout)
+        self.popen_object = p
+    def terminate(self):
+        if self.popen_object is not None:
+            self.popen_object.terminate()
+
+class MpiexecExecutor(Executor):
+    """An Executor derived class using ordinary mpiexec.
+
+    :param pool: (required) ``HostLocator`` object
+    :param stdout: (optional) a file that is open for writing; by default ``subprocess.PIPE`` is used
+    """
+    def __init__(self,**kwargs):
+        catch_output = kwargs.pop("catch_output","foo")
+        if catch_output!="foo":
+            raise LauncherException("IbrunExecutor does not take catch_output parameter")
+        Executor.__init__(self,catch_output=False,**kwargs)
+        self.popen_object = None
+    def execute(self,command,**kwargs):
+        """Much like ``SSHExecutor.execute()``, except that it prefixes
+        with ``ibrun -n -o``
+        """
+        pool = kwargs.pop("pool",None)
+        if pool is None:
+            raise LauncherException("SSHExecutor needs explicit HostPool")
+        wrapped_command = self.wrap(command)
+        stdout = kwargs.pop("stdout",subprocess.PIPE)
+        full_commandline \
+            = [ "mpiexec","-n",str(pool.extent), wrapped_command ] # not: "&"
+        full_commandline \
+            =  "mpiexec -n %d %s" % \
+               (pool.extent,wrapped_command)
         DebugTraceMsg("executed commandline: <<%s>>" % str(full_commandline),
                       self.debug,prefix="Exec")
         p = subprocess.Popen(full_commandline,
@@ -3651,7 +3687,7 @@ def IbrunRemoteLauncher(commandfile,hostlist,**kwargs):
     cores = kwargs.pop("cores",4)
     job = LauncherJob(
         hostpool=HostPool( hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
-            commandexecutor=IbrunExecutor(workdir=workdir,debug=debug), debug=debug ),
+            commandexecutor=MpiexecExecutor(workdir=workdir,debug=debug), debug=debug ),
         taskgenerator=TaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
             completion=lambda x:FileCompletion(taskid=x,
