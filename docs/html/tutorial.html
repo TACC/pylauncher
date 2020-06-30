@@ -1,18 +1,20 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>A quick tutorial &#8212; PyLauncher 2.0 documentation</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A quick tutorial &#8212; PyLauncher 3.2 documentation</title>
     <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script type="text/javascript" src="_static/jquery-3.5.0.js"></script>
-    <script type="text/javascript" src="_static/underscore.js"></script>
-    <script type="text/javascript" src="_static/doctools.js"></script>
+    
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Implementation" href="implementation.html" />
@@ -25,15 +27,13 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="right" >
           <a href="implementation.html" title="Implementation"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="introduction.html" title="Introduction and general usage"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">PyLauncher 2.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">PyLauncher 3.2 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">A quick tutorial</a></li> 
       </ul>
     </div>  
 
@@ -46,7 +46,7 @@
 <h1>A quick tutorial<a class="headerlink" href="#a-quick-tutorial" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="setup">
 <h2>Setup<a class="headerlink" href="#setup" title="Permalink to this headline">¶</a></h2>
-<p>You need to have the files <code class="docutils literal notranslate"><span class="pre">pylauncher.py</span></code> and <code class="docutils literal notranslate"><span class="pre">hostlist.py</span></code> in your <code class="docutils literal notranslate"><span class="pre">PYTHONPATH</span></code>.
+<p>You need to have the files <code class="docutils literal notranslate"><span class="pre">pylauncher3.py</span></code> and <code class="docutils literal notranslate"><span class="pre">hostlist.py</span></code> in your <code class="docutils literal notranslate"><span class="pre">PYTHONPATH</span></code>.
 If you are at TACC, do <code class="docutils literal notranslate"><span class="pre">module</span> <span class="pre">load</span> <span class="pre">pylauncher</span></code> and all is good.</p>
 </div>
 <div class="section" id="batch-operation">
@@ -54,15 +54,18 @@ If you are at TACC, do <code class="docutils literal notranslate"><span class="p
 <p>The most common usage scenario is to use the launcher to bundle many small jobs
 into a single batch submission on a cluster. In that case, put</p>
 <blockquote>
-<div><p>module load python</p>
-<p>python your_launcher_file.py</p>
+<div><p>::
+module load python3</p>
+<p>::
+python3 your_launcher_file.py</p>
 </div></blockquote>
 <p>in the jobscript.</p>
 </div>
 <div class="section" id="examples">
 <h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
 <p>There is an <code class="docutils literal notranslate"><span class="pre">examples</span></code> subdirectory with some simple scenarios
-of how to invoke the pylauncher.</p>
+of how to invoke the pylauncher. We start with a number of launchers
+that run inside a parallel (SLURM/SGE/PBS) job.</p>
 <div class="section" id="single-core-jobs">
 <h3>Single-core jobs<a class="headerlink" href="#single-core-jobs" title="Permalink to this headline">¶</a></h3>
 <p>In the simplest scenario, we have a file of commandlines,
@@ -165,18 +168,49 @@ instances simultaneously, use the <code class="docutils literal notranslate"><sp
 </div>
 <p>This example uses a provided program, <code class="docutils literal notranslate"><span class="pre">parallel.c</span></code> of two parameters:</p>
 <ul class="simple">
-<li>the job number</li>
-<li>the number of seconds running time</li>
+<li><p>the job number</p></li>
+<li><p>the number of seconds running time</p></li>
 </ul>
 <p>The program will report the size of its communicator, that is,
 on how many cores it is running.</p>
+</div>
+<div class="section" id="local-jobs">
+<h3>Local jobs<a class="headerlink" href="#local-jobs" title="Permalink to this headline">¶</a></h3>
+<p>If you own your computer and you want to run the parallel
+the parameter sweep locally, use the <code class="docutils literal notranslate"><span class="pre">LocalLauncher</span></code></p>
+<p>Two parameters:</p>
+<ul class="simple">
+<li><p>name of a file of commandlines</p></li>
+<li><p>a count of how many jobs you want to run simultaneously, typically
+the number of cores of your machine.</p></li>
+</ul>
+</div>
+<div class="section" id="remote-jobs">
+<h3>Remote jobs<a class="headerlink" href="#remote-jobs" title="Permalink to this headline">¶</a></h3>
+<p>The launchers so far spawned all jobs on the machine where the launcher python script
+is running. It is possible to run the python script in one location (say, a container)
+while spawning jobs elsewhere. First, the <code class="docutils literal notranslate"><span class="pre">RemoteLauncher</span></code> takes a hostlist
+and spawns jobs there through an ssh connection:</p>
+<blockquote>
+<div><p>def RemoteLauncher(commandfile,hostlist,**kwargs)</p>
+</div></blockquote>
+<p>Optional arguments:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">workdir</span></code> : location for the temporary files</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ppn</span></code> : how many jobs can be fitted on any one of the hosts</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cores</span></code> : number of cores allocated to each job</p>
+<p>def IbrunRemoteLauncher(commandfile,hostlist,**kwargs)</p>
+</li>
+</ul>
+<p>Same arguments as the <code class="docutils literal notranslate"><span class="pre">RemoteLauncher</span></code>, now every job is start as an MPI execution.</p>
 </div>
 <div class="section" id="job-timeout">
 <h3>Job timeout<a class="headerlink" href="#job-timeout" title="Permalink to this headline">¶</a></h3>
 <p>If individual tasks can take a varying amount of time and you may want
 to kill them when they overrun some limit, you can add the</p>
 <blockquote>
-<div>taskmaxruntime=30</div></blockquote>
+<div><p>taskmaxruntime=30</p>
+</div></blockquote>
 <p>option to the launcher command.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/usr/bin/env python</span>
 
@@ -196,7 +230,8 @@ to kill them when they overrun some limit, you can add the</p>
 <h3>Job ID<a class="headerlink" href="#job-id" title="Permalink to this headline">¶</a></h3>
 <p>The macro</p>
 <blockquote>
-<div>PYL_ID</div></blockquote>
+<div><p>PYL_ID</p>
+</div></blockquote>
 <p>gets expanded to the task ID on the commandline.</p>
 </div>
 <div class="section" id="job-restarting">
@@ -221,12 +256,13 @@ which ones were still scheduled to fun. You can submit a job using the
 </div>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
-  <h3><a href="index.html">Table Of Contents</a></h3>
+  <h3><a href="index.html">Table of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">A quick tutorial</a><ul>
 <li><a class="reference internal" href="#setup">Setup</a></li>
@@ -236,6 +272,8 @@ which ones were still scheduled to fun. You can submit a job using the
 <li><a class="reference internal" href="#constant-count-multi-core-jobs">Constant count multi-core jobs</a></li>
 <li><a class="reference internal" href="#variable-count-multi-core-jobs">Variable count multi-core jobs</a></li>
 <li><a class="reference internal" href="#mpi-parallel-jobs">MPI parallel jobs</a></li>
+<li><a class="reference internal" href="#local-jobs">Local jobs</a></li>
+<li><a class="reference internal" href="#remote-jobs">Remote jobs</a></li>
 <li><a class="reference internal" href="#job-timeout">Job timeout</a></li>
 <li><a class="reference internal" href="#job-id">Job ID</a></li>
 <li><a class="reference internal" href="#job-restarting">Job restarting</a></li>
@@ -259,17 +297,15 @@ which ones were still scheduled to fun. You can submit a job using the
     </ul>
    </div>
 <div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
+  <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="search.html" method="get">
-      <input type="text" name="q" />
+      <input type="text" name="q" aria-labelledby="searchlabel" />
       <input type="submit" value="Go" />
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
     </form>
     </div>
 </div>
-<script type="text/javascript">$('#searchbox').show(0);</script>
+<script>$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
@@ -281,20 +317,18 @@ which ones were still scheduled to fun. You can submit a job using the
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="right" >
           <a href="implementation.html" title="Implementation"
              >next</a> |</li>
         <li class="right" >
           <a href="introduction.html" title="Introduction and general usage"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">PyLauncher 2.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">PyLauncher 3.2 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">A quick tutorial</a></li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2013, Victor Eijkhout.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.7.
+        &#169; Copyright 2013-2020, Victor Eijkhout.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
     </div>
   </body>
 </html>

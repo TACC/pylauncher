@@ -1,18 +1,20 @@
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>TACC specifics and extendability to other installations &#8212; PyLauncher 2.0 documentation</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TACC specifics and extendability to other installations &#8212; PyLauncher 3.2 documentation</title>
     <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script type="text/javascript" src="_static/jquery-3.5.0.js"></script>
-    <script type="text/javascript" src="_static/underscore.js"></script>
-    <script type="text/javascript" src="_static/doctools.js"></script>
+    
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Tracing and profiling" href="trace.html" />
@@ -25,15 +27,13 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="right" >
           <a href="trace.html" title="Tracing and profiling"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="implementation.html" title="Implementation"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">PyLauncher 2.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">PyLauncher 3.2 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">TACC specifics and extendability to other installations</a></li> 
       </ul>
     </div>  
 
@@ -50,139 +50,20 @@ For starters, there are two classes derived from <code class="docutils literal n
 that parse the hostlists for the SGE and SLURM scheduler.
 If you use Load Leveler or PBS, you can write your own
 using these as an example.</p>
-<span class="target" id="module-pylauncher"></span><dl class="class">
-<dt id="pylauncher.SGEHostList">
-<em class="property">class </em><code class="descclassname">pylauncher.</code><code class="descname">SGEHostList</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher.html#SGEHostList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.SGEHostList" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="implementation.html#pylauncher.HostList" title="pylauncher.HostList"><code class="xref py py-class docutils literal notranslate"><span class="pre">pylauncher.HostList</span></code></a></p>
-</dd></dl>
-
-<dl class="class">
-<dt id="pylauncher.SLURMHostList">
-<em class="property">class </em><code class="descclassname">pylauncher.</code><code class="descname">SLURMHostList</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher.html#SLURMHostList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.SLURMHostList" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="implementation.html#pylauncher.HostList" title="pylauncher.HostList"><code class="xref py py-class docutils literal notranslate"><span class="pre">pylauncher.HostList</span></code></a></p>
-</dd></dl>
-
-<dl class="function">
-<dt id="pylauncher.HostListByName">
-<code class="descclassname">pylauncher.</code><code class="descname">HostListByName</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher.html#HostListByName"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.HostListByName" title="Permalink to this definition">¶</a></dt>
-<dd><p>Give a proper hostlist. Currently this work for the following TACC hosts:</p>
-<ul class="simple">
-<li><code class="docutils literal notranslate"><span class="pre">ls4</span></code>: Lonestar4, using SGE</li>
-<li><code class="docutils literal notranslate"><span class="pre">ls5</span></code>: Lonestar5, using SLURM</li>
-<li><code class="docutils literal notranslate"><span class="pre">maverick</span></code>: Maverick, using SLURM</li>
-<li><code class="docutils literal notranslate"><span class="pre">stampede</span></code>: Stampede, using SLURM</li>
-<li><code class="docutils literal notranslate"><span class="pre">mic</span></code>: Intel Xeon PHI co-processor attached to a compute node</li>
-</ul>
-<p>We return a trivial hostlist otherwise.</p>
-</dd></dl>
-
-<dl class="class">
-<dt id="pylauncher.DefaultHostPool">
-<em class="property">class </em><code class="descclassname">pylauncher.</code><code class="descname">DefaultHostPool</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher.html#DefaultHostPool"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.DefaultHostPool" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="implementation.html#pylauncher.HostPool" title="pylauncher.HostPool"><code class="xref py py-class docutils literal notranslate"><span class="pre">pylauncher.HostPool</span></code></a></p>
-<p>A HostPool object based on the hosts obtained from the
-<code class="docutils literal notranslate"><span class="pre">HostListByName</span></code> function, and using the <code class="docutils literal notranslate"><span class="pre">SSHExecutor</span></code> function.</p>
-</dd></dl>
-
 <p>Two utility functions may help you in writing customizations.</p>
-<dl class="function">
-<dt id="pylauncher.HostName">
-<code class="descclassname">pylauncher.</code><code class="descname">HostName</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher.html#HostName"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.HostName" title="Permalink to this definition">¶</a></dt>
-<dd><p>This just returns the hostname. See also <code class="docutils literal notranslate"><span class="pre">ClusterName</span></code>.</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="pylauncher.ClusterName">
-<code class="descclassname">pylauncher.</code><code class="descname">ClusterName</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher.html#ClusterName"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.ClusterName" title="Permalink to this definition">¶</a></dt>
-<dd><p>Assuming that a node name is along the lines of <code class="docutils literal notranslate"><span class="pre">c123-456.cluster.tacc.utexas.edu</span></code>
-this returns the second member. Otherwise it returns None.</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="pylauncher.JobId">
-<code class="descclassname">pylauncher.</code><code class="descname">JobId</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher.html#JobId"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.JobId" title="Permalink to this definition">¶</a></dt>
-<dd><p>This function is installation dependent: it inspects the environment variable
-that holds the job ID, based on the actual name of the host (see</p>
-<blockquote>
-<div><code class="docutils literal notranslate"><span class="pre">HostName</span></code>): this should only return a number if we are actually in a job.</div></blockquote>
-</dd></dl>
-
 </div>
 <div class="section" id="tacc-launchers">
 <h1>TACC launchers<a class="headerlink" href="#tacc-launchers" title="Permalink to this headline">¶</a></h1>
-<dl class="function">
-<dt id="pylauncher.ClassicLauncher">
-<code class="descclassname">pylauncher.</code><code class="descname">ClassicLauncher</code><span class="sig-paren">(</span><em>commandfile</em>, <em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher.html#ClassicLauncher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.ClassicLauncher" title="Permalink to this definition">¶</a></dt>
-<dd><p>A LauncherJob for a file of single or multi-threaded commands.</p>
-<p>The following values are specified for your convenience:</p>
-<ul class="simple">
-<li>hostpool : based on HostListByName</li>
-<li>commandexecutor : SSHExecutor</li>
-<li>taskgenerator : based on the <code class="docutils literal notranslate"><span class="pre">commandfile</span></code> argument</li>
-<li>completion : based on a directory <code class="docutils literal notranslate"><span class="pre">pylauncher_tmp</span></code> with jobid environment variables attached</li>
-</ul>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>commandfile</strong> – name of file with commandlines (required)</li>
-<li><strong>resume</strong> – if 1,yes interpret the commandfile as a queuestate file</li>
-<li><strong>cores</strong> – number of cores (keyword, optional, default=1)</li>
-<li><strong>workdir</strong> – (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory</li>
-<li><strong>debug</strong> – debug types string (optional, keyword)</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="function">
-<dt id="pylauncher.IbrunLauncher">
-<code class="descclassname">pylauncher.</code><code class="descname">IbrunLauncher</code><span class="sig-paren">(</span><em>commandfile</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher.html#IbrunLauncher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.IbrunLauncher" title="Permalink to this definition">¶</a></dt>
-<dd><p>A LauncherJob for a file of small MPI jobs.</p>
-<p>The following values are specified for your convenience:</p>
-<ul class="simple">
-<li>hostpool : based on HostListByName</li>
-<li>commandexecutor : IbrunExecutor</li>
-<li>taskgenerator : based on the <code class="docutils literal notranslate"><span class="pre">commandfile</span></code> argument</li>
-<li>completion : based on a directory <code class="docutils literal notranslate"><span class="pre">pylauncher_tmp</span></code> with jobid environment variables attached</li>
-</ul>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>commandfile</strong> – name of file with commandlines (required)</li>
-<li><strong>cores</strong> – number of cores (keyword, optional, default=4, see <code class="docutils literal notranslate"><span class="pre">FileCommandlineGenerator</span></code> for more explanation)</li>
-<li><strong>workdir</strong> – directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory</li>
-<li><strong>debug</strong> – debug types string (optional, keyword)</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="function">
-<dt id="pylauncher.MICLauncher">
-<code class="descclassname">pylauncher.</code><code class="descname">MICLauncher</code><span class="sig-paren">(</span><em>commandfile</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher.html#MICLauncher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher.MICLauncher" title="Permalink to this definition">¶</a></dt>
-<dd><p>A LauncherJob for execution entirely on an Intel Xeon Phi.</p>
-<p>See <code class="docutils literal notranslate"><span class="pre">ClassicLauncher</span></code> for an explanation of the parameters.
-The only difference is in the use of a LocalExecutor.
-Treatment of the MIC cores is handled in the <code class="docutils literal notranslate"><span class="pre">HostListByName</span></code>.</p>
-</dd></dl>
-
 </div>
 
 
+            <div class="clearer"></div>
           </div>
         </div>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
-  <h3><a href="index.html">Table Of Contents</a></h3>
+  <h3><a href="index.html">Table of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">TACC specifics and extendability to other installations</a></li>
 <li><a class="reference internal" href="#tacc-launchers">TACC launchers</a></li>
@@ -202,17 +83,15 @@ Treatment of the MIC cores is handled in the <code class="docutils literal notra
     </ul>
    </div>
 <div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
+  <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="search.html" method="get">
-      <input type="text" name="q" />
+      <input type="text" name="q" aria-labelledby="searchlabel" />
       <input type="submit" value="Go" />
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
     </form>
     </div>
 </div>
-<script type="text/javascript">$('#searchbox').show(0);</script>
+<script>$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
@@ -224,20 +103,18 @@ Treatment of the MIC cores is handled in the <code class="docutils literal notra
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="right" >
           <a href="trace.html" title="Tracing and profiling"
              >next</a> |</li>
         <li class="right" >
           <a href="implementation.html" title="Implementation"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">PyLauncher 2.0 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">PyLauncher 3.2 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">TACC specifics and extendability to other installations</a></li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2013, Victor Eijkhout.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.7.
+        &#169; Copyright 2013-2020, Victor Eijkhout.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
     </div>
   </body>
 </html>

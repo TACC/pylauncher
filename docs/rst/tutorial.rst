@@ -5,7 +5,7 @@ A quick tutorial
 Setup
 =====
 
-You need to have the files ``pylauncher.py`` and ``hostlist.py`` in your ``PYTHONPATH``.
+You need to have the files ``pylauncher3.py`` and ``hostlist.py`` in your ``PYTHONPATH``.
 If you are at TACC, do ``module load pylauncher`` and all is good.
 
 ===============
@@ -17,11 +17,11 @@ into a single batch submission on a cluster. In that case, put
 
   ::
 
-  module load python
+  module load python3
 
   ::
 
-  python your_launcher_file.py
+  python3 your_launcher_file.py
 
 in the jobscript. 
 
@@ -31,7 +31,8 @@ Examples
 ========
 
 There is an ``examples`` subdirectory with some simple scenarios
-of how to invoke the pylauncher.
+of how to invoke the pylauncher. We start with a number of launchers
+that run inside a parallel (SLURM/SGE/PBS) job.
 
 ----------------
 Single-core jobs
@@ -89,6 +90,46 @@ This example uses a provided program, ``parallel.c`` of two parameters:
 
 The program will report the size of its communicator, that is,
 on how many cores it is running.
+
+----------------
+Local jobs
+----------------
+
+If you own your computer and you want to run the parallel
+the parameter sweep locally, use the ``LocalLauncher``
+
+.. literalinclude:: ../../examples/example_.py
+
+Two parameters:
+
+* name of a file of commandlines
+* a count of how many jobs you want to run simultaneously, typically
+  the number of cores of your machine.
+
+----------------
+Remote jobs
+----------------
+
+The launchers so far spawned all jobs on the machine where the launcher python script
+is running. It is possible to run the python script in one location (say, a container)
+while spawning jobs elsewhere. First, the ``RemoteLauncher`` takes a hostlist
+and spawns jobs there through an ssh connection:
+
+  ::
+
+  def RemoteLauncher(commandfile,hostlist,**kwargs)
+
+Optional arguments:
+
+* ``workdir`` : location for the temporary files
+* ``ppn`` : how many jobs can be fitted on any one of the hosts
+* ``cores`` : number of cores allocated to each job
+
+  ::
+
+  def IbrunRemoteLauncher(commandfile,hostlist,**kwargs)
+
+Same arguments as the ``RemoteLauncher``, now every job is start as an MPI execution.
 
 ----------------
 Job timeout

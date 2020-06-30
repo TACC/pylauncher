@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "PYLAUNCHER" "1" "Oct 22, 2018" "2.0" "PyLauncher"
+.TH "PYLAUNCHER" "1" "Jun 30, 2020" "3.2" "PyLauncher"
 .SH NAME
 pylauncher \- PyLauncher Documentation
 .
@@ -42,14 +42,14 @@ submit a large number of small jobs (and it would probably
 lower your priority!) so it would be a good idea
 to package them into one large parallel job.
 .sp
-Let’s say that you have 4000 serial jobs, and your cluster allows
+Let\(aqs say that you have 4000 serial jobs, and your cluster allows
 you to allocate 400 cores, then packing up the serial jobs could
 be executed on those 400 cores, in approximately the time of 10 serial jobs.
 .sp
 The tool to do this packing is called a \fIparametric job launcher\fP\&.
-The ‘parametric’ part refers to the fact that most of the time your
+The \(aqparametric\(aq part refers to the fact that most of the time your
 serial jobs will be the same program, just invoked with a different input parameter.
-One also talks of a ‘parameter sweep’ for the whole process.
+One also talks of a \(aqparameter sweep\(aq for the whole process.
 .sp
 A simple launcher scenario would take a file with command lines,
 and give them out cyclicly to the available cores. This mode
@@ -65,7 +65,7 @@ would tell you what part of space to explore next, and what part
 to ignore.
 .sp
 The pylauncher module supports such scenarios.
-.SS Here’s what I want to know: do I have to learn python?
+.SS Here\(aqs what I want to know: do I have to learn python?
 .sp
 Short answer: probably not. The pylauncher utility is
 written in python, and to use it you have to write a few lines of python.
@@ -75,8 +75,8 @@ can just copy.
 Longer answer: only if you want to get ambitious.
 For common scenarios there are single function calls which you
 can copy from example scripts. However, the launcher is highly customizable,
-and to use that functionality you need to understand something about python’s
-classes and you may even have to code your own event loop. That’s the price you
+and to use that functionality you need to understand something about python\(aqs
+classes and you may even have to code your own event loop. That\(aqs the price you
 pay for a very powerful tool.
 .SS Realization
 .sp
@@ -99,7 +99,7 @@ and generate a pull request.
 .SH A QUICK TUTORIAL
 .SS Setup
 .sp
-You need to have the files \fBpylauncher.py\fP and \fBhostlist.py\fP in your \fBPYTHONPATH\fP\&.
+You need to have the files \fBpylauncher3.py\fP and \fBhostlist.py\fP in your \fBPYTHONPATH\fP\&.
 If you are at TACC, do \fBmodule load pylauncher\fP and all is good.
 .SS Batch operation
 .sp
@@ -107,9 +107,11 @@ The most common usage scenario is to use the launcher to bundle many small jobs
 into a single batch submission on a cluster. In that case, put
 .INDENT 0.0
 .INDENT 3.5
-module load python
+::
+module load python3
 .sp
-python your_launcher_file.py
+::
+python3 your_launcher_file.py
 .UNINDENT
 .UNINDENT
 .sp
@@ -117,7 +119,8 @@ in the jobscript.
 .SS Examples
 .sp
 There is an \fBexamples\fP subdirectory with some simple scenarios
-of how to invoke the pylauncher.
+of how to invoke the pylauncher. We start with a number of launchers
+that run inside a parallel (SLURM/SGE/PBS) job.
 .SS Single\-core jobs
 .sp
 In the simplest scenario, we have a file of commandlines,
@@ -275,6 +278,44 @@ the number of seconds running time
 .sp
 The program will report the size of its communicator, that is,
 on how many cores it is running.
+.SS Local jobs
+.sp
+If you own your computer and you want to run the parallel
+the parameter sweep locally, use the \fBLocalLauncher\fP
+.sp
+Two parameters:
+.INDENT 0.0
+.IP \(bu 2
+name of a file of commandlines
+.IP \(bu 2
+a count of how many jobs you want to run simultaneously, typically
+the number of cores of your machine.
+.UNINDENT
+.SS Remote jobs
+.sp
+The launchers so far spawned all jobs on the machine where the launcher python script
+is running. It is possible to run the python script in one location (say, a container)
+while spawning jobs elsewhere. First, the \fBRemoteLauncher\fP takes a hostlist
+and spawns jobs there through an ssh connection:
+.INDENT 0.0
+.INDENT 3.5
+def RemoteLauncher(commandfile,hostlist,**kwargs)
+.UNINDENT
+.UNINDENT
+.sp
+Optional arguments:
+.INDENT 0.0
+.IP \(bu 2
+\fBworkdir\fP : location for the temporary files
+.IP \(bu 2
+\fBppn\fP : how many jobs can be fitted on any one of the hosts
+.IP \(bu 2
+\fBcores\fP : number of cores allocated to each job
+.sp
+def IbrunRemoteLauncher(commandfile,hostlist,**kwargs)
+.UNINDENT
+.sp
+Same arguments as the \fBRemoteLauncher\fP, now every job is start as an MPI execution.
 .SS Job timeout
 .sp
 If individual tasks can take a varying amount of time and you may want
@@ -345,7 +386,7 @@ pylauncher.ResumeClassicLauncher("queuestate",debug="job")
 .SH IMPLEMENTATION
 .SS Commandline generation
 .sp
-The term ‘commandline’ has a technical meaning:
+The term \(aqcommandline\(aq has a technical meaning:
 a commandline is a two\-element list or a tuple where the first member is the
 Unix command and the second is a core count. These commandline tuples are generated
 by a couple of types of generators.
@@ -360,157 +401,6 @@ commands run out. However,
 the \fBDynamicCommandlineGenerator\fP class runs forever,
 or at least until you tell it to stop, so it is good for
 lists that are dynamically replenished.
-.INDENT 0.0
-.TP
-.B class pylauncher.CommandlineGenerator(**kwargs)
-An iteratable class that generates a stream of \fBCommandline\fP objects.
-.sp
-The behaviour of the generator depends on the \fBnmax\fP parameter:
-.INDENT 7.0
-.IP \(bu 2
-nmax is None: exhaust the original list
-.IP \(bu 2
-nmax > 0: keep popping until the count is reached; if the initial list is shorter, someone will have to fill it, which this class is not capable of
-.IP \(bu 2
-nmax == 0 : iterate indefinitely, wait for someone to call the \fBfinish\fP method
-.UNINDENT
-.sp
-In the second and third scenario it can be the case that the list is empty.
-In that case, the generator will yield a COMMAND that is \fBstall\fP\&.
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBlist\fP – (keyword, default [] ) initial list of Commandline objects
-.IP \(bu 2
-\fBnax\fP – (keyword, default None) see above for explanation
-.UNINDENT
-.UNINDENT
-.INDENT 7.0
-.TP
-.B finish()
-Tell the generator to stop after the commands list is depleted
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.CommandlineGenerator(**kwargs)
-An iteratable class that generates a stream of \fBCommandline\fP objects.
-.sp
-The behaviour of the generator depends on the \fBnmax\fP parameter:
-.INDENT 7.0
-.IP \(bu 2
-nmax is None: exhaust the original list
-.IP \(bu 2
-nmax > 0: keep popping until the count is reached; if the initial list is shorter, someone will have to fill it, which this class is not capable of
-.IP \(bu 2
-nmax == 0 : iterate indefinitely, wait for someone to call the \fBfinish\fP method
-.UNINDENT
-.sp
-In the second and third scenario it can be the case that the list is empty.
-In that case, the generator will yield a COMMAND that is \fBstall\fP\&.
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBlist\fP – (keyword, default [] ) initial list of Commandline objects
-.IP \(bu 2
-\fBnax\fP – (keyword, default None) see above for explanation
-.UNINDENT
-.UNINDENT
-.INDENT 7.0
-.TP
-.B abort()
-Stop the generator, even if there are still elements in the commands list
-.UNINDENT
-.INDENT 7.0
-.TP
-.B finish()
-Tell the generator to stop after the commands list is depleted
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.FileCommandlineGenerator(filename, **kwargs)
-Bases: \fI\%pylauncher.CommandlineGenerator\fP
-.sp
-A generator for commandline files:
-blank lines and lines starting with the comment character ‘#’ are ignored
-.INDENT 7.0
-.IP \(bu 2
-cores is 1 by default, other constants allowed.
-.IP \(bu 2
-cores==’file’ means the file has << count,command >> lines
-.IP \(bu 2
-if the file has core counts, but you don’t specify the ‘file’ value, they are ignored.
-.UNINDENT
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBfilename\fP – (required) name of the file with commandlines
-.IP \(bu 2
-\fBcores\fP – (keyword, default 1) core count to be used for all commands
-.IP \(bu 2
-\fBdependencies\fP – (keyword, default False) are there task dependencies?
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.DynamicCommandlineGenerator(**kwargs)
-Bases: \fI\%pylauncher.CommandlineGenerator\fP
-.sp
-A CommandlineGenerator with an extra method:
-.sp
-\fBappend\fP: add a Commandline object to the list
-.sp
-The ‘nmax=0’ parameter value makes the generator keep expecting new stuff.
-.INDENT 7.0
-.TP
-.B append(command)
-Append a unix command to the internal structure of the generator
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.DirectoryCommandlineGenerator(command_directory, commandfile_root, **kwargs)
-Bases: \fI\%pylauncher.DynamicCommandlineGenerator\fP
-.sp
-A CommandlineGenerator object based on finding files in a directory.
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBcommand_directory\fP – (directory name, required) directory where commandlines are found; unlike launcher job work directories, this can be reused.
-.IP \(bu 2
-\fBcommandfile_root\fP – (string, required) only files that start with this, followed by a dash, are inspected for commands. A file can contain more than one command.
-.IP \(bu 2
-\fBcores\fP – (keyword, optional, default 1) core count for the commandlines.
-.UNINDENT
-.UNINDENT
-.INDENT 7.0
-.TP
-.B next()
-List the directory and iterate over the commandfiles:
-.INDENT 7.0
-.IP \(bu 2
-ignore any open files, which are presumably still being written
-.IP \(bu 2
-if they are marked as scheduled, ignore
-.IP \(bu 2
-if there is a file \fBfinish\-nnn\fP, mark job nnn as finished
-.IP \(bu 2
-if they are not yet scheduled, call \fBappend\fP with a \fBCommandline\fP object
-.UNINDENT
-.sp
-If the finish name is present, and all scheduled jobs are finished, finish the generator.
-.UNINDENT
-.UNINDENT
 .SS Host management
 .sp
 We have an abstract concept of a node, which is a slot for a job.
@@ -520,307 +410,12 @@ you can query a host pool for sufficient nodes to run a multiprocess job.
 A host pool has associated with it an executor object, which represents
 the way tasks (see below) are started on nodes in that pool. Executors are also
 discussed below.
-.INDENT 0.0
-.TP
-.B class pylauncher.Node(host=None, core=None, nodeid=\-1)
-A abstract object for a slot to execute a job. Most of the time
-this will correspond to a core.
-.sp
-A node can have a task associated with it or be free.
-.INDENT 7.0
-.TP
-.B isfree()
-Test whether a node is occupied
-.UNINDENT
-.INDENT 7.0
-.TP
-.B occupyWithTask(taskid)
-Occupy a node with a taskid
-.UNINDENT
-.INDENT 7.0
-.TP
-.B release()
-Make a node unoccupied
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.HostList(hostlist=[], tag=\(aq\(aq)
-Object describing a list of hosts. Each host is a dictionary
-with a \fBhost\fP and \fBcore\fP field.
-.sp
-Arguments:
-.INDENT 7.0
-.IP \(bu 2
-list : list of hostname strings
-.IP \(bu 2
-tag : something like \fB\&.tacc.utexas.edu\fP may be necessary to ssh to hosts in the list
-.UNINDENT
-.sp
-This is an iteratable object; it yields the host/core dictionary objects.
-.INDENT 7.0
-.TP
-.B append(h, c=0)
-Arguments:
-.INDENT 7.0
-.IP \(bu 2
-h : hostname
-.IP \(bu 2
-c (optional, default zero) : core number
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.HostPoolBase(**kwargs)
-A base class that defines some methods and sets up
-the basic data structures.
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBcommandexecutor\fP – (keyword, optional, default=\(ga\(gaLocalExecutor\(ga\(ga) the \fBExecutor\fP object for this host pool
-.IP \(bu 2
-\fBworkdir\fP – (keyword, optional) the workdir for the command executor
-.IP \(bu 2
-\fBdebug\fP – (keyword, optional) a string of debug types; if this contains ‘host’, anything derived from \fBHostPoolBase\fP will do a debug trace
-.UNINDENT
-.UNINDENT
-.INDENT 7.0
-.TP
-.B append_node(host=\(aqlocalhost\(aq, core=0)
-Create a new item in this pool by specifying either a Node object
-or a hostname plus core number. This function is called in a loop when a
-\fBHostPool\fP is created from a \fBHostList\fP object.
-.UNINDENT
-.INDENT 7.0
-.TP
-.B final_report()
-Return a string that reports how many tasks were run on each node.
-.UNINDENT
-.INDENT 7.0
-.TP
-.B occupyNodes(locator, taskid)
-Occupy nodes with a taskid
-.sp
-Argument:
-* locator : HostLocator object
-* taskid : like the man says
-.UNINDENT
-.INDENT 7.0
-.TP
-.B release()
-If the executor opens ssh connections, we want to close them cleanly.
-.UNINDENT
-.INDENT 7.0
-.TP
-.B releaseNodesByTask(taskid)
-Given a task id, release the nodes that are associated with it
-.UNINDENT
-.INDENT 7.0
-.TP
-.B request_nodes(request)
-Request a number of nodes; this returns a HostLocator object
-.UNINDENT
-.INDENT 7.0
-.TP
-.B unique_hostnames(pool=None)
-Return a list of unique hostnames. In general each hostname appears
-16 times or so in a HostPool since each core is listed.
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.HostPool(**kwargs)
-Bases: \fBpylauncher.HostPoolBase\fP
-.sp
-A structure to manage a bunch of Node objects.
-The main internal object is the \fBnodes\fP member, which 
-is a list of Node objects.
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBnhosts\fP – the number of slots in the pool; this will use the localhost
-.IP \(bu 2
-\fBhostlist\fP – HostList object; this takes preference over the previous option
-.IP \(bu 2
-\fBcommandexecutor\fP – (optional) a prefixer routine, by default LocalExecutor
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.HostLocator(pool=None, extent=None, offset=None)
-A description of a subset from a HostPool. A locator
-object is typically created when a task asks for a set of nodes
-from a HostPool. Thus, a locator inherits the executor
-from the host pool from which it is taken.
-.sp
-The only locator objects allowed at the moment are consecutive subsets.
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBpool\fP – HostPool (optional)
-.IP \(bu 2
-\fBextent\fP – number of nodes requested
-.IP \(bu 2
-\fBoffset\fP – location of the first node in the pool
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.DefaultHostPool(**kwargs)
-Bases: \fI\%pylauncher.HostPool\fP
-.sp
-A HostPool object based on the hosts obtained from the
-\fBHostListByName\fP function, and using the \fBSSHExecutor\fP function.
-.UNINDENT
 .SS Task management
 .sp
 Tasks are generated internally from a \fBTaskGenerator\fP object that
 the user can specify. The \fBTaskQueue\fP object is created internally
 in a \fBLauncherJob\fP\&.  For the \fBcompletion\fP argument of the \fBTaskGenerator\fP,
 see below.
-.INDENT 0.0
-.TP
-.B class pylauncher.Task(command, **kwargs)
-A Task is an abstract object associated with a commandline
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBcommand\fP – (required) Commandline object; note that this contains the core count
-.IP \(bu 2
-\fBcompletion\fP – (keyword, optional) Completion object; if unspecified the trivial completion is used.
-.IP \(bu 2
-\fBtaskid\fP – (keyword) identifying number of this task; has to be unique in a job, also has to be equal to the taskid of the completion
-.IP \(bu 2
-\fBdebug\fP – (keyword, optional) string of debug keywords
-.UNINDENT
-.UNINDENT
-.INDENT 7.0
-.TP
-.B hasCompleted()
-Execute the completion test of this Task
-.UNINDENT
-.INDENT 7.0
-.TP
-.B line_with_completion()
-Return the task’s commandline with completion attached
-.UNINDENT
-.INDENT 7.0
-.TP
-.B start_on_nodes(**kwargs)
-Start the task.
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBpool\fP – HostLocator object (keyword, required) : this describes the nodes on which to start the task
-.IP \(bu 2
-\fBcommandexecutor\fP – (keyword, optional) prefixer routine, by default the commandexecutor of the pool is used
-.UNINDENT
-.UNINDENT
-.sp
-This sets \fBself.startime\fP to right before the execution begins. We do not keep track
-of the endtime, but instead set \fBself.runningtime\fP in the \fBhasCompleted\fP routine.
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.TaskQueue(**kwargs)
-Object that does the maintains a list of Task objects.
-This is internally created inside a \fBLauncherJob\fP object.
-.INDENT 7.0
-.TP
-.B enqueue(task)
-Add a task to the queue
-.UNINDENT
-.INDENT 7.0
-.TP
-.B final_report()
-Return a string describing the max and average runtime for each task.
-.UNINDENT
-.INDENT 7.0
-.TP
-.B find_recently_aborted(abort_test)
-Find the first recently aborted task.
-Note the return, not yield.
-.UNINDENT
-.INDENT 7.0
-.TP
-.B find_recently_completed()
-Find the first recently completed task.
-Note the return, not yield.
-.UNINDENT
-.INDENT 7.0
-.TP
-.B isEmpty()
-Test whether the queue is empty and no tasks running
-.UNINDENT
-.INDENT 7.0
-.TP
-.B startQueued(hostpool, **kwargs)
-for all queued, try to find nodes to run it on;
-the hostpool argument is a HostPool object
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.TaskGenerator(commandlines, **kwargs)
-iterator class that can yield the following:
-.INDENT 7.0
-.IP \(bu 2
-a Task instance, or
-.IP \(bu 2
-the keyword \fBstall\fP; this indicates that the commandline generator is stalling and this will be resolved when the outer environment does an \fBappend\fP on the commandline generator.
-.IP \(bu 2
-the \fBpylauncherBarrierString\fP; in this case the outer environment should not call the generator until all currently running tasks have concluded.
-.IP \(bu 2
-the keyword \fBstop\fP; this means that the commandline generator is exhausted. The \fBnext\fP function can be called repeatedly on a stopped generator.
-.UNINDENT
-.sp
-You can iterate over an instance, or call the \fBnext\fP method. The \fBnext\fP method
-can accept an imposed taskcount number.
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBcommandlinegenerator\fP – either a list of unix commands, or a CommandlineGenerator object
-.IP \(bu 2
-\fBcompletion\fP – (optional) a function of one variable (the task id) that returns Completion objects
-.IP \(bu 2
-\fBdebug\fP – (optional) string of requested debug modes
-.IP \(bu 2
-\fBskip\fP – (optional) list of tasks to skip, this is for restarted jobs
-.UNINDENT
-.UNINDENT
-.INDENT 7.0
-.TP
-.B next(imposedcount=None)
-Deliver a Task object, or a special string:
-.INDENT 7.0
-.IP \(bu 2
-“stall” : the commandline generator will give more, all in good time
-.IP \(bu 2
-“stop” : we are totally done
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pylauncher.TaskGeneratorIterate(gen)
-In case you want to iterate over a TaskGenerator, use this generator routine
-.UNINDENT
 .SS Executors
 .sp
 At some point a task needs to be executed. It does that by applying the \fBexecute\fP
@@ -830,110 +425,6 @@ different hostpools have different execution mechanisms.)
 Executing a task takes a commandline and a host locator on which to execute it;
 different classes derived from \fBExecutor\fP correspond to different spawning
 mechanisms.
-.INDENT 0.0
-.TP
-.B class pylauncher.Executor(**kwargs)
-Class for starting a commandline on some actual computing device.
-.sp
-All derived classes need to define a \fBexecute\fP method.
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBcatch_output\fP – (keyword, optional, default=True) state whether command output gets caught, or just goes to stdout
-.IP \(bu 2
-\fBworkdir\fP – (optional, default=”pylauncher_tmpdir_exec”) directory for exec and out files
-.IP \(bu 2
-\fBdebug\fP – (optional) string of debug modes; include “exec” to trace this class
-.UNINDENT
-.UNINDENT
-.sp
-Important note: the \fBworkdir\fP should not already exist. You have to remove it yourself.
-.INDENT 7.0
-.TP
-.B workdir_is_safe()
-Test that the working directory is (in) a subdirectory of the cwd
-.UNINDENT
-.INDENT 7.0
-.TP
-.B wrap(command)
-Take a commandline, write it to a small file, and return the 
-commandline that sources that file
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.LocalExecutor(**kwargs)
-Bases: \fI\%pylauncher.Executor\fP
-.sp
-Execute a commandline locally, in the background.
-.INDENT 7.0
-.TP
-.B Parameters
-\fBprefix\fP – (keyword, optional, default null string) for recalcitrant shells, the possibility to specify ‘/bin/sh’ or so
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.SSHExecutor(**kwargs)
-Bases: \fI\%pylauncher.Executor\fP
-.sp
-Intelligent ssh connection.
-.sp
-This is either a new paramiko ssh connection or a copy of an existing one,
-so that we don’t open multiple connections to one node.
-.sp
-Commands are executed with:
-\fBcd\fP to the current directory, and 
-copy the current environment.
-.sp
-Note: environment variables with a space, semicolon, or parentheses
-are not transferred.
-.sp
-For parameters, see the Executor class.
-.INDENT 7.0
-.TP
-.B execute(usercommand, **kwargs)
-Execute a commandline in the background on the ssh_client object
-in this Executor object.
-.INDENT 7.0
-.IP \(bu 2
-usercommand gets the environment prefixed to it
-.IP \(bu 2
-result is wrapped with Executor.wrap
-.UNINDENT
-.INDENT 7.0
-.TP
-.B Parameters
-\fBpool\fP – (required) either a Node or HostLocator
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.IbrunExecutor(**kwargs)
-Bases: \fI\%pylauncher.Executor\fP
-.sp
-An Executor derived class for the shift/offset version of ibrun
-that is in use at TACC
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBpool\fP – (required) \fBHostLocator\fP object
-.IP \(bu 2
-\fBstdout\fP – (optional) a file that is open for writing; by default \fBsubprocess.PIPE\fP is used
-.UNINDENT
-.UNINDENT
-.INDENT 7.0
-.TP
-.B execute(command, **kwargs)
-Much like \fBSSHExecutor.execute()\fP, except that it prefixes
-with \fBibrun \-n \-o\fP
-.UNINDENT
-.UNINDENT
 .SS Task Completion
 .sp
 Task management is largely done internally. The one aspect that a user
@@ -942,61 +433,6 @@ commandline that gets executed leaves a zero size file behind that is
 branded with the task number. The TaskQueue object uses that to detect
 that a task is finished, and therefore that its Node objects can be
 released.
-.INDENT 0.0
-.TP
-.B class pylauncher.Completion(taskid=0)
-Define a completion object for a task.
-.sp
-The base class doesn’t do a lot: it immediately returns true on the 
-completion test.
-.INDENT 7.0
-.TP
-.B attach(txt)
-Attach a completion to a command, giving a new command
-.UNINDENT
-.INDENT 7.0
-.TP
-.B test()
-Test whether the task has completed
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.FileCompletion(**kwargs)
-Bases: \fI\%pylauncher.Completion\fP
-.sp
-FileCompletion is the most common type of completion. It appends
-to a command the creation of a zero size file with a unique name.
-The completion test then tests for the existence of that file.
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBtaskid\fP – (keyword, required) this has to be unique. Unfortunately we can not test for that.
-.IP \(bu 2
-\fBstampdir\fP – (keyword, optional, default is self.stampdir, which is “.”) directory where the stampfile is left
-.IP \(bu 2
-\fBstamproot\fP – (keyword, optional, default is “expire”) root of the stampfile name
-.UNINDENT
-.UNINDENT
-.INDENT 7.0
-.TP
-.B attach(txt)
-Append a ‘touch’ command to the txt argument
-.UNINDENT
-.INDENT 7.0
-.TP
-.B stampname()
-Internal function that gives the name of the stamp file,
-including directory path
-.UNINDENT
-.INDENT 7.0
-.TP
-.B test()
-Test for the existence of the stamp file
-.UNINDENT
-.UNINDENT
 .sp
 Task generators need completions dynamically generated since they need
 to receive a job id. You could for instance specify code such as the
@@ -1017,54 +453,6 @@ completion=lambda x:FileCompletion( taskid=x,
 All of the above components are pulled together in the LauncherJob class.
 Writing your own launcher this way is fairly easy;
 see the TACC section for some examples of launchers.
-.INDENT 0.0
-.TP
-.B class pylauncher.LauncherJob(**kwargs)
-LauncherJob class. Keyword arguments:
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBhostpool\fP – a HostPool instance (required)
-.IP \(bu 2
-\fBtaskgenerator\fP – a TaskGenerator instance (required)
-.IP \(bu 2
-\fBdelay\fP – between task checks  (optional)
-.IP \(bu 2
-\fBdebug\fP – list of keywords (optional)
-.IP \(bu 2
-\fBgather_output\fP – (keyword, optional, default None) filename to gather all command output
-.IP \(bu 2
-\fBmaxruntime\fP – (keyword, optional, default zero) if nonzero, maximum running time in seconds
-.UNINDENT
-.UNINDENT
-.INDENT 7.0
-.TP
-.B run()
-Invoke the launcher job, and call \fBtick\fP until all jobs are finished.
-.UNINDENT
-.INDENT 7.0
-.TP
-.B tick()
-This routine does a single time step in a launcher’s life, and reports back
-to the user. Specifically:
-.INDENT 7.0
-.IP \(bu 2
-It tries to start any currently queued jobs. Also:
-.IP \(bu 2
-If any jobs are finished, it detects exactly one, and reports its ID to the user in a message \fBexpired 123\fP
-.IP \(bu 2
-If there are no finished jobs, it invokes the task generator; this can result in a new task and the return message is \fBcontinuing\fP
-.IP \(bu 2
-if the generator stalls, that is, more tasks will come in the future but none are available now, the message is \fBstalling\fP
-.IP \(bu 2
-if the generator is finished and all jobs have finished, the message is \fBfinished\fP
-.UNINDENT
-.sp
-After invoking the task generator, a short sleep is inserted (see the \fBdelay\fP parameter)
-.UNINDENT
-.UNINDENT
 .SH TACC SPECIFICS AND EXTENDABILITY TO OTHER INSTALLATIONS
 .sp
 The pylauncher source has a number of classes and routines
@@ -1073,141 +461,9 @@ For starters, there are two classes derived from \fBHostList\fP,
 that parse the hostlists for the SGE and SLURM scheduler.
 If you use Load Leveler or PBS, you can write your own
 using these as an example.
-.INDENT 0.0
-.TP
-.B class pylauncher.SGEHostList(**kwargs)
-Bases: \fBpylauncher.HostList\fP
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.SLURMHostList(**kwargs)
-Bases: \fBpylauncher.HostList\fP
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pylauncher.HostListByName(**kwargs)
-Give a proper hostlist. Currently this work for the following TACC hosts:
-.INDENT 7.0
-.IP \(bu 2
-\fBls4\fP: Lonestar4, using SGE
-.IP \(bu 2
-\fBls5\fP: Lonestar5, using SLURM
-.IP \(bu 2
-\fBmaverick\fP: Maverick, using SLURM
-.IP \(bu 2
-\fBstampede\fP: Stampede, using SLURM
-.IP \(bu 2
-\fBmic\fP: Intel Xeon PHI co\-processor attached to a compute node
-.UNINDENT
-.sp
-We return a trivial hostlist otherwise.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.DefaultHostPool(**kwargs)
-Bases: \fBpylauncher.HostPool\fP
-.sp
-A HostPool object based on the hosts obtained from the
-\fBHostListByName\fP function, and using the \fBSSHExecutor\fP function.
-.UNINDENT
 .sp
 Two utility functions may help you in writing customizations.
-.INDENT 0.0
-.TP
-.B pylauncher.HostName()
-This just returns the hostname. See also \fBClusterName\fP\&.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pylauncher.ClusterName()
-Assuming that a node name is along the lines of \fBc123\-456.cluster.tacc.utexas.edu\fP
-this returns the second member. Otherwise it returns None.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pylauncher.JobId()
-This function is installation dependent: it inspects the environment variable
-that holds the job ID, based on the actual name of the host (see
-.INDENT 7.0
-.INDENT 3.5
-\fBHostName\fP): this should only return a number if we are actually in a job.
-.UNINDENT
-.UNINDENT
-.UNINDENT
 .SH TACC LAUNCHERS
-.INDENT 0.0
-.TP
-.B pylauncher.ClassicLauncher(commandfile, *args, **kwargs)
-A LauncherJob for a file of single or multi\-threaded commands.
-.sp
-The following values are specified for your convenience:
-.INDENT 7.0
-.IP \(bu 2
-hostpool : based on HostListByName
-.IP \(bu 2
-commandexecutor : SSHExecutor
-.IP \(bu 2
-taskgenerator : based on the \fBcommandfile\fP argument
-.IP \(bu 2
-completion : based on a directory \fBpylauncher_tmp\fP with jobid environment variables attached
-.UNINDENT
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBcommandfile\fP – name of file with commandlines (required)
-.IP \(bu 2
-\fBresume\fP – if 1,yes interpret the commandfile as a queuestate file
-.IP \(bu 2
-\fBcores\fP – number of cores (keyword, optional, default=1)
-.IP \(bu 2
-\fBworkdir\fP – (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory
-.IP \(bu 2
-\fBdebug\fP – debug types string (optional, keyword)
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pylauncher.IbrunLauncher(commandfile, **kwargs)
-A LauncherJob for a file of small MPI jobs.
-.sp
-The following values are specified for your convenience:
-.INDENT 7.0
-.IP \(bu 2
-hostpool : based on HostListByName
-.IP \(bu 2
-commandexecutor : IbrunExecutor
-.IP \(bu 2
-taskgenerator : based on the \fBcommandfile\fP argument
-.IP \(bu 2
-completion : based on a directory \fBpylauncher_tmp\fP with jobid environment variables attached
-.UNINDENT
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBcommandfile\fP – name of file with commandlines (required)
-.IP \(bu 2
-\fBcores\fP – number of cores (keyword, optional, default=4, see \fBFileCommandlineGenerator\fP for more explanation)
-.IP \(bu 2
-\fBworkdir\fP – directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory
-.IP \(bu 2
-\fBdebug\fP – debug types string (optional, keyword)
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pylauncher.MICLauncher(commandfile, **kwargs)
-A LauncherJob for execution entirely on an Intel Xeon Phi.
-.sp
-See \fBClassicLauncher\fP for an explanation of the parameters.
-The only difference is in the use of a LocalExecutor.
-Treatment of the MIC cores is handled in the \fBHostListByName\fP\&.
-.UNINDENT
 .SH TRACING AND PROFILING
 .sp
 It is possible to generate trace output during a run and profiling
@@ -1239,181 +495,11 @@ Various classes can produce a report. This is intended to be used at the
 end of a job, but you can do it really at any time. The predefined launchers
 such as \fBClassicLauncher\fP
 print out this stuff by default.
-.INDENT 0.0
-.TP
-.B class pylauncher.HostPoolBase(**kwargs)
-A base class that defines some methods and sets up
-the basic data structures.
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBcommandexecutor\fP – (keyword, optional, default=\(ga\(gaLocalExecutor\(ga\(ga) the \fBExecutor\fP object for this host pool
-.IP \(bu 2
-\fBworkdir\fP – (keyword, optional) the workdir for the command executor
-.IP \(bu 2
-\fBdebug\fP – (keyword, optional) a string of debug types; if this contains ‘host’, anything derived from \fBHostPoolBase\fP will do a debug trace
-.UNINDENT
-.UNINDENT
-.INDENT 7.0
-.TP
-.B final_report()
-Return a string that reports how many tasks were run on each node.
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.TaskQueue(**kwargs)
-Object that does the maintains a list of Task objects.
-This is internally created inside a \fBLauncherJob\fP object.
-.INDENT 7.0
-.TP
-.B final_report()
-Return a string describing the max and average runtime for each task.
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.LauncherJob(**kwargs)
-LauncherJob class. Keyword arguments:
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBhostpool\fP – a HostPool instance (required)
-.IP \(bu 2
-\fBtaskgenerator\fP – a TaskGenerator instance (required)
-.IP \(bu 2
-\fBdelay\fP – between task checks  (optional)
-.IP \(bu 2
-\fBdebug\fP – list of keywords (optional)
-.IP \(bu 2
-\fBgather_output\fP – (keyword, optional, default None) filename to gather all command output
-.IP \(bu 2
-\fBmaxruntime\fP – (keyword, optional, default zero) if nonzero, maximum running time in seconds
-.UNINDENT
-.UNINDENT
-.INDENT 7.0
-.TP
-.B final_report()
-Return a string describing the total running time, as well as
-including the final report from the embedded \fBHostPool\fP and \fBTaskQueue\fP
-objects.
-.UNINDENT
-.UNINDENT
 .SH TESTING
 .sp
 The pylauncher.py source file has a large number of unittests
 that are designed for the nosetests framework: all routines and classes
 starting with \fBtest\fP are only for testing purposes.
-.INDENT 0.0
-.TP
-.B class pylauncher.ListCommandlineGenerator(**kwargs)
-A generator from an explicit list of commandlines.
-.INDENT 7.0
-.IP \(bu 2
-cores is 1 by default, other constants allowed.
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.CountedCommandGenerator(**kwargs)
-This class is only for the unit tests, it produces a string of 
-.nf
-\(ga
-.fi
-echo 0’, 
-.nf
-\(ga
-.fi
-echo 1’
-et cetera commands.
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBnmax\fP – (keyword, default=\-1) maximum number of commands to generate, negative for no maximum
-.IP \(bu 2
-\fBcommand\fP – (keyword, default==\(ga\(gaecho\(ga\(ga) the command that will do the counting; sometimes it’s a good idea to replace this with \fB/bin/true\fP
-.IP \(bu 2
-\fBcatch\fP – (keyword, default None) file where to catch output
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.SleepCommandGenerator(**kwargs)
-Generator of commandlines 
-.nf
-\(ga
-.fi
-echo 0 ; sleep trand’, 
-.nf
-\(ga
-.fi
-echo 1 ; sleep trand’
-where the sleep is a random amount.
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBtmax\fP – (keyword, default 5) maximum sleep time
-.IP \(bu 2
-\fBtmin\fP – (keyword, default 1) minimum sleep time
-.IP \(bu 2
-\fBbarrier\fP – (keyword, default 0) if >0, insert a barrier statement every that many lines
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.RandomSleepTask(**kwargs)
-Make a task that sleeps for a random amount of time.
-This is for use in many many unit tests.
-.INDENT 7.0
-.TP
-.B Parameters
-.INDENT 7.0
-.IP \(bu 2
-\fBtaskid\fP – unique identifier (keyword, required)
-.IP \(bu 2
-\fBt\fP – maximum running time (keyword, optional; default=10)
-.IP \(bu 2
-\fBtmin\fP – minimum running time (keyword, optional; default=1)
-.IP \(bu 2
-\fBcompletion\fP – Completion object (keyword, optional; if you leave this unspecified, the next two parameters become relevant
-.IP \(bu 2
-\fBstampdir\fP – name of the directory where to leave the stamp file (optional, default=current dir)
-.IP \(bu 2
-\fBstamproot\fP – filename stemp for the stamp file (optional, default=”sleepexpire”)
-.UNINDENT
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B class pylauncher.OneNodePool(node, **kwargs)
-This class is mostly for testing: it allows for a node to function
-as a host pool so that one can start a task on it.
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pylauncher.MakeRandomCommandFile(fn, ncommand, **kwargs)
-Make file with commandlines and occasional comments and blanks.
-.INDENT 7.0
-.TP
-.B Parameters
-\fBcores\fP – (keyword, default=1) corecount, if this is 1 we put nothing in the file, larger values and “file” (for random) go into the file
-.UNINDENT
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pylauncher.MakeRandomSleepFile(fn, ncommand, **kwargs)
-make file with sleep commandlines and occasional comments and blanks
-.UNINDENT
 .INDENT 0.0
 .IP \(bu 2
 genindex
@@ -1425,6 +511,6 @@ search
 .SH AUTHOR
 Victor Eijkhout
 .SH COPYRIGHT
-2013, Victor Eijkhout
+2013-2020, Victor Eijkhout
 .\" Generated by docutils manpage writer.
 .
