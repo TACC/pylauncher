@@ -2339,13 +2339,6 @@ class SSHExecutor(Executor):
         ssh = self.node_client_dict[hostname]
         try:
             stdin,stdout,stderr = ssh.exec_command("( %s ) &" % wrapped_line)
-#             transport = ssh.get_transport()
-#             self.session = transport.open_session()
-#             self.session.setblocking(0) # Set to non-blocking mode
-#             self.session.get_pty()
-#             self.session.invoke_shell()
-#             # Send command
-#             self.session.send('watch -n1 ps\n')
         except : # old paramiko value? ChannelException:
             DebugTraceMsg("Channel exception; let's see if this blows over",prefix="SSH")
             time.sleep(3)
@@ -2770,8 +2763,9 @@ class MpiexecExecutor(Executor):
             raise LauncherException("SSHExecutor needs explicit HostPool")
         wrapped_command = self.wrap(command)
         stdout = kwargs.pop("stdout",subprocess.PIPE)
-        full_commandline \
-            = [ "mpiexec","-n",str(pool.extent), wrapped_command ] # not: "&"
+        # full_commandline \
+        #     =  "ibrun -o %d -n %d %s" % \
+        #        (pool.offset,pool.extent,wrapped_command)
         full_commandline \
             =  "mpiexec -n %d %s" % \
                (pool.extent,wrapped_command)
@@ -3687,7 +3681,7 @@ def IbrunRemoteLauncher(commandfile,hostlist,**kwargs):
     cores = kwargs.pop("cores",4)
     job = LauncherJob(
         hostpool=HostPool( hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
-            commandexecutor=MpiexecExecutor(workdir=workdir,debug=debug), debug=debug ),
+            commandexecutor=SSHExecutor(workdir=workdir,debug=debug), debug=debug ),
         taskgenerator=TaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
             completion=lambda x:FileCompletion(taskid=x,
