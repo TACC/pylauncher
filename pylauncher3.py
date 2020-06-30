@@ -3659,7 +3659,7 @@ def RemoteLauncher(commandfile,hostlist,**kwargs):
     job.run()
     print(job.final_report())
 
-def IbrunRemoteLauncher(commandfile,hostlist,**kwargs):
+def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
     """A LauncherJob for a file of small MPI jobs, executed remotely.
 
     The following values are specified for your convenience:
