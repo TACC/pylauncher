@@ -17,9 +17,14 @@ int main(int argc,char **argv) {
   jobno = atoi(argv[1]);
   slp = atoi(argv[2]);
 
+  int namelen = MPI_MAX_PROCESSOR_NAME;
+  char procname[MPI_MAX_PROCESSOR_NAME];
+  MPI_Get_processor_name(procname,&namelen);
+
   MPI_Barrier(MPI_COMM_WORLD);
   sprintf(outfile,"pytmp-%04d-%04d",jobno,mytid);
   f = fopen(outfile,"w");
+  fprintf(f,"on host %s\n",procname);
   fprintf(f,"%d/%d working\n",mytid,ntids);
   fclose(f);
 
