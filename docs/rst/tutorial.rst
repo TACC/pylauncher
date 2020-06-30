@@ -80,6 +80,9 @@ instances simultaneously, use the ``IbrunLauncher``.
 
 .. literalinclude:: ../../examples/example_shifted_ibrun.py
 
+Each commandline needs to start with a number indicating
+on how many cores the command is to run:
+
 .. literalinclude:: ../../examples/parallellines
    :lines: 1-10
 

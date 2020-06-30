@@ -1,7 +1,7 @@
 Introduction and general usage
 ------------------------------
 
-.. automodule:: pylauncher
+.. automodule:: pylauncher3
 
 This is the documentation of the pylauncher utility by Victor Eijkhout.
 

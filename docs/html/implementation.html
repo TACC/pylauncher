@@ -27,6 +27,9 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
           <a href="extend.html" title="TACC specifics and extendability to other installations"
              accesskey="N">next</a> |</li>
         <li class="right" >
@@ -42,8 +45,151 @@
         <div class="bodywrapper">
           <div class="body" role="main">
             
-  <div class="section" id="implementation">
-<h1>Implementation<a class="headerlink" href="#implementation" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="module-pylauncher3">
+<span id="implementation"></span><h1>Implementation<a class="headerlink" href="#module-pylauncher3" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="top-level-launchers">
+<h2>Top-level launchers<a class="headerlink" href="#top-level-launchers" title="Permalink to this headline">¶</a></h2>
+<p>Ok, so this is a toolbox but the pieces are not entirely trivial to put together.
+Therefore, the following list of launcher commands exist.</p>
+<dl class="py function">
+<dt id="pylauncher3.ClassicLauncher">
+<code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">ClassicLauncher</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">commandfile</span></em>, <em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#ClassicLauncher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.ClassicLauncher" title="Permalink to this definition">¶</a></dt>
+<dd><p>A LauncherJob for a file of single or multi-threaded commands.</p>
+<p>The following values are specified for your convenience:</p>
+<ul class="simple">
+<li><p>hostpool : based on HostListByName</p></li>
+<li><p>commandexecutor : SSHExecutor</p></li>
+<li><p>taskgenerator : based on the <code class="docutils literal notranslate"><span class="pre">commandfile</span></code> argument</p></li>
+<li><p>completion : based on a directory <code class="docutils literal notranslate"><span class="pre">pylauncher_tmp</span></code> with jobid environment variables attached</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>commandfile</strong> – name of file with commandlines (required)</p></li>
+<li><p><strong>resume</strong> – if 1,yes interpret the commandfile as a queuestate file</p></li>
+<li><p><strong>cores</strong> – number of cores (keyword, optional, default=1)</p></li>
+<li><p><strong>workdir</strong> – (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory</p></li>
+<li><p><strong>debug</strong> – debug types string (optional, keyword)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="pylauncher3.ResumeClassicLauncher">
+<code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">ResumeClassicLauncher</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">commandfile</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#ResumeClassicLauncher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.ResumeClassicLauncher" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt id="pylauncher3.LocalLauncher">
+<code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">LocalLauncher</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">commandfile</span></em>, <em class="sig-param"><span class="n">nhosts</span></em>, <em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#LocalLauncher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.LocalLauncher" title="Permalink to this definition">¶</a></dt>
+<dd><p>A LauncherJob for a file of single or multi-threaded commands, running locally</p>
+<p>The following values are specified for your convenience:</p>
+<ul class="simple">
+<li><p>hostpool : based on HostListByName</p></li>
+<li><p>commandexecutor : SSHExecutor</p></li>
+<li><p>taskgenerator : based on the <code class="docutils literal notranslate"><span class="pre">commandfile</span></code> argument</p></li>
+<li><p>completion : based on a directory <code class="docutils literal notranslate"><span class="pre">pylauncher_tmp</span></code> with jobid environment variables attached</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>commandfile</strong> – name of file with commandlines (required)</p></li>
+<li><p><strong>resume</strong> – if 1,yes interpret the commandfile as a queuestate file</p></li>
+<li><p><strong>cores</strong> – number of cores (keyword, optional, default=1)</p></li>
+<li><p><strong>workdir</strong> – (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory</p></li>
+<li><p><strong>debug</strong> – debug types string (optional, keyword)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="pylauncher3.MPILauncher">
+<code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">MPILauncher</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">commandfile</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#MPILauncher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.MPILauncher" title="Permalink to this definition">¶</a></dt>
+<dd><p>A LauncherJob for a file of small MPI jobs, for a system not using Ibrun</p>
+<p>The following values are specified using other functions.</p>
+<ul class="simple">
+<li><p>hostpool : determined via HostListByName</p></li>
+<li><p>commandexecutor : MPIExecutor</p></li>
+<li><p>taskgenerator : based on the <code class="docutils literal notranslate"><span class="pre">commandfile</span></code> argument</p></li>
+<li><p>complete : based on a diretory <code class="docutils literal notranslate"><span class="pre">pylauncher_tmp</span></code> with jobid environment variables attached</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>commandfile</strong> – name of files with commandlines (required)</p></li>
+<li><p><strong>cores</strong> – number of cores (keyword, optional, default=4, see <code class="docutils literal notranslate"><span class="pre">FileCommandlineGenerator</span></code> for more explanation)</p></li>
+<li><p><strong>workdir</strong> – directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to resuse an already existing directory</p></li>
+<li><p><strong>debug</strong> – debug types string (optional, keyword)</p></li>
+<li><p><strong>hfswitch</strong> – Switch used to determine the hostifle switch used with your MPI distribution. Default is -machinefile (optional,keyword)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="pylauncher3.RemoteLauncher">
+<code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">RemoteLauncher</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">commandfile</span></em>, <em class="sig-param"><span class="n">hostlist</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#RemoteLauncher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.RemoteLauncher" title="Permalink to this definition">¶</a></dt>
+<dd><p>A LauncherJob for a file of single or multi-thread commands, executed remotely.</p>
+<p>The following values are specified for your convenience:</p>
+<ul class="simple">
+<li><p>commandexecutor : IbrunExecutor</p></li>
+<li><p>taskgenerator : based on the <code class="docutils literal notranslate"><span class="pre">commandfile</span></code> argument</p></li>
+<li><p>completion : based on a directory <code class="docutils literal notranslate"><span class="pre">pylauncher_tmp</span></code> with jobid environment variables attached</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>commandfile</strong> – name of file with commandlines (required)</p>
+</dd>
+</dl>
+<p>:param hostlist : list of hostnames
+:param cores: number of cores (keyword, optional, default=4, see <code class="docutils literal notranslate"><span class="pre">FileCommandlineGenerator</span></code> for more explanation)
+:param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory
+:param debug: debug types string (optional, keyword)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="pylauncher3.IbrunRemoteLauncher">
+<code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">IbrunRemoteLauncher</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">commandfile</span></em>, <em class="sig-param"><span class="n">hostlist</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#IbrunRemoteLauncher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.IbrunRemoteLauncher" title="Permalink to this definition">¶</a></dt>
+<dd><p>A LauncherJob for a file of small MPI jobs, executed remotely.</p>
+<p>The following values are specified for your convenience:</p>
+<ul class="simple">
+<li><p>commandexecutor : IbrunExecutor</p></li>
+<li><p>taskgenerator : based on the <code class="docutils literal notranslate"><span class="pre">commandfile</span></code> argument</p></li>
+<li><p>completion : based on a directory <code class="docutils literal notranslate"><span class="pre">pylauncher_tmp</span></code> with jobid environment variables attached</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>commandfile</strong> – name of file with commandlines (required)</p>
+</dd>
+</dl>
+<p>:param hostlist : list of hostnames
+:param cores: number of cores (keyword, optional, default=4, see <code class="docutils literal notranslate"><span class="pre">FileCommandlineGenerator</span></code> for more explanation)
+:param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory
+:param debug: debug types string (optional, keyword)</p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.DynamicLauncher">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">DynamicLauncher</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#DynamicLauncher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.DynamicLauncher" title="Permalink to this definition">¶</a></dt>
+<dd><p>A LauncherJob derived class that is designed for dynamic adding of 
+commands. This should make it easier to integrate
+in environments that expect to “submit” jobs one at a time.</p>
+<p>This has two extra methods:
+* append(commandline) : add commandline to the internal queueu
+* none_waiting() : check that all commands are either running or finished</p>
+<p>Optional parameters have a default value that makes it behave like
+the ClassicLauncher.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>hostpool</strong> – (optional) by default based on HostListByName())</p>
+</dd>
+</dl>
+<p>:</p>
+</dd></dl>
+
+</div>
 <div class="section" id="commandline-generation">
 <h2>Commandline generation<a class="headerlink" href="#commandline-generation" title="Permalink to this headline">¶</a></h2>
 <p>The term ‘commandline’ has a technical meaning:
@@ -59,6 +205,148 @@ commands run out. However,
 the <code class="docutils literal notranslate"><span class="pre">DynamicCommandlineGenerator</span></code> class runs forever,
 or at least until you tell it to stop, so it is good for
 lists that are dynamically replenished.</p>
+<dl class="py class">
+<dt id="pylauncher3.CommandlineGenerator">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">CommandlineGenerator</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#CommandlineGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.CommandlineGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>An iteratable class that generates a stream of <code class="docutils literal notranslate"><span class="pre">Commandline</span></code> objects.</p>
+<p>The behaviour of the generator depends on the <code class="docutils literal notranslate"><span class="pre">nmax</span></code> parameter:</p>
+<ul class="simple">
+<li><p>nmax is None: exhaust the original list</p></li>
+<li><p>nmax &gt; 0: keep popping until the count is reached; if the initial list is shorter, someone will have to fill it, which this class is not capable of</p></li>
+<li><p>nmax == 0 : iterate indefinitely, wait for someone to call the <code class="docutils literal notranslate"><span class="pre">finish</span></code> method</p></li>
+</ul>
+<p>In the second and third scenario it can be the case that the list is empty.
+In that case, the generator will yield a COMMAND that is <code class="docutils literal notranslate"><span class="pre">stall</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>list</strong> – (keyword, default [] ) initial list of Commandline objects</p></li>
+<li><p><strong>nax</strong> – (keyword, default None) see above for explanation</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="pylauncher3.CommandlineGenerator.finish">
+<code class="sig-name descname">finish</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#CommandlineGenerator.finish"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.CommandlineGenerator.finish" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tell the generator to stop after the commands list is depleted</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.CommandlineGenerator.next">
+<code class="sig-name descname">next</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#CommandlineGenerator.next"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.CommandlineGenerator.next" title="Permalink to this definition">¶</a></dt>
+<dd><p>Produce the next Commandline object, or return an object telling that the
+generator is stalling or has stopped</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="id0">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">CommandlineGenerator</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#CommandlineGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#id0" title="Permalink to this definition">¶</a></dt>
+<dd><p>An iteratable class that generates a stream of <code class="docutils literal notranslate"><span class="pre">Commandline</span></code> objects.</p>
+<p>The behaviour of the generator depends on the <code class="docutils literal notranslate"><span class="pre">nmax</span></code> parameter:</p>
+<ul class="simple">
+<li><p>nmax is None: exhaust the original list</p></li>
+<li><p>nmax &gt; 0: keep popping until the count is reached; if the initial list is shorter, someone will have to fill it, which this class is not capable of</p></li>
+<li><p>nmax == 0 : iterate indefinitely, wait for someone to call the <code class="docutils literal notranslate"><span class="pre">finish</span></code> method</p></li>
+</ul>
+<p>In the second and third scenario it can be the case that the list is empty.
+In that case, the generator will yield a COMMAND that is <code class="docutils literal notranslate"><span class="pre">stall</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>list</strong> – (keyword, default [] ) initial list of Commandline objects</p></li>
+<li><p><strong>nax</strong> – (keyword, default None) see above for explanation</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="pylauncher3.CommandlineGenerator.abort">
+<code class="sig-name descname">abort</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#CommandlineGenerator.abort"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.CommandlineGenerator.abort" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stop the generator, even if there are still elements in the commands list</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="id1">
+<code class="sig-name descname">finish</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#CommandlineGenerator.finish"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#id1" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tell the generator to stop after the commands list is depleted</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="id2">
+<code class="sig-name descname">next</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#CommandlineGenerator.next"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#id2" title="Permalink to this definition">¶</a></dt>
+<dd><p>Produce the next Commandline object, or return an object telling that the
+generator is stalling or has stopped</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.FileCommandlineGenerator">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">FileCommandlineGenerator</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">filename</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#FileCommandlineGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.FileCommandlineGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#id0" title="pylauncher3.CommandlineGenerator"><code class="xref py py-class docutils literal notranslate"><span class="pre">pylauncher3.CommandlineGenerator</span></code></a></p>
+<p>A generator for commandline files:
+blank lines and lines starting with the comment character ‘#’ are ignored</p>
+<ul class="simple">
+<li><p>cores is 1 by default, other constants allowed.</p></li>
+<li><p>cores==’file’ means the file has &lt;&lt; count,command &gt;&gt; lines</p></li>
+<li><p>if the file has core counts, but you don’t specify the ‘file’ value, they are ignored.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filename</strong> – (required) name of the file with commandlines</p></li>
+<li><p><strong>cores</strong> – (keyword, default 1) core count to be used for all commands</p></li>
+<li><p><strong>dependencies</strong> – (keyword, default False) are there task dependencies?</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.DynamicCommandlineGenerator">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">DynamicCommandlineGenerator</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#DynamicCommandlineGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.DynamicCommandlineGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#id0" title="pylauncher3.CommandlineGenerator"><code class="xref py py-class docutils literal notranslate"><span class="pre">pylauncher3.CommandlineGenerator</span></code></a></p>
+<p>A CommandlineGenerator with an extra method:</p>
+<p><code class="docutils literal notranslate"><span class="pre">append</span></code>: add a Commandline object to the list</p>
+<p>The ‘nmax=0’ parameter value makes the generator keep expecting new stuff.</p>
+<dl class="py method">
+<dt id="pylauncher3.DynamicCommandlineGenerator.append">
+<code class="sig-name descname">append</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">command</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#DynamicCommandlineGenerator.append"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.DynamicCommandlineGenerator.append" title="Permalink to this definition">¶</a></dt>
+<dd><p>Append a unix command to the internal structure of the generator</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.DirectoryCommandlineGenerator">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">DirectoryCommandlineGenerator</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">command_directory</span></em>, <em class="sig-param"><span class="n">commandfile_root</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#DirectoryCommandlineGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.DirectoryCommandlineGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pylauncher3.DynamicCommandlineGenerator" title="pylauncher3.DynamicCommandlineGenerator"><code class="xref py py-class docutils literal notranslate"><span class="pre">pylauncher3.DynamicCommandlineGenerator</span></code></a></p>
+<p>A CommandlineGenerator object based on finding files in a directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>command_directory</strong> – (directory name, required) directory where commandlines are found; unlike launcher job work directories, this can be reused.</p></li>
+<li><p><strong>commandfile_root</strong> – (string, required) only files that start with this, followed by a dash, are inspected for commands. A file can contain more than one command.</p></li>
+<li><p><strong>cores</strong> – (keyword, optional, default 1) core count for the commandlines.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="pylauncher3.DirectoryCommandlineGenerator.next">
+<code class="sig-name descname">next</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#DirectoryCommandlineGenerator.next"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.DirectoryCommandlineGenerator.next" title="Permalink to this definition">¶</a></dt>
+<dd><p>List the directory and iterate over the commandfiles:</p>
+<ul class="simple">
+<li><p>ignore any open files, which are presumably still being written</p></li>
+<li><p>if they are marked as scheduled, ignore</p></li>
+<li><p>if there is a file <code class="docutils literal notranslate"><span class="pre">finish-nnn</span></code>, mark job nnn as finished</p></li>
+<li><p>if they are not yet scheduled, call <code class="docutils literal notranslate"><span class="pre">append</span></code> with a <code class="docutils literal notranslate"><span class="pre">Commandline</span></code> object</p></li>
+</ul>
+<p>If the finish name is present, and all scheduled jobs are finished, finish the generator.</p>
+</dd></dl>
+
+</dd></dl>
+
 </div>
 <div class="section" id="host-management">
 <h2>Host management<a class="headerlink" href="#host-management" title="Permalink to this headline">¶</a></h2>
@@ -68,6 +356,165 @@ you can query a host pool for sufficient nodes to run a multiprocess job.</p>
 <p>A host pool has associated with it an executor object, which represents
 the way tasks (see below) are started on nodes in that pool. Executors are also
 discussed below.</p>
+<dl class="py class">
+<dt id="pylauncher3.Node">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">Node</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">host</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">core</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">nodeid</span><span class="o">=</span><span class="default_value">- 1</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Node" title="Permalink to this definition">¶</a></dt>
+<dd><p>A abstract object for a slot to execute a job. Most of the time
+this will correspond to a core.</p>
+<p>A node can have a task associated with it or be free.</p>
+<dl class="py method">
+<dt id="pylauncher3.Node.isfree">
+<code class="sig-name descname">isfree</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Node.isfree"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Node.isfree" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test whether a node is occupied</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.Node.occupyWithTask">
+<code class="sig-name descname">occupyWithTask</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">taskid</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Node.occupyWithTask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Node.occupyWithTask" title="Permalink to this definition">¶</a></dt>
+<dd><p>Occupy a node with a taskid</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.Node.release">
+<code class="sig-name descname">release</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Node.release"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Node.release" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make a node unoccupied</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.HostList">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">HostList</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">hostlist</span><span class="o">=</span><span class="default_value">[]</span></em>, <em class="sig-param"><span class="n">tag</span><span class="o">=</span><span class="default_value">''</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostList" title="Permalink to this definition">¶</a></dt>
+<dd><p>Object describing a list of hosts. Each host is a dictionary
+with a <code class="docutils literal notranslate"><span class="pre">host</span></code> and <code class="docutils literal notranslate"><span class="pre">core</span></code> field.</p>
+<p>Arguments:</p>
+<ul class="simple">
+<li><p>list : list of hostname strings</p></li>
+<li><p>tag : something like <code class="docutils literal notranslate"><span class="pre">.tacc.utexas.edu</span></code> may be necessary to ssh to hosts in the list</p></li>
+</ul>
+<p>This is an iteratable object; it yields the host/core dictionary objects.</p>
+<dl class="py method">
+<dt id="pylauncher3.HostList.append">
+<code class="sig-name descname">append</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">h</span></em>, <em class="sig-param"><span class="n">c</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostList.append"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostList.append" title="Permalink to this definition">¶</a></dt>
+<dd><p>Arguments:</p>
+<ul class="simple">
+<li><p>h : hostname</p></li>
+<li><p>c (optional, default zero) : core number</p></li>
+</ul>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.HostPoolBase">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">HostPoolBase</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostPoolBase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostPoolBase" title="Permalink to this definition">¶</a></dt>
+<dd><p>A base class that defines some methods and sets up
+the basic data structures.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>commandexecutor</strong> – (keyword, optional, default=``LocalExecutor``) the <code class="docutils literal notranslate"><span class="pre">Executor</span></code> object for this host pool</p></li>
+<li><p><strong>workdir</strong> – (keyword, optional) the workdir for the command executor</p></li>
+<li><p><strong>debug</strong> – (keyword, optional) a string of debug types; if this contains ‘host’, anything derived from <code class="docutils literal notranslate"><span class="pre">HostPoolBase</span></code> will do a debug trace</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="pylauncher3.HostPoolBase.append_node">
+<code class="sig-name descname">append_node</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">host</span><span class="o">=</span><span class="default_value">'localhost'</span></em>, <em class="sig-param"><span class="n">core</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostPoolBase.append_node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostPoolBase.append_node" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a new item in this pool by specifying either a Node object
+or a hostname plus core number. This function is called in a loop when a
+<code class="docutils literal notranslate"><span class="pre">HostPool</span></code> is created from a <code class="docutils literal notranslate"><span class="pre">HostList</span></code> object.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.HostPoolBase.final_report">
+<code class="sig-name descname">final_report</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostPoolBase.final_report"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostPoolBase.final_report" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a string that reports how many tasks were run on each node.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.HostPoolBase.occupyNodes">
+<code class="sig-name descname">occupyNodes</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">locator</span></em>, <em class="sig-param"><span class="n">taskid</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostPoolBase.occupyNodes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostPoolBase.occupyNodes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Occupy nodes with a taskid</p>
+<p>Argument:
+* locator : HostLocator object
+* taskid : like the man says</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.HostPoolBase.release">
+<code class="sig-name descname">release</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostPoolBase.release"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostPoolBase.release" title="Permalink to this definition">¶</a></dt>
+<dd><p>If the executor opens ssh connections, we want to close them cleanly.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.HostPoolBase.releaseNodesByTask">
+<code class="sig-name descname">releaseNodesByTask</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">taskid</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostPoolBase.releaseNodesByTask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostPoolBase.releaseNodesByTask" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a task id, release the nodes that are associated with it</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.HostPoolBase.request_nodes">
+<code class="sig-name descname">request_nodes</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">request</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostPoolBase.request_nodes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostPoolBase.request_nodes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Request a number of nodes; this returns a HostLocator object</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.HostPoolBase.unique_hostnames">
+<code class="sig-name descname">unique_hostnames</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">pool</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostPoolBase.unique_hostnames"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostPoolBase.unique_hostnames" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a list of unique hostnames. In general each hostname appears
+16 times or so in a HostPool since each core is listed.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.HostPool">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">HostPool</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostPool"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostPool" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pylauncher3.HostPoolBase" title="pylauncher3.HostPoolBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">pylauncher3.HostPoolBase</span></code></a></p>
+<p>A structure to manage a bunch of Node objects.
+The main internal object is the <code class="docutils literal notranslate"><span class="pre">nodes</span></code> member, which 
+is a list of Node objects.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>nhosts</strong> – the number of slots in the pool; this will use the localhost</p></li>
+<li><p><strong>hostlist</strong> – HostList object; this takes preference over the previous option</p></li>
+<li><p><strong>commandexecutor</strong> – (optional) a prefixer routine, by default LocalExecutor</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.HostLocator">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">HostLocator</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">pool</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">extent</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">offset</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostLocator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostLocator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A description of a subset from a HostPool. A locator
+object is typically created when a task asks for a set of nodes
+from a HostPool. Thus, a locator inherits the executor
+from the host pool from which it is taken.</p>
+<p>The only locator objects allowed at the moment are consecutive subsets.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pool</strong> – HostPool (optional)</p></li>
+<li><p><strong>extent</strong> – number of nodes requested</p></li>
+<li><p><strong>offset</strong> – location of the first node in the pool</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.DefaultHostPool">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">DefaultHostPool</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#DefaultHostPool"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.DefaultHostPool" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pylauncher3.HostPool" title="pylauncher3.HostPool"><code class="xref py py-class docutils literal notranslate"><span class="pre">pylauncher3.HostPool</span></code></a></p>
+<p>A HostPool object based on the hosts obtained from the
+<code class="docutils literal notranslate"><span class="pre">HostListByName</span></code> function, and using the <code class="docutils literal notranslate"><span class="pre">SSHExecutor</span></code> function.</p>
+</dd></dl>
+
 </div>
 <div class="section" id="task-management">
 <h2>Task management<a class="headerlink" href="#task-management" title="Permalink to this headline">¶</a></h2>
@@ -75,6 +522,136 @@ discussed below.</p>
 the user can specify. The <code class="docutils literal notranslate"><span class="pre">TaskQueue</span></code> object is created internally
 in a <code class="docutils literal notranslate"><span class="pre">LauncherJob</span></code>.  For the <code class="docutils literal notranslate"><span class="pre">completion</span></code> argument of the <code class="docutils literal notranslate"><span class="pre">TaskGenerator</span></code>,
 see below.</p>
+<dl class="py class">
+<dt id="pylauncher3.Task">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">Task</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">command</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Task"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Task" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Task is an abstract object associated with a commandline</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>command</strong> – (required) Commandline object; note that this contains the core count</p></li>
+<li><p><strong>completion</strong> – (keyword, optional) Completion object; if unspecified the trivial completion is used.</p></li>
+<li><p><strong>taskid</strong> – (keyword) identifying number of this task; has to be unique in a job, also has to be equal to the taskid of the completion</p></li>
+<li><p><strong>debug</strong> – (keyword, optional) string of debug keywords</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="pylauncher3.Task.hasCompleted">
+<code class="sig-name descname">hasCompleted</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Task.hasCompleted"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Task.hasCompleted" title="Permalink to this definition">¶</a></dt>
+<dd><p>Execute the completion test of this Task</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.Task.line_with_completion">
+<code class="sig-name descname">line_with_completion</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Task.line_with_completion"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Task.line_with_completion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the task’s commandline with completion attached</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.Task.start_on_nodes">
+<code class="sig-name descname">start_on_nodes</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Task.start_on_nodes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Task.start_on_nodes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Start the task.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pool</strong> – HostLocator object (keyword, required) : this describes the nodes on which to start the task</p></li>
+<li><p><strong>commandexecutor</strong> – (keyword, optional) prefixer routine, by default the commandexecutor of the pool is used</p></li>
+</ul>
+</dd>
+</dl>
+<p>This sets <code class="docutils literal notranslate"><span class="pre">self.startime</span></code> to right before the execution begins. We do not keep track
+of the endtime, but instead set <code class="docutils literal notranslate"><span class="pre">self.runningtime</span></code> in the <code class="docutils literal notranslate"><span class="pre">hasCompleted</span></code> routine.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.TaskQueue">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">TaskQueue</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#TaskQueue"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.TaskQueue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Object that does the maintains a list of Task objects.
+This is internally created inside a <code class="docutils literal notranslate"><span class="pre">LauncherJob</span></code> object.</p>
+<dl class="py method">
+<dt id="pylauncher3.TaskQueue.enqueue">
+<code class="sig-name descname">enqueue</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">task</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#TaskQueue.enqueue"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.TaskQueue.enqueue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a task to the queue</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.TaskQueue.final_report">
+<code class="sig-name descname">final_report</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">runningtime</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#TaskQueue.final_report"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.TaskQueue.final_report" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a string describing the max and average runtime for each task.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.TaskQueue.find_recently_aborted">
+<code class="sig-name descname">find_recently_aborted</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">abort_test</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#TaskQueue.find_recently_aborted"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.TaskQueue.find_recently_aborted" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the first recently aborted task.
+Note the return, not yield.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.TaskQueue.find_recently_completed">
+<code class="sig-name descname">find_recently_completed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#TaskQueue.find_recently_completed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.TaskQueue.find_recently_completed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the first recently completed task.
+Note the return, not yield.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.TaskQueue.isEmpty">
+<code class="sig-name descname">isEmpty</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#TaskQueue.isEmpty"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.TaskQueue.isEmpty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test whether the queue is empty and no tasks running</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.TaskQueue.startQueued">
+<code class="sig-name descname">startQueued</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">hostpool</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#TaskQueue.startQueued"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.TaskQueue.startQueued" title="Permalink to this definition">¶</a></dt>
+<dd><p>for all queued, try to find nodes to run it on;
+the hostpool argument is a HostPool object</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.TaskGenerator">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">TaskGenerator</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">commandlines</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#TaskGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.TaskGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>iterator class that can yield the following:</p>
+<ul class="simple">
+<li><p>a Task instance, or</p></li>
+<li><p>the keyword <code class="docutils literal notranslate"><span class="pre">stall</span></code>; this indicates that the commandline generator is stalling and this will be resolved when the outer environment does an <code class="docutils literal notranslate"><span class="pre">append</span></code> on the commandline generator.</p></li>
+<li><p>the <code class="docutils literal notranslate"><span class="pre">pylauncherBarrierString</span></code>; in this case the outer environment should not call the generator until all currently running tasks have concluded.</p></li>
+<li><p>the keyword <code class="docutils literal notranslate"><span class="pre">stop</span></code>; this means that the commandline generator is exhausted. The <code class="docutils literal notranslate"><span class="pre">next</span></code> function can be called repeatedly on a stopped generator.</p></li>
+</ul>
+<p>You can iterate over an instance, or call the <code class="docutils literal notranslate"><span class="pre">next</span></code> method. The <code class="docutils literal notranslate"><span class="pre">next</span></code> method
+can accept an imposed taskcount number.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>commandlinegenerator</strong> – either a list of unix commands, or a CommandlineGenerator object</p></li>
+<li><p><strong>completion</strong> – (optional) a function of one variable (the task id) that returns Completion objects</p></li>
+<li><p><strong>debug</strong> – (optional) string of requested debug modes</p></li>
+<li><p><strong>skip</strong> – (optional) list of tasks to skip, this is for restarted jobs</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="pylauncher3.TaskGenerator.next">
+<code class="sig-name descname">next</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">imposedcount</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#TaskGenerator.next"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.TaskGenerator.next" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deliver a Task object, or a special string:</p>
+<ul class="simple">
+<li><p>“stall” : the commandline generator will give more, all in good time</p></li>
+<li><p>“stop” : we are totally done</p></li>
+</ul>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt id="pylauncher3.TaskGeneratorIterate">
+<code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">TaskGeneratorIterate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">gen</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#TaskGeneratorIterate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.TaskGeneratorIterate" title="Permalink to this definition">¶</a></dt>
+<dd><p>In case you want to iterate over a TaskGenerator, use this generator routine</p>
+</dd></dl>
+
 <div class="section" id="executors">
 <h3>Executors<a class="headerlink" href="#executors" title="Permalink to this headline">¶</a></h3>
 <p>At some point a task needs to be executed. It does that by applying the <code class="docutils literal notranslate"><span class="pre">execute</span></code>
@@ -84,6 +661,102 @@ different hostpools have different execution mechanisms.)
 Executing a task takes a commandline and a host locator on which to execute it;
 different classes derived from <code class="docutils literal notranslate"><span class="pre">Executor</span></code> correspond to different spawning
 mechanisms.</p>
+<dl class="py class">
+<dt id="pylauncher3.Executor">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">Executor</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Executor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Executor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class for starting a commandline on some actual computing device.</p>
+<p>All derived classes need to define a <code class="docutils literal notranslate"><span class="pre">execute</span></code> method.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>catch_output</strong> – (keyword, optional, default=True) state whether command output gets caught, or just goes to stdout</p></li>
+<li><p><strong>workdir</strong> – (optional, default=”pylauncher_tmpdir_exec”) directory for exec and out files</p></li>
+<li><p><strong>debug</strong> – (optional) string of debug modes; include “exec” to trace this class</p></li>
+</ul>
+</dd>
+</dl>
+<p>Important note: the <code class="docutils literal notranslate"><span class="pre">workdir</span></code> should not already exist. You have to remove it yourself.</p>
+<dl class="py method">
+<dt id="pylauncher3.Executor.workdir_is_safe">
+<code class="sig-name descname">workdir_is_safe</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Executor.workdir_is_safe"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Executor.workdir_is_safe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test that the working directory is (in) a subdirectory of the cwd</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.Executor.wrap">
+<code class="sig-name descname">wrap</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">command</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Executor.wrap"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Executor.wrap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Take a commandline, write it to a small file, and return the 
+commandline that sources that file</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.LocalExecutor">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">LocalExecutor</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#LocalExecutor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.LocalExecutor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pylauncher3.Executor" title="pylauncher3.Executor"><code class="xref py py-class docutils literal notranslate"><span class="pre">pylauncher3.Executor</span></code></a></p>
+<p>Execute a commandline locally, in the background.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>prefix</strong> – (keyword, optional, default null string) for recalcitrant shells, the possibility to specify ‘/bin/sh’ or so</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.SSHExecutor">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">SSHExecutor</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#SSHExecutor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.SSHExecutor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pylauncher3.Executor" title="pylauncher3.Executor"><code class="xref py py-class docutils literal notranslate"><span class="pre">pylauncher3.Executor</span></code></a></p>
+<p>Intelligent ssh connection.</p>
+<p>This is either a new paramiko ssh connection or a copy of an existing one,
+so that we don’t open multiple connections to one node.</p>
+<p>Commands are executed with:
+<code class="docutils literal notranslate"><span class="pre">cd</span></code> to the current directory, and 
+copy the current environment.</p>
+<p>Note: environment variables with a space, semicolon, or parentheses
+are not transferred.</p>
+<p>For parameters, see the Executor class.</p>
+<dl class="py method">
+<dt id="pylauncher3.SSHExecutor.execute">
+<code class="sig-name descname">execute</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">usercommand</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#SSHExecutor.execute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.SSHExecutor.execute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Execute a commandline in the background on the ssh_client object
+in this Executor object.</p>
+<ul class="simple">
+<li><p>usercommand gets the environment prefixed to it</p></li>
+<li><p>result is wrapped with Executor.wrap</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>pool</strong> – (required) either a Node or HostLocator</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.IbrunExecutor">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">IbrunExecutor</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#IbrunExecutor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.IbrunExecutor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pylauncher3.Executor" title="pylauncher3.Executor"><code class="xref py py-class docutils literal notranslate"><span class="pre">pylauncher3.Executor</span></code></a></p>
+<p>An Executor derived class for the shift/offset version of ibrun
+that is in use at TACC</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pool</strong> – (required) <code class="docutils literal notranslate"><span class="pre">HostLocator</span></code> object</p></li>
+<li><p><strong>stdout</strong> – (optional) a file that is open for writing; by default <code class="docutils literal notranslate"><span class="pre">subprocess.PIPE</span></code> is used</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="pylauncher3.IbrunExecutor.execute">
+<code class="sig-name descname">execute</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">command</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#IbrunExecutor.execute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.IbrunExecutor.execute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Much like <code class="docutils literal notranslate"><span class="pre">SSHExecutor.execute()</span></code>, except that it prefixes
+with <code class="docutils literal notranslate"><span class="pre">ibrun</span> <span class="pre">-n</span> <span class="pre">-o</span></code></p>
+</dd></dl>
+
+</dd></dl>
+
 </div>
 <div class="section" id="task-completion">
 <h3>Task Completion<a class="headerlink" href="#task-completion" title="Permalink to this headline">¶</a></h3>
@@ -93,6 +766,63 @@ commandline that gets executed leaves a zero size file behind that is
 branded with the task number. The TaskQueue object uses that to detect
 that a task is finished, and therefore that its Node objects can be
 released.</p>
+<dl class="py class">
+<dt id="pylauncher3.Completion">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">Completion</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">taskid</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Completion"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Completion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Define a completion object for a task.</p>
+<p>The base class doesn’t do a lot: it immediately returns true on the 
+completion test.</p>
+<dl class="py method">
+<dt id="pylauncher3.Completion.attach">
+<code class="sig-name descname">attach</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">txt</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Completion.attach"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Completion.attach" title="Permalink to this definition">¶</a></dt>
+<dd><p>Attach a completion to a command, giving a new command</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.Completion.test">
+<code class="sig-name descname">test</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Completion.test"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Completion.test" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test whether the task has completed</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.FileCompletion">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">FileCompletion</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#FileCompletion"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.FileCompletion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#pylauncher3.Completion" title="pylauncher3.Completion"><code class="xref py py-class docutils literal notranslate"><span class="pre">pylauncher3.Completion</span></code></a></p>
+<p>FileCompletion is the most common type of completion. It appends
+to a command the creation of a zero size file with a unique name.
+The completion test then tests for the existence of that file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>taskid</strong> – (keyword, required) this has to be unique. Unfortunately we can not test for that.</p></li>
+<li><p><strong>stampdir</strong> – (keyword, optional, default is self.stampdir, which is “.”) directory where the stampfile is left</p></li>
+<li><p><strong>stamproot</strong> – (keyword, optional, default is “expire”) root of the stampfile name</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="pylauncher3.FileCompletion.attach">
+<code class="sig-name descname">attach</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">txt</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#FileCompletion.attach"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.FileCompletion.attach" title="Permalink to this definition">¶</a></dt>
+<dd><p>Append a ‘touch’ command to the txt argument</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.FileCompletion.stampname">
+<code class="sig-name descname">stampname</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#FileCompletion.stampname"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.FileCompletion.stampname" title="Permalink to this definition">¶</a></dt>
+<dd><p>Internal function that gives the name of the stamp file,
+including directory path</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.FileCompletion.test">
+<code class="sig-name descname">test</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#FileCompletion.test"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.FileCompletion.test" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test for the existence of the stamp file</p>
+</dd></dl>
+
+</dd></dl>
+
 <p>Task generators need completions dynamically generated since they need
 to receive a job id. You could for instance specify code such as the
 following; see the example launchers.</p>
@@ -107,6 +837,45 @@ following; see the example launchers.</p>
 <p>All of the above components are pulled together in the LauncherJob class.
 Writing your own launcher this way is fairly easy;
 see the TACC section for some examples of launchers.</p>
+<dl class="py class">
+<dt id="pylauncher3.LauncherJob">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">LauncherJob</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#LauncherJob"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.LauncherJob" title="Permalink to this definition">¶</a></dt>
+<dd><p>LauncherJob class. Keyword arguments:</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>hostpool</strong> – a HostPool instance (required)</p></li>
+<li><p><strong>taskgenerator</strong> – a TaskGenerator instance (required)</p></li>
+<li><p><strong>delay</strong> – between task checks  (optional)</p></li>
+<li><p><strong>debug</strong> – list of keywords (optional)</p></li>
+<li><p><strong>gather_output</strong> – (keyword, optional, default None) filename to gather all command output</p></li>
+<li><p><strong>maxruntime</strong> – (keyword, optional, default zero) if nonzero, maximum running time in seconds</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="pylauncher3.LauncherJob.run">
+<code class="sig-name descname">run</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#LauncherJob.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.LauncherJob.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invoke the launcher job, and call <code class="docutils literal notranslate"><span class="pre">tick</span></code> until all jobs are finished.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="pylauncher3.LauncherJob.tick">
+<code class="sig-name descname">tick</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#LauncherJob.tick"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.LauncherJob.tick" title="Permalink to this definition">¶</a></dt>
+<dd><p>This routine does a single time step in a launcher’s life, and reports back
+to the user. Specifically:</p>
+<ul class="simple">
+<li><p>It tries to start any currently queued jobs. Also:</p></li>
+<li><p>If any jobs are finished, it detects exactly one, and reports its ID to the user in a message <code class="docutils literal notranslate"><span class="pre">expired</span> <span class="pre">123</span></code></p></li>
+<li><p>If there are no finished jobs, it invokes the task generator; this can result in a new task and the return message is <code class="docutils literal notranslate"><span class="pre">continuing</span></code></p></li>
+<li><p>if the generator stalls, that is, more tasks will come in the future but none are available now, the message is <code class="docutils literal notranslate"><span class="pre">stalling</span></code></p></li>
+<li><p>if the generator is finished and all jobs have finished, the message is <code class="docutils literal notranslate"><span class="pre">finished</span></code></p></li>
+</ul>
+<p>After invoking the task generator, a short sleep is inserted (see the <code class="docutils literal notranslate"><span class="pre">delay</span></code> parameter)</p>
+</dd></dl>
+
+</dd></dl>
+
 </div>
 </div>
 
@@ -120,6 +889,7 @@ see the TACC section for some examples of launchers.</p>
   <h3><a href="index.html">Table of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Implementation</a><ul>
+<li><a class="reference internal" href="#top-level-launchers">Top-level launchers</a></li>
 <li><a class="reference internal" href="#commandline-generation">Commandline generation</a></li>
 <li><a class="reference internal" href="#host-management">Host management</a></li>
 <li><a class="reference internal" href="#task-management">Task management</a><ul>
@@ -165,6 +935,9 @@ see the TACC section for some examples of launchers.</p>
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
         <li class="right" >
           <a href="extend.html" title="TACC specifics and extendability to other installations"
              >next</a> |</li>

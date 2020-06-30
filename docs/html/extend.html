@@ -27,6 +27,9 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
           <a href="trace.html" title="Tracing and profiling"
              accesskey="N">next</a> |</li>
         <li class="right" >
@@ -50,10 +53,125 @@ For starters, there are two classes derived from <code class="docutils literal n
 that parse the hostlists for the SGE and SLURM scheduler.
 If you use Load Leveler or PBS, you can write your own
 using these as an example.</p>
+<span class="target" id="module-pylauncher3"></span><dl class="py class">
+<dt id="pylauncher3.SGEHostList">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">SGEHostList</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#SGEHostList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.SGEHostList" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="implementation.html#pylauncher3.HostList" title="pylauncher3.HostList"><code class="xref py py-class docutils literal notranslate"><span class="pre">pylauncher3.HostList</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.SLURMHostList">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">SLURMHostList</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#SLURMHostList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.SLURMHostList" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="implementation.html#pylauncher3.HostList" title="pylauncher3.HostList"><code class="xref py py-class docutils literal notranslate"><span class="pre">pylauncher3.HostList</span></code></a></p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="pylauncher3.HostListByName">
+<code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">HostListByName</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostListByName"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostListByName" title="Permalink to this definition">¶</a></dt>
+<dd><p>Give a proper hostlist. Currently this work for the following hosts:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">ls5</span></code>: Lonestar5 at TACC, using SLURM</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">maverick</span></code>: Maverick at TACC, using SLURM</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">stampede</span></code>: Stampede at TACC, using SLURM</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontera</span></code> : Frontera at TACC, using SLURM</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">longhorn</span></code> : Longhorn at TACC, using SLURM</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pace</span></code> : PACE at Georgia Tech, using PBS</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mic</span></code>: Intel Xeon PHI co-processor attached to a compute node</p></li>
+</ul>
+<p>We return a trivial hostlist otherwise.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.DefaultHostPool">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">DefaultHostPool</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#DefaultHostPool"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.DefaultHostPool" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="implementation.html#pylauncher3.HostPool" title="pylauncher3.HostPool"><code class="xref py py-class docutils literal notranslate"><span class="pre">pylauncher3.HostPool</span></code></a></p>
+<p>A HostPool object based on the hosts obtained from the
+<code class="docutils literal notranslate"><span class="pre">HostListByName</span></code> function, and using the <code class="docutils literal notranslate"><span class="pre">SSHExecutor</span></code> function.</p>
+</dd></dl>
+
 <p>Two utility functions may help you in writing customizations.</p>
+<dl class="py function">
+<dt id="pylauncher3.HostName">
+<code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">HostName</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostName"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostName" title="Permalink to this definition">¶</a></dt>
+<dd><p>This just returns the hostname. See also <code class="docutils literal notranslate"><span class="pre">ClusterName</span></code>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="pylauncher3.ClusterName">
+<code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">ClusterName</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#ClusterName"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.ClusterName" title="Permalink to this definition">¶</a></dt>
+<dd><p>Assuming that a node name is along the lines of <code class="docutils literal notranslate"><span class="pre">c123-456.cluster.tacc.utexas.edu</span></code>
+this returns the second member. Otherwise it returns None.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="pylauncher3.JobId">
+<code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">JobId</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#JobId"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.JobId" title="Permalink to this definition">¶</a></dt>
+<dd><p>This function is installation dependent: it inspects the environment variable
+that holds the job ID, based on the actual name of the host (see</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">HostName</span></code>): this should only return a number if we are actually in a job.</p>
+</div></blockquote>
+</dd></dl>
+
 </div>
 <div class="section" id="tacc-launchers">
 <h1>TACC launchers<a class="headerlink" href="#tacc-launchers" title="Permalink to this headline">¶</a></h1>
+<dl class="py function">
+<dt id="pylauncher3.ClassicLauncher">
+<code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">ClassicLauncher</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">commandfile</span></em>, <em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#ClassicLauncher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.ClassicLauncher" title="Permalink to this definition">¶</a></dt>
+<dd><p>A LauncherJob for a file of single or multi-threaded commands.</p>
+<p>The following values are specified for your convenience:</p>
+<ul class="simple">
+<li><p>hostpool : based on HostListByName</p></li>
+<li><p>commandexecutor : SSHExecutor</p></li>
+<li><p>taskgenerator : based on the <code class="docutils literal notranslate"><span class="pre">commandfile</span></code> argument</p></li>
+<li><p>completion : based on a directory <code class="docutils literal notranslate"><span class="pre">pylauncher_tmp</span></code> with jobid environment variables attached</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>commandfile</strong> – name of file with commandlines (required)</p></li>
+<li><p><strong>resume</strong> – if 1,yes interpret the commandfile as a queuestate file</p></li>
+<li><p><strong>cores</strong> – number of cores (keyword, optional, default=1)</p></li>
+<li><p><strong>workdir</strong> – (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory</p></li>
+<li><p><strong>debug</strong> – debug types string (optional, keyword)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="pylauncher3.IbrunLauncher">
+<code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">IbrunLauncher</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">commandfile</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#IbrunLauncher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.IbrunLauncher" title="Permalink to this definition">¶</a></dt>
+<dd><p>A LauncherJob for a file of small MPI jobs.</p>
+<p>The following values are specified for your convenience:</p>
+<ul class="simple">
+<li><p>hostpool : based on HostListByName</p></li>
+<li><p>commandexecutor : IbrunExecutor</p></li>
+<li><p>taskgenerator : based on the <code class="docutils literal notranslate"><span class="pre">commandfile</span></code> argument</p></li>
+<li><p>completion : based on a directory <code class="docutils literal notranslate"><span class="pre">pylauncher_tmp</span></code> with jobid environment variables attached</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>commandfile</strong> – name of file with commandlines (required)</p></li>
+<li><p><strong>cores</strong> – number of cores (keyword, optional, default=4, see <code class="docutils literal notranslate"><span class="pre">FileCommandlineGenerator</span></code> for more explanation)</p></li>
+<li><p><strong>workdir</strong> – directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory</p></li>
+<li><p><strong>debug</strong> – debug types string (optional, keyword)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="pylauncher3.MICLauncher">
+<code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">MICLauncher</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">commandfile</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#MICLauncher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.MICLauncher" title="Permalink to this definition">¶</a></dt>
+<dd><p>A LauncherJob for execution entirely on an Intel Xeon Phi.</p>
+<p>See <code class="docutils literal notranslate"><span class="pre">ClassicLauncher</span></code> for an explanation of the parameters.
+The only difference is in the use of a LocalExecutor.
+Treatment of the MIC cores is handled in the <code class="docutils literal notranslate"><span class="pre">HostListByName</span></code>.</p>
+</dd></dl>
+
 </div>
 
 
@@ -102,6 +220,9 @@ using these as an example.</p>
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
         <li class="right" >
           <a href="trace.html" title="Tracing and profiling"
              >next</a> |</li>

@@ -27,6 +27,9 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
           <a href="implementation.html" title="Implementation"
              accesskey="N">next</a> |</li>
         <li class="right" >
@@ -54,10 +57,8 @@ If you are at TACC, do <code class="docutils literal notranslate"><span class="p
 <p>The most common usage scenario is to use the launcher to bundle many small jobs
 into a single batch submission on a cluster. In that case, put</p>
 <blockquote>
-<div><p>::
-module load python3</p>
-<p>::
-python3 your_launcher_file.py</p>
+<div><p>module load python3</p>
+<p>python3 your_launcher_file.py</p>
 </div></blockquote>
 <p>in the jobscript.</p>
 </div>
@@ -154,6 +155,8 @@ the launcher invocation that that is where the counts are found.</p>
 <h3>MPI parallel jobs<a class="headerlink" href="#mpi-parallel-jobs" title="Permalink to this headline">¶</a></h3>
 <p>If your program uses the MPI library and you want to run multiple
 instances simultaneously, use the <code class="docutils literal notranslate"><span class="pre">IbrunLauncher</span></code>.</p>
+<p>Each commandline needs to start with a number indicating
+on how many cores the command is to run:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">4</span><span class="p">,</span><span class="o">./</span><span class="n">parallel</span> <span class="mi">0</span> <span class="mi">10</span>
 <span class="mi">4</span><span class="p">,</span><span class="o">./</span><span class="n">parallel</span> <span class="mi">1</span> <span class="mi">10</span>
 <span class="mi">4</span><span class="p">,</span><span class="o">./</span><span class="n">parallel</span> <span class="mi">2</span> <span class="mi">10</span>
@@ -316,6 +319,9 @@ which ones were still scheduled to fun. You can submit a job using the
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
         <li class="right" >
           <a href="implementation.html" title="Implementation"
              >next</a> |</li>

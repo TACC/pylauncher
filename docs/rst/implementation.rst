@@ -1,9 +1,25 @@
 Implementation
 --------------
 
-.. automodule:: pylauncher
+.. automodule:: pylauncher3
    :undoc-members:
    :show-inheritance:
+
+======================
+Top-level launchers
+======================
+
+Ok, so this is a toolbox but the pieces are not entirely trivial to put together.
+Therefore, the following list of launcher commands exist.
+
+.. autofunction:: ClassicLauncher
+.. autofunction:: ResumeClassicLauncher
+.. autofunction:: LocalLauncher
+.. autofunction:: MPILauncher
+.. autofunction:: RemoteLauncher
+.. autofunction:: IbrunRemoteLauncher
+
+.. autoclass:: DynamicLauncher
 
 ======================
 Commandline generation

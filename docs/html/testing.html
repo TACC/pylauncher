@@ -26,6 +26,9 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
           <a href="trace.html" title="Tracing and profiling"
              accesskey="P">previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="index.html">PyLauncher 3.2 documentation</a> &#187;</li>
@@ -43,6 +46,90 @@
 <p>The pylauncher.py source file has a large number of unittests
 that are designed for the nosetests framework: all routines and classes
 starting with <code class="docutils literal notranslate"><span class="pre">test</span></code> are only for testing purposes.</p>
+<span class="target" id="module-pylauncher3"></span><dl class="py class">
+<dt id="pylauncher3.ListCommandlineGenerator">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">ListCommandlineGenerator</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#ListCommandlineGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.ListCommandlineGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>A generator from an explicit list of commandlines.</p>
+<ul class="simple">
+<li><p>cores is 1 by default, other constants allowed.</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.CountedCommandGenerator">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">CountedCommandGenerator</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#CountedCommandGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.CountedCommandGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>This class is only for the unit tests, it produces a string of <a href="#id1"><span class="problematic" id="id2">`</span></a>echo 0’, <a href="#id3"><span class="problematic" id="id4">`</span></a>echo 1’
+et cetera commands.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>nmax</strong> – (keyword, default=-1) maximum number of commands to generate, negative for no maximum</p></li>
+<li><p><strong>command</strong> – (keyword, default==``echo``) the command that will do the counting; sometimes it’s a good idea to replace this with <code class="docutils literal notranslate"><span class="pre">/bin/true</span></code></p></li>
+<li><p><strong>catch</strong> – (keyword, default None) file where to catch output</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.SleepCommandGenerator">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">SleepCommandGenerator</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#SleepCommandGenerator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.SleepCommandGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generator of commandlines <a href="#id5"><span class="problematic" id="id6">`</span></a>echo 0 ; sleep trand’, <a href="#id7"><span class="problematic" id="id8">`</span></a>echo 1 ; sleep trand’
+where the sleep is a random amount.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tmax</strong> – (keyword, default 5) maximum sleep time</p></li>
+<li><p><strong>tmin</strong> – (keyword, default 1) minimum sleep time</p></li>
+<li><p><strong>barrier</strong> – (keyword, default 0) if &gt;0, insert a barrier statement every that many lines</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.RandomSleepTask">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">RandomSleepTask</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#RandomSleepTask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.RandomSleepTask" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make a task that sleeps for a random amount of time.
+This is for use in many many unit tests.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>taskid</strong> – unique identifier (keyword, required)</p></li>
+<li><p><strong>t</strong> – maximum running time (keyword, optional; default=10)</p></li>
+<li><p><strong>tmin</strong> – minimum running time (keyword, optional; default=1)</p></li>
+<li><p><strong>completion</strong> – Completion object (keyword, optional; if you leave this unspecified, the next two parameters become relevant</p></li>
+<li><p><strong>stampdir</strong> – name of the directory where to leave the stamp file (optional, default=current dir)</p></li>
+<li><p><strong>stamproot</strong> – filename stemp for the stamp file (optional, default=”sleepexpire”)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.OneNodePool">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">OneNodePool</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">node</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#OneNodePool"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.OneNodePool" title="Permalink to this definition">¶</a></dt>
+<dd><p>This class is mostly for testing: it allows for a node to function
+as a host pool so that one can start a task on it.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="pylauncher3.MakeRandomCommandFile">
+<code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">MakeRandomCommandFile</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">fn</span></em>, <em class="sig-param"><span class="n">ncommand</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#MakeRandomCommandFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.MakeRandomCommandFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make file with commandlines and occasional comments and blanks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>cores</strong> – (keyword, default=1) corecount, if this is 1 we put nothing in the file, larger values and “file” (for random) go into the file</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="pylauncher3.MakeRandomSleepFile">
+<code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">MakeRandomSleepFile</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">fn</span></em>, <em class="sig-param"><span class="n">ncommand</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#MakeRandomSleepFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.MakeRandomSleepFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>make file with sleep commandlines and occasional comments and blanks</p>
+</dd></dl>
+
 </div>
 
 
@@ -82,6 +169,9 @@ starting with <code class="docutils literal notranslate"><span class="pre">test<
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
         <li class="right" >
           <a href="trace.html" title="Tracing and profiling"
              >previous</a> |</li>

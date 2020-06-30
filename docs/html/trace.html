@@ -27,6 +27,9 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
           <a href="testing.html" title="Testing"
              accesskey="N">next</a> |</li>
         <li class="right" >
@@ -46,8 +49,8 @@
 <h1>Tracing and profiling<a class="headerlink" href="#tracing-and-profiling" title="Permalink to this headline">¶</a></h1>
 <p>It is possible to generate trace output during a run and profiling
 (or summary) information at the end.</p>
-<div class="section" id="trace-output">
-<h2>Trace output<a class="headerlink" href="#trace-output" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="module-pylauncher3">
+<span id="trace-output"></span><h2>Trace output<a class="headerlink" href="#module-pylauncher3" title="Permalink to this headline">¶</a></h2>
 <p>You can get various kinds of trace output on your job. This is done by
 specifying a <code class="docutils literal notranslate"><span class="pre">debug=....</span></code> parameter to the creation of the various classes.
 For the easy case, pass <code class="docutils literal notranslate"><span class="pre">debug=&quot;job+host+task&quot;</span></code> to a launcher object.</p>
@@ -67,6 +70,67 @@ For the easy case, pass <code class="docutils literal notranslate"><span class="
 end of a job, but you can do it really at any time. The predefined launchers
 such as <code class="docutils literal notranslate"><span class="pre">ClassicLauncher</span></code>
 print out this stuff by default.</p>
+<dl class="py class">
+<dt id="pylauncher3.HostPoolBase">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">HostPoolBase</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostPoolBase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostPoolBase" title="Permalink to this definition">¶</a></dt>
+<dd><p>A base class that defines some methods and sets up
+the basic data structures.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>commandexecutor</strong> – (keyword, optional, default=``LocalExecutor``) the <code class="docutils literal notranslate"><span class="pre">Executor</span></code> object for this host pool</p></li>
+<li><p><strong>workdir</strong> – (keyword, optional) the workdir for the command executor</p></li>
+<li><p><strong>debug</strong> – (keyword, optional) a string of debug types; if this contains ‘host’, anything derived from <code class="docutils literal notranslate"><span class="pre">HostPoolBase</span></code> will do a debug trace</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="pylauncher3.HostPoolBase.final_report">
+<code class="sig-name descname">final_report</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostPoolBase.final_report"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostPoolBase.final_report" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a string that reports how many tasks were run on each node.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.TaskQueue">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">TaskQueue</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#TaskQueue"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.TaskQueue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Object that does the maintains a list of Task objects.
+This is internally created inside a <code class="docutils literal notranslate"><span class="pre">LauncherJob</span></code> object.</p>
+<dl class="py method">
+<dt id="pylauncher3.TaskQueue.final_report">
+<code class="sig-name descname">final_report</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">runningtime</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#TaskQueue.final_report"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.TaskQueue.final_report" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a string describing the max and average runtime for each task.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="pylauncher3.LauncherJob">
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">LauncherJob</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#LauncherJob"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.LauncherJob" title="Permalink to this definition">¶</a></dt>
+<dd><p>LauncherJob class. Keyword arguments:</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>hostpool</strong> – a HostPool instance (required)</p></li>
+<li><p><strong>taskgenerator</strong> – a TaskGenerator instance (required)</p></li>
+<li><p><strong>delay</strong> – between task checks  (optional)</p></li>
+<li><p><strong>debug</strong> – list of keywords (optional)</p></li>
+<li><p><strong>gather_output</strong> – (keyword, optional, default None) filename to gather all command output</p></li>
+<li><p><strong>maxruntime</strong> – (keyword, optional, default zero) if nonzero, maximum running time in seconds</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="pylauncher3.LauncherJob.final_report">
+<code class="sig-name descname">final_report</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#LauncherJob.final_report"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.LauncherJob.final_report" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a string describing the total running time, as well as
+including the final report from the embedded <code class="docutils literal notranslate"><span class="pre">HostPool</span></code> and <code class="docutils literal notranslate"><span class="pre">TaskQueue</span></code>
+objects.</p>
+</dd></dl>
+
+</dd></dl>
+
 </div>
 </div>
 
@@ -80,7 +144,7 @@ print out this stuff by default.</p>
   <h3><a href="index.html">Table of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Tracing and profiling</a><ul>
-<li><a class="reference internal" href="#trace-output">Trace output</a></li>
+<li><a class="reference internal" href="#module-pylauncher3">Trace output</a></li>
 <li><a class="reference internal" href="#final-reporting">Final reporting</a></li>
 </ul>
 </li>
@@ -119,6 +183,9 @@ print out this stuff by default.</p>
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
         <li class="right" >
           <a href="testing.html" title="Testing"
              >next</a> |</li>

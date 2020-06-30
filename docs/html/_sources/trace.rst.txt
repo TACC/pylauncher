@@ -8,7 +8,7 @@ It is possible to generate trace output during a run and profiling
 Trace output
 ============
 
-.. automodule:: pylauncher
+.. automodule:: pylauncher3
 
 You can get various kinds of trace output on your job. This is done by
 specifying a ``debug=....`` parameter to the creation of the various classes.

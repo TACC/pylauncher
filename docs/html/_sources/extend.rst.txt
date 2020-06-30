@@ -9,7 +9,7 @@ that parse the hostlists for the SGE and SLURM scheduler.
 If you use Load Leveler or PBS, you can write your own
 using these as an example.
 
-.. automodule:: pylauncher
+.. automodule:: pylauncher3
 
 .. autoclass:: SGEHostList
    :show-inheritance:
