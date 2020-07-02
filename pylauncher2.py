@@ -1,5 +1,5 @@
 docstring = \
-"""pylauncher.py version 2.6 UNRELEASED
+"""pylauncher.py version 3.2
 
 A python based launcher utility for packaging sequential or
 low parallel jobs in one big parallel job
@@ -12,6 +12,8 @@ chris.blanton@gatech.edu
 
 changelog = """
 Change log
+3.2
+- Semeraro fixes for Frontera
 3.0
 - remove 6999 port after ls5 upgrade
 2.7
@@ -1493,7 +1495,7 @@ def ClusterName():
 
 def ClusterHasSharedFileSystem():
     """This test is only used in some unit tests"""
-    return ClusterName() in ["ls4","ls5","maverick","stampede","stampede2","mic"]
+    return ClusterName() in ["ls4","ls5","maverick","stampede","stampede2","mic","frontera"]
 
 def JobId():
     """This function is installation dependent: it inspects the environment variable
@@ -1503,7 +1505,7 @@ def JobId():
     hostname = ClusterName()
     if hostname=="ls4":
         return os.environ["JOB_ID"]
-    elif hostname in ["ls5","maverick","stampede","stampede2"]:
+    elif hostname in ["ls5","maverick","stampede","stampede2","frontera"]:
         return os.environ["SLURM_JOB_ID"]
     elif hostname in ["pace"]:
         return os.environ["PBS_JOBID"]
@@ -1532,6 +1534,8 @@ def HostListByName(**kwargs):
         return SLURMHostList(tag=".stampede.tacc.utexas.edu",**kwargs)
     elif cluster in ["stampede2","stampede2-skx"]:
         return SLURMHostList(tag=".stampede2.tacc.utexas.edu",**kwargs)
+    elif cluster in ["frontera"]:
+        return SLURMHostList(tag=".frontera.tacc.utexas.edu",**kwargs)
     elif cluster  in ["pace"]:
         return PBSHostList(**kwargs)
     elif cluster=="mic":
@@ -1581,6 +1585,8 @@ def testPEhostpools():
     elif cluster=="stampede":
         assert(len(pool)%16==0)
     elif cluster=="stampede2":
+        assert(len(pool)>0)
+    elif cluster=="frontera":
         assert(len(pool)>0)
     elif cluster=="ls4":
         assert(len(pool)%12==0)
