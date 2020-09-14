@@ -11,6 +11,8 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+3.3
+- adding barrier command
 3.2
 - adding LocalLauncher and example,
 - adding RemoteLauncher & IbrunRemoteLauncher
@@ -55,6 +57,7 @@ can be specified as kwarg to both Job and LauncherJob
 
 import copy
 import glob
+import functools
 import math
 import os
 import paramiko
@@ -277,8 +280,8 @@ class CommandlineGenerator():
     :param nax: (keyword, default None) see above for explanation
     """
     def __init__(self,**kwargs):
-        self.list = [ e for e in kwargs.pop("list",[]) ]; 
-        self.ncommands = len(self.list); self.njobs = 0
+        self.list = [ e for e in kwargs.pop("list",[]) ]
+        self.ncommands = len(self.list); self.njobs = 0; self.stopped = False
         nmax = kwargs.pop("nmax",None)
         if nmax is None:
             if len(self.list)==0:
@@ -290,14 +293,14 @@ class CommandlineGenerator():
         if len(kwargs)>0:
             raise LauncherException("Unprocessed CommandlineGenerator args: %s" \
                                         % str(kwargs))
-        self.stopped = False
     def finish(self):
         """Tell the generator to stop after the commands list is depleted"""
         DebugTraceMsg("declaring the commandline generator to be finished",
                       self.debug,prefix="Cmd")
         self.nmax = self.njobs+len(self.list)
     def abort(self):
-        """Stop the generator, even if there are still elements in the commands list"""
+        """Stop the generator, even if there are still elements in the commands list.
+        Where is this called?"""
         DebugTraceMsg("gettingthe commandline generator to abort",
                       self.debug,prefix="Cmd")
         self.stopped = True
@@ -402,11 +405,14 @@ class FileCommandlineGenerator(CommandlineGenerator):
                     raise LauncherException("No task#/dependency found <<%s>>" % split)
                 c,td,l = split
             else:
-                split = line.split(",",1)
-                if len(split)==1:
-                    c = cores; l = split[0]
+                if re.match("barrier",line):
+                    l = pylauncherBarrierString; c = 1
                 else:
-                    c,l = split
+                    split = line.split(",",1)
+                    if len(split)==1:
+                        c = cores; l = split[0]
+                    else:
+                        c,l = split
                 td = str(count)
             if cores=="file":
                 if not re.match("[0-9]+",c):
@@ -1065,7 +1071,7 @@ class testTasks():
             tasks.append(t)
         finished = [ False for i in range(self.ntasks) ]
         while True:
-            if reduce( lambda x,y: x and y,
+            if functools.reduce( lambda x,y: x and y,
                        [ t.hasCompleted() for t in tasks ] ): break
             if time.time()-start>nsleep+2:
                 print("this is taking too long")
@@ -1089,7 +1095,7 @@ class testTasks():
         finished = [ False for i in range(self.ntasks) ]
         while True:
             print("tick")
-            if reduce( lambda x,y: x and y,
+            if functools.reduce( lambda x,y: x and y,
                        [ t.hasCompleted() for t in tasks ] ): break
             if time.time()-start>nsleep+3:
                 print("this is taking too long")
@@ -1689,7 +1695,8 @@ class TaskQueue():
     def __init__(self,**kwargs):
         self.queue = []; self.running = []; self.completed = []; self.aborted = []
         self.maxsimul = 0; self.submitdelay = 0
-        self.debug = kwargs.pop("debug",False)
+        self.debugs = kwargs.pop("debug",False)
+        self.debug = re.search("queue",self.debugs)
         if len(kwargs)>0:
             raise LauncherException("Unprocessed TaskQueue args: %s" % str(kwargs))
     def isEmpty(self):
@@ -2878,6 +2885,7 @@ class LauncherJob():
     """
     def __init__(self,**kwargs):
         self.debugs = kwargs.pop("debug","")
+        self.debug = re.search("job",self.debugs)
         self.hostpool = kwargs.pop("hostpool",None)
         if self.hostpool is None:
             raise LauncherException("Need a host pool")
@@ -2891,8 +2899,7 @@ class LauncherJob():
         self.queue = TaskQueue(debug=self.debugs)
         self.maxruntime = kwargs.pop("maxruntime",0)
         self.taskmaxruntime = kwargs.pop("taskmaxruntime",0)
-        self.debug = re.search("job",self.debugs)
-        self.completed = 0; self.aborted = 0; self.tock = 0; self.barriertest = None
+        self.completed = 0; self.aborted = 0; self.tock = 0; self.stalling = False
         self.gather_output = kwargs.pop("gather_output",None)
         if len(kwargs)>0:
             raise LauncherException("Unprocessed LauncherJob args: %s" % str(kwargs))
@@ -2928,29 +2935,20 @@ class LauncherJob():
         """
         DebugTraceMsg("\ntick %d\nQueue:\n%s" % (self.tock,str(self.queue)),self.debug)
         self.tock += 1
-        # see if the barrier test is completely satisfied
-        if self.barriertest is not None:
-            if reduce( lambda x,y: x and y,
-                       [ t.completed() for t in self.barriertest ] ):
-                self.barriertest = None
-                message = "continuing"
-            else:
-                # if the barrier still stands, stall
-                message = "stalling"
-        else:
-            # if the barrier is resolved, queue and test and whatnot
-            self.queue.startQueued(self.hostpool,starttick=self.tock)
-            message = None
 
-            self.handle_completed()
-            self.handle_aborted()
-            message = self.handle_enqueueing()
-            #if message in ["stalling","continuing"]:
-            time.sleep(self.delay)
+        if not self.stalling:
+            # should this line go inside the handle_enqueing?
+            self.queue.startQueued(self.hostpool,starttick=self.tock)
+        message = None
+        self.handle_completed()
+        self.handle_aborted()
+        message = self.handle_enqueueing()
+        #if message in ["stalling","continuing"]:
+        time.sleep(self.delay)
 
         if re.search("host",self.debugs):
             DebugTraceMsg(str(self.hostpool))
-        DebugTraceMsg("status: %s" % message,self.debug,prefix="Job")
+        DebugTraceMsg("status=%s" % message,self.debug,prefix="Job")
         return message
     def handle_completed(self):
         message = None
@@ -2979,13 +2977,25 @@ class LauncherJob():
         return message
     def handle_enqueueing(self):
         message = None
-        #try:
-        if True:
+        barriertasks = [ t.completion for t in self.queue.running ]
+        ntogo = len(barriertasks)
+        if self.stalling:
+            if ntogo==0: 
+                self.stalling = False
+                DebugTraceMsg("barrier resolved".format(ntogo),
+                              self.debug,prefix="Job")
+                message = "continuing"
+            else:
+                DebugTraceMsg("still in barrier: {} tasks to go".format(ntogo),
+                              self.debug,prefix="Job")
+                message = "stalling"
+        else:
             task = self.taskgenerator.next()
             if task==pylauncherBarrierString:
+                self.stalling = True
+                DebugTraceMsg("barrier encountered; {} tasks to go".format(ntogo),
+                              self.debug,prefix="Job")
                 message = "stalling"
-                self.barriertest = [ t.completion for t in self.queue.running ]
-                DebugTraceMsg("barrier encountered",self.debug,prefix="Job")
             elif task=="stall":
                 message = "stalling"
                 DebugTraceMsg("stalling",self.debug,prefix="Job")
