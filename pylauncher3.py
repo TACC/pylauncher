@@ -1,5 +1,5 @@
 docstring = \
-"""pylauncher.py version 3.2
+"""pylauncher.py version 3.3
 
 A python based launcher utility for packaging sequential or
 low parallel jobs in one big parallel job
@@ -13,6 +13,7 @@ otoelog = """
 Change log
 3.3
 - adding barrier command
+- incorporate frontera-clx
 3.2
 - adding LocalLauncher and example,
 - adding RemoteLauncher & IbrunRemoteLauncher
@@ -995,7 +996,7 @@ class testTasksOnSingleNode():
         tmpdir = os.getcwd()+"/"+Executor.default_workdir
         if os.path.isdir(tmpdir):
             shutil.rmtree(tmpdir)
-        self.pool = LocalHostPool(nhosts=1)#OneNodePool( Node(HostName()) )
+        self.pool = LocalHostPool(nhosts=1)
     def testLeaveStampOnOneNode(self):
         """testLeaveStampOnOneNode: leave a stamp on a one-node pool"""
         nsleep = 5
@@ -1467,7 +1468,15 @@ class SLURMHostList(HostList):
         hlist_str = os.environ["SLURM_NODELIST"]
         p = int(os.environ["SLURM_NNODES"])
         N = int(os.environ["SLURM_NPROCS"])
-        n=N/p
+        n=N/p # requested cores per node
+        try :
+            cores_per_node = os.environ["SLURM_JOB_CPUS_PER_NODE"] # SLURM_JOB_CPUS_PER_NODE=56(x2)
+            print("slurm reports cores per node: <<%s>>" % cores_per_node )
+            cores_per_node = re.search(r'([0-9]+)',cores_per_node).groups()[0]
+            print("Detecting %d cores per node" % cores_per_node)
+        except:
+            print("Could not detect physical cores per node, setting to 1")
+            cores_per_node = 1
         hlist = hs.expand_hostlist(hlist_str)
         for h in hlist:
             for i in range(int(n)):
@@ -1560,6 +1569,7 @@ def HostListByName(**kwargs):
     * ``stampede``: Stampede at TACC, using SLURM
     * ``frontera`` : Frontera at TACC, using SLURM
     * ``longhorn`` : Longhorn at TACC, using SLURM
+    * ``frontera*'' : Frontera at TACC, using SLRUM
     * ``pace`` : PACE at Georgia Tech, using PBS
     * ``mic``: Intel Xeon PHI co-processor attached to a compute node
 
@@ -1578,7 +1588,7 @@ def HostListByName(**kwargs):
         hostlist = SLURMHostList(tag=".stampede.tacc.utexas.edu",**kwargs)
     elif cluster in ["stampede2","stampede2-knl","stampede2-skx"]:
         hostlist = SLURMHostList(tag=".stampede2.tacc.utexas.edu",**kwargs)
-    elif cluster=="frontera":
+    elif re.match("frontera",cluster):
         hostlist = SLURMHostList(tag=".frontera.tacc.utexas.edu",**kwargs)
     elif cluster=="longhorn":
         hostlist = SLURMHostList(tag=".longhorn.tacc.utexas.edu",**kwargs)
@@ -1589,7 +1599,7 @@ def HostListByName(**kwargs):
     else:
         hostlist = HostList(hostlist=[HostName()])
     if debug:
-        print("Hostlist on %s : %s" % (cluster,str(hostlist)))
+        print("Hostlist on %s  of size %d: %s" % (cluster,len(hostlist),str(hostlist)))
     return hostlist
         
 def testTACChostlist():
@@ -1760,10 +1770,18 @@ class TaskQueue():
         aborted = sorted( [ t.taskid for t in self.aborted] )
         queued = sorted( [ t.taskid for t in self.queue] )
         running = sorted( [ t.taskid for t in self.running ] )
-        return "completed: "+str( CompactIntList(completed) )+\
-               "\naborted: " +str( CompactIntList(aborted) )+\
-               "\nqueued: " +str( CompactIntList(queued) )+\
-               "\nrunning: "+str( CompactIntList(running) )+"."
+        return \
+"""\
+completed %3d jobs: %s
+aborted   %3d jobs: %s
+queued    %3d jobs: %s
+running   %3d jobs: %s
+""" % ( \
+        len(completed),str( CompactIntList(completed) ),
+        len(aborted),str( CompactIntList(aborted) ),
+        len(queued),str( CompactIntList(queued) ),
+        len(running),str( CompactIntList(running) ),
+      )
     def savestate(self):
         state = ""
         state += "queued\n"
