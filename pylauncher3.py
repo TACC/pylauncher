@@ -1416,7 +1416,7 @@ def testStartTaskOnPool():
 
 class HostList():
     """Object describing a list of hosts. Each host is a dictionary
-    with a ``host`` and ``core`` field.
+    with a ``host`` and ``core``  and ``phys_core`` field.
 
     Arguments:
 
@@ -1425,22 +1425,26 @@ class HostList():
 
     This is an iteratable object; it yields the host/core dictionary objects.
     """
-    def __init__(self,hostlist=[],tag=""):
+    def __init__(self,hostlist=[],tag="",**kwargs):
+        self.debug = re.search("host", kwargs.get("debug","") )
         self.hostlist = []; self.tag = tag; self.uniquehosts = []
         for h in hostlist:
             self.append(h)
-    def append(self,h,c=0):
+    def append(self,h,c=0,p=0):
         """
         Arguments:
 
         * h : hostname
         * c (optional, default zero) : core number
+        * p (optional, default zero) : physical core number
         """
         if not re.search(self.tag,h):
             h = h+self.tag
         if h not in self.uniquehosts:
             self.uniquehosts.append(h)
-        self.hostlist.append( {'host':h, 'core':c} )
+        #if self.debug:
+        print("Adding location <<{}>>:{} (phys core {})".format(h,c,p))
+        self.hostlist.append( { 'host':h, 'core':c, 'phys_core':p } )
     def __len__(self):
         return len(self.hostlist)
     def __iter__(self):
@@ -1468,24 +1472,27 @@ class SLURMHostList(HostList):
         hlist_str = os.environ["SLURM_NODELIST"]
         p = int(os.environ["SLURM_NNODES"])
         N = int(os.environ["SLURM_NPROCS"])
-        n=N/p # requested cores per node
+        jobs_per_node = int(N/p) # requested cores per node
         try :
-            cores_per_node = os.environ["SLURM_JOB_CPUS_PER_NODE"] # SLURM_JOB_CPUS_PER_NODE=56(x2)
-            print("slurm reports cores per node: <<%s>>" % cores_per_node )
+            # SLURM_JOB_CPUS_PER_NODE=56(x2)
+            cores_per_node = os.environ["SLURM_JOB_CPUS_PER_NODE"] 
             cores_per_node = re.search(r'([0-9]+)',cores_per_node).groups()[0]
+            cores_per_node = int(cores_per_node)
             print("Detecting %d cores per node" % cores_per_node)
         except:
             print("Could not detect physical cores per node, setting to 1")
             cores_per_node = 1
+        cores_per_job = int( cores_per_node / jobs_per_node )
         hlist = hs.expand_hostlist(hlist_str)
         for h in hlist:
-            for i in range(int(n)):
-                self.append(h,i)
+            for i in range(jobs_per_node):
+                job_core = i * cores_per_job
+                self.append(h,i,job_core)
 
 
 class PBSHostList(HostList):
     def __init__(self,**kwargs):
-        HostList.__init__(self)
+        HostList.__init__(self,**kwargs)
         hostfile = os.environ["PBS_NODEFILE"]
         with open(hostfile,'r') as hostfile:
             myhostlist = hostfile.readlines()
@@ -3676,7 +3683,8 @@ def RemoteLauncher(commandfile,hostlist,**kwargs):
     ppn = kwargs.pop("ppn",4)
     cores = kwargs.pop("cores",1)
     job = LauncherJob(
-        hostpool=HostPool( hostlist=ListHostList(hostlist,ppn=ppn),
+        hostpool=HostPool( 
+            hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
             commandexecutor=SSHExecutor(workdir=workdir,debug=debug), debug=debug ),
         taskgenerator=TaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
@@ -3708,7 +3716,8 @@ def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
     ppn = kwargs.pop("ppn",4)
     cores = kwargs.pop("cores",4)
     job = LauncherJob(
-        hostpool=HostPool( hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
+        hostpool=HostPool( 
+            hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
             commandexecutor=SSHExecutor(workdir=workdir,debug=debug), debug=debug ),
         taskgenerator=TaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
