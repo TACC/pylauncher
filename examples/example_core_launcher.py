@@ -7,6 +7,6 @@ import pylauncher3
 ##
 
 pylauncher3.ClassicLauncher("commandlines",
-                           debug="job+host",
-                           cores=2)
-
+                            numactl="core",
+                            debug="job+host+exec",
+                            )

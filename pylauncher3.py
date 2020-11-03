@@ -14,6 +14,7 @@ Change log
 3.3
 - adding barrier command
 - incorporate frontera-clx
+- adding numactl parameter
 3.2
 - adding LocalLauncher and example,
 - adding RemoteLauncher & IbrunRemoteLauncher
@@ -1118,8 +1119,8 @@ class Node():
     this will correspond to a core.
 
     A node can have a task associated with it or be free."""
-    def __init__(self,host=None,core=None,nodeid=-1):
-        self.hostname = host; self.core = core
+    def __init__(self,host=None,core=None,nodeid=-1,phys_core="0-0"):
+        self.hostname = host; self.core = core; self.phys_core = phys_core
         self.nodeid = nodeid; 
         # two initializations before the first ``release`` call:
         self.free = None; self.tasks_on_this_node = -1
@@ -1140,7 +1141,8 @@ class Node():
         if self.free: return "X"
         else:         return str( self.taskid )
     def __str__(self):
-        return "h:%s, c:%s, id:%s" % (self.hostname,str(self.core),str(self.nodeid))
+        return "h:%s, c:%s, id:%s, p:%s" % \
+            (self.hostname,str(self.core),str(self.nodeid),str(self.phys_core))
 
 def testNode():
     assert(True)
@@ -1183,6 +1185,9 @@ class HostLocator():
     def firsthost(self):
         node = self[0]#.pool[self.offset]
         return node.hostname
+    def first_range(self):
+        node = self[0]
+        return node.phys_core
     def __len__(self):
         return self.extent
     def __str__(self):
@@ -1215,14 +1220,14 @@ class HostPoolBase():
         self.debug = re.search("host",self.debugs)
         if len(kwargs)>0:
             raise LauncherException("Unprocessed HostPool args: %s" % str(kwargs))
-    def append_node(self,host="localhost",core=0):
+    def append_node(self,host="localhost",core=0,phys_core="0-0"):
         """Create a new item in this pool by specifying either a Node object
         or a hostname plus core number. This function is called in a loop when a
         ``HostPool`` is created from a ``HostList`` object."""
         if isinstance(host,(Node)):
             node = host
         else:
-            node = Node(host,core,nodeid=len(self.nodes))
+            node = Node(host,core,nodeid=len(self.nodes),phys_core=phys_core)
         self.nodes.append( node )
         self.commandexecutor.setup_on_node(node)
     def __len__(self):
@@ -1343,7 +1348,7 @@ class HostPool(HostPoolBase):
                 print("Making hostpool on %s" % str(hostlist))
             nhosts = len(hostlist)
             for h in hostlist:
-                self.append_node(host=h['host'],core = h['core'])
+                self.append_node(host=h['host'],core = h['core'],phys_core=h['phys_core'])
         elif nhosts is not None:
             if self.debug:
                 print("Making hostpool size %d on localhost" % nhosts)
@@ -1430,20 +1435,21 @@ class HostList():
         self.hostlist = []; self.tag = tag; self.uniquehosts = []
         for h in hostlist:
             self.append(h)
-    def append(self,h,c=0,p=0):
+    def append(self,h,c=0,p="0-0"):
         """
         Arguments:
 
         * h : hostname
         * c (optional, default zero) : core number
-        * p (optional, default zero) : physical core number
+        * p (optional, default zero) : physical core range
         """
         if not re.search(self.tag,h):
             h = h+self.tag
         if h not in self.uniquehosts:
             self.uniquehosts.append(h)
         #if self.debug:
-        print("Adding location <<{}>>:{} (phys core {})".format(h,c,p))
+        DebugTraceMsg("Adding location <<{}>>:{} (phys core {})".format(h,c,p),
+                      self.debug,prefix="Host")
         self.hostlist.append( { 'host':h, 'core':c, 'phys_core':p } )
     def __len__(self):
         return len(self.hostlist)
@@ -1486,7 +1492,7 @@ class SLURMHostList(HostList):
         hlist = hs.expand_hostlist(hlist_str)
         for h in hlist:
             for i in range(jobs_per_node):
-                job_core = i * cores_per_job
+                job_core = "%d-%d" % ( i * cores_per_job, (i+1) * cores_per_job-1 )
                 self.append(h,i,job_core)
 
 
@@ -2097,6 +2103,7 @@ class Executor():
 
     :param catch_output: (keyword, optional, default=True) state whether command output gets caught, or just goes to stdout
     :param workdir: (optional, default="pylauncher_tmpdir_exec") directory for exec and out files
+    :parame numa_ctl: (optional) numa binding. Only supported "core" for SSH executor.
     :param debug: (optional) string of debug modes; include "exec" to trace this class
 
     Important note: the ``workdir`` should not already exist. You have to remove it yourself.
@@ -2105,12 +2112,13 @@ class Executor():
     execstring = "exec"
     outstring = "out"
     def __init__(self,**kwargs):
+        self.debugs = kwargs.pop("debug","")
+        self.debug = re.search("exec",self.debugs)
         self.catch_output = kwargs.pop("catch_output",True)
         if self.catch_output:
             self.append_output = kwargs.pop("append_output",None)
-        self.debugs = kwargs.pop("debug","")
-        self.debug = re.search("exec",self.debugs)
         self.count = 0
+        self.numactl = kwargs.pop("numactl",None)
         workdir = kwargs.pop("workdir",None)
         if workdir is None:
             self.workdir = self.default_workdir
@@ -2158,7 +2166,7 @@ class Executor():
             execoutname = ""
         self.count += 1
         return execfilename,execoutname
-    def wrap(self,command):
+    def wrap(self,command,prefix=""):
         """Take a commandline, write it to a small file, and return the 
         commandline that sources that file
         """
@@ -2174,15 +2182,13 @@ class Executor():
         if self.catch_output:
             if self.append_output is not None:
                 pipe = ">>"
-                #execoutname = self.append_output
             else: 
                 pipe = ">"
-                #execoutname =  "%s/%s%d" % (self.workdir,self.outstring,self.count)
             wrappedcommand = "%s %s %s 2>&1" % (execfilename,pipe,execoutname)
         else:
             wrappedcommand = execfilename
-        DebugTraceMsg("file <<%s>>\ncontains <<%s>>\nnew commandline <<%s>>" % \
-                          (execfilename,command,wrappedcommand),
+        wrappedcommand = prefix+wrappedcommand
+        DebugTraceMsg("commandline <<%s>>" % wrappedcommand,
                       self.debug,prefix="Exec")
         return wrappedcommand
     def execute(self,command,**kwargs):
@@ -2363,9 +2369,16 @@ class SSHExecutor(Executor):
             raise LauncherException("Invalid pool <<%s>>" % str(pool))
         if len(kwargs)>0:
             raise LauncherException("Unprocessed SSHExecutor args: %s" % str(kwargs))
+        if self.numactl is None:
+            exec_prefix = ""
+        else:
+            if self.numactl!="core":
+                raise LauncherException("Unknown numactl: %s" % self.numactl)
+            cores = pool.first_range()
+            exec_prefix = "numactl -C %s " % cores
         # construct the command line with environment, workdir and expiration
         env_line = environment_list()
-        wrapped_line = self.wrap(env_line+usercommand+"\n")
+        wrapped_line = self.wrap(env_line+usercommand+"\n",prefix=exec_prefix)
         DebugTraceMsg("Executing << ( %s ) & >> on <<%s>>" % (wrapped_line,hostname),
                       self.debug,prefix="SSH")
         ssh = self.node_client_dict[hostname]
@@ -3542,14 +3555,17 @@ def ClassicLauncher(commandfile,*args,**kwargs):
     debug = kwargs.pop("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     cores = kwargs.pop("cores",1)
+    numactl = kwargs.pop("numactl",None)
     resume = kwargs.pop("resume",None)
     if resume is not None and not (resume=="0" or resume=="no"):
         generator = StateFileCommandlineGenerator(commandfile,cores=cores,debug=debug)
     else:
         generator = FileCommandlineGenerator(commandfile,cores=cores,debug=debug)
     job = LauncherJob(
-        hostpool=HostPool( hostlist=HostListByName(debug=debug),
-            commandexecutor=SSHExecutor(workdir=workdir,debug=debug), debug=debug ),
+        hostpool=HostPool(
+            hostlist=HostListByName(debug=debug),
+            commandexecutor=SSHExecutor(workdir=workdir,numactl=numactl,debug=debug), 
+            debug=debug ),
         taskgenerator=TaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
             completion=lambda x:FileCompletion( taskid=x,
