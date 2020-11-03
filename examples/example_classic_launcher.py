@@ -6,5 +6,5 @@ import pylauncher3
 ## Emulate the classic launcher, using a one liner
 ##
 
-pylauncher3.ClassicLauncher("commandlines",debug="job+exec")
+pylauncher3.ClassicLauncher("commandlines",debug="host+job+exec")
 

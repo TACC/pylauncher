@@ -1481,9 +1481,10 @@ class SLURMHostList(HostList):
         jobs_per_node = int(N/p) # requested cores per node
         try :
             # SLURM_JOB_CPUS_PER_NODE=56(x2)
-            cores_per_node = os.environ["SLURM_JOB_CPUS_PER_NODE"] 
+            cores_per_node = os.environ["SLURM_JOB_CPUS_PER_NODE"]
             cores_per_node = re.search(r'([0-9]+)',cores_per_node).groups()[0]
             cores_per_node = int(cores_per_node)
+            cores_per_node = kwargs.get("ncores",cores_per_node) # not elegant
             print("Detecting %d cores per node" % cores_per_node)
         except:
             print("Could not detect physical cores per node, setting to 1")
@@ -1597,12 +1598,13 @@ def HostListByName(**kwargs):
         hostlist = SLURMHostList(tag="",**kwargs)
     elif cluster=="maverick":
         hostlist = SLURMHostList(tag=".maverick.tacc.utexas.edu",**kwargs)
-    elif cluster=="stampede":
-        hostlist = SLURMHostList(tag=".stampede.tacc.utexas.edu",**kwargs)
-    elif cluster in ["stampede2","stampede2-knl","stampede2-skx"]:
+    elif cluster=="stampede2-knl":
+        hostlist = SLURMHostList(tag=".stampede2.tacc.utexas.edu",ncores=68,**kwargs)
+    elif cluster in [ "stampede2","stampede2-skx" ]:
         hostlist = SLURMHostList(tag=".stampede2.tacc.utexas.edu",**kwargs)
     elif re.match("frontera",cluster):
-        hostlist = SLURMHostList(tag=".frontera.tacc.utexas.edu",**kwargs)
+        hostlist = SLURMHostList(
+            tag=".frontera.tacc.utexas.edu",**kwargs)
     elif cluster=="longhorn":
         hostlist = SLURMHostList(tag=".longhorn.tacc.utexas.edu",**kwargs)
     elif cluster=="mic":
