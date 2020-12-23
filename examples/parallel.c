@@ -1,3 +1,10 @@
+/****************************************************************
+ *
+ * This example program is part of the pylauncher distribution
+ * copyright Victor Eijkhout 2020
+ *
+ ****************************************************************/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include "unistd.h"

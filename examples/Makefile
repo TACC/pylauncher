@@ -52,10 +52,12 @@ micsubmit :
 	        > jobscr ; \
 	  sbatch jobscr
 
-parallel :
+CPROGRAMS = parallel randomsleep
+.SECONDEXPANSION:
+parallel randomsleep : $$@.c
 	mpicc -o $@ $@.c
 clean ::
-	@/bin/rm -f parallel
+	@/bin/rm -f ${CPROGRAMS}
 
 info ::
 	@echo 
@@ -67,16 +69,18 @@ unittests :
 
 info ::
 	@echo
-	@echo "make commandlines [NODES=...] [TIME=...]"
+	@echo "make commandlines [NODES=...] [TIME=...] [COMMAND=...]"
 #[COVERAGE=... (default=${COVERAGE})]"
 NODES = 2
 TIME = 20
 COVERAGE = 4
 CORESPERNODE = 16
+COMMAND = sleep
 .PHONY : commandlines
 commandlines :
-	export number_of_jobs=$$[ ${COVERAGE} * ${NODES} * ${CORESPERNODE} ] ; \
-	PYTHONPATH=..:${PYTHONPATH} python make_commandlines.py $$number_of_jobs 1 $$[ 2*${TIME} ]
+	export number_of_jobs=$$[ ${COVERAGE} * ${NODES} * ${CORESPERNODE} ] \
+	&& echo "make $$number_of_jobs commandlines" \
+	&& PYTHONPATH=..:${PYTHONPATH} python3 make_commandlines.py ${COMMAND} $$number_of_jobs 1 $$[ 2*${TIME} ]
 
 info ::
 	@echo 
