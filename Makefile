@@ -23,10 +23,11 @@ docs:
 	make doctype DOCTYPE=man
 DOCTYPE = html
 doctype:
-	@export PYTHONPATH=`pwd`:$PYTHONPATH ; \
-	  cd docs/rst ; \
-	  echo "making docs in ${DOCTYPE} format" ; \
-	  make ${DOCTYPE}
+	@export PYTHONPATH=`pwd`:$PYTHONPATH \
+	&&export logdir=`pwd` \
+	&& cd docs/rst \
+	&& echo "making docs in ${DOCTYPE} format" \
+	&& make ${DOCTYPE} 2>&1 | tee $$logdir/docs.log
 	@case ${DOCTYPE} in \
 	( html ) \
 	  rm -rf docs/${DOCTYPE}  ; \
@@ -37,6 +38,8 @@ doctype:
 	( latexpdf ) \
 	  cp docs/rst/_build/latex/PyLauncher.pdf docs ;; \
 	esac
+clean ::
+	@rm -f docs.log
 
 info ::
 	@echo "make bundle : make a tarfile"

@@ -1,6 +1,6 @@
 .\" Man page generated from reStructuredText.
 .
-.TH "PYLAUNCHER" "1" "Jun 30, 2020" "3.2" "PyLauncher"
+.TH "PYLAUNCHER" "1" "Dec 31, 2020" "3.2" "PyLauncher"
 .SH NAME
 pylauncher \- PyLauncher Documentation
 .
@@ -104,16 +104,47 @@ If you are at TACC, do \fBmodule load pylauncher\fP and all is good.
 .SS Batch operation
 .sp
 The most common usage scenario is to use the launcher to bundle many small jobs
-into a single batch submission on a cluster. In that case, put
+into a single batch submission on a cluster. In that case, put:
 .INDENT 0.0
 .INDENT 3.5
-module load python3
 .sp
+.nf
+.ft C
+module load python3
 python3 your_launcher_file.py
+.ft P
+.fi
 .UNINDENT
 .UNINDENT
 .sp
 in the jobscript.
+Note that python is started sequentially here;
+all parallelism is handled inside the pylauncher code.
+.SS Parallelism handling
+.sp
+Parallelism with the pylauncher is influenced by the following:
+.INDENT 0.0
+.IP \(bu 2
+The SLURM/PBS node and core count
+.IP \(bu 2
+The OMP_NUM_PROCS environment variable
+.IP \(bu 2
+Core count specifications in the pylauncher python script
+.IP \(bu 2
+Core count specifications in the commandlines file.
+.UNINDENT
+.sp
+The most important thing to know is that the pylauncher uses the SLURM/PBS parameters
+to discover how many cores there are available.
+It is most convenient to set these parameters to the number of actual cores present.
+So if you have a 40\-core node, set \fBtasks\-per\-node=40\fP\&. This tells the pylauncher
+that there are 40 cores; it does not imply that there will be 40 tasks.
+.sp
+If each of your commandlines needs to run on a single core, this is all you need to
+know about parallelism.
+.SS Affinity
+.sp
+There is an experimental option \fBnumactl="core"\fP\&.
 .SS Examples
 .sp
 There is an \fBexamples\fP subdirectory with some simple scenarios
@@ -136,8 +167,7 @@ import pylauncher3
 ## Emulate the classic launcher, using a one liner
 ##
 
-#pylauncher.ClassicLauncher("corecommandlines",debug="job+host+task")
-pylauncher3.ClassicLauncher("commandlines",debug="job")
+pylauncher3.ClassicLauncher("commandlines",debug="host+job+exec")
 
 
 .ft P
@@ -185,14 +215,20 @@ import pylauncher3
 ##
 
 pylauncher3.ClassicLauncher("commandlines",
-                           debug="job+task+host+exec+command",
-                           cores=2)
-
+                            cores=4,
+                            debug="job+host+exec",
+                            )
 
 .ft P
 .fi
 .UNINDENT
 .UNINDENT
+.sp
+You still need to set \fBOMP_NUM_PROCS\fP to tell your code how many cores it can take.
+.sp
+Also note that this core count is not reflected in your SLURM setup:
+as remarked above that only tells the pylauncher how many cores there are
+on each node (\fB\-\-tasks\-per\-node\fP) or in total for your whole job (\fB\-n\fP).
 .SS Variable count multi\-core jobs
 .sp
 If we have multithreaded jobs, but each has its own core count,
@@ -253,16 +289,16 @@ on how many cores the command is to run:
 .sp
 .nf
 .ft C
-4,./parallel 0 10
-4,./parallel 1 10
-4,./parallel 2 10
-4,./parallel 3 10
-4,./parallel 4 10
-4,./parallel 5 10
-4,./parallel 6 10
-4,./parallel 7 10
-4,./parallel 8 10
-4,./parallel 9 10
+\&./parallel 0 10
+\&./parallel 1 10
+\&./parallel 2 10
+\&./parallel 3 10
+\&./parallel 4 10
+\&./parallel 5 10
+\&./parallel 6 10
+\&./parallel 7 10
+\&./parallel 8 10
+\&./parallel 9 10
 
 .ft P
 .fi
@@ -300,7 +336,12 @@ while spawning jobs elsewhere. First, the \fBRemoteLauncher\fP takes a hostlist
 and spawns jobs there through an ssh connection:
 .INDENT 0.0
 .INDENT 3.5
+.sp
+.nf
+.ft C
 def RemoteLauncher(commandfile,hostlist,**kwargs)
+.ft P
+.fi
 .UNINDENT
 .UNINDENT
 .sp
@@ -341,7 +382,6 @@ import pylauncher3
 ## Classic launcher with a per\-task timeout
 ##
 
-#pylauncher.ClassicLauncher("corecommandlines",debug="job+host+task")
 pylauncher3.ClassicLauncher("commandlines",taskmaxruntime=30,delay=1,debug="job+host")
 
 
@@ -410,15 +450,15 @@ completion : based on a directory \fBpylauncher_tmp\fP with jobid environment va
 .B Parameters
 .INDENT 7.0
 .IP \(bu 2
-\fBcommandfile\fP – name of file with commandlines (required)
+\fBcommandfile\fP \-\- name of file with commandlines (required)
 .IP \(bu 2
-\fBresume\fP – if 1,yes interpret the commandfile as a queuestate file
+\fBresume\fP \-\- if 1,yes interpret the commandfile as a queuestate file
 .IP \(bu 2
-\fBcores\fP – number of cores (keyword, optional, default=1)
+\fBcores\fP \-\- number of cores (keyword, optional, default=1)
 .IP \(bu 2
-\fBworkdir\fP – (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory
+\fBworkdir\fP \-\- (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory
 .IP \(bu 2
-\fBdebug\fP – debug types string (optional, keyword)
+\fBdebug\fP \-\- debug types string (optional, keyword)
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -447,15 +487,15 @@ completion : based on a directory \fBpylauncher_tmp\fP with jobid environment va
 .B Parameters
 .INDENT 7.0
 .IP \(bu 2
-\fBcommandfile\fP – name of file with commandlines (required)
+\fBcommandfile\fP \-\- name of file with commandlines (required)
 .IP \(bu 2
-\fBresume\fP – if 1,yes interpret the commandfile as a queuestate file
+\fBresume\fP \-\- if 1,yes interpret the commandfile as a queuestate file
 .IP \(bu 2
-\fBcores\fP – number of cores (keyword, optional, default=1)
+\fBcores\fP \-\- number of cores (keyword, optional, default=1)
 .IP \(bu 2
-\fBworkdir\fP – (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory
+\fBworkdir\fP \-\- (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory
 .IP \(bu 2
-\fBdebug\fP – debug types string (optional, keyword)
+\fBdebug\fP \-\- debug types string (optional, keyword)
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -480,15 +520,15 @@ complete : based on a diretory \fBpylauncher_tmp\fP with jobid environment varia
 .B Parameters
 .INDENT 7.0
 .IP \(bu 2
-\fBcommandfile\fP – name of files with commandlines (required)
+\fBcommandfile\fP \-\- name of files with commandlines (required)
 .IP \(bu 2
-\fBcores\fP – number of cores (keyword, optional, default=4, see \fBFileCommandlineGenerator\fP for more explanation)
+\fBcores\fP \-\- number of cores (keyword, optional, default=4, see \fBFileCommandlineGenerator\fP for more explanation)
 .IP \(bu 2
-\fBworkdir\fP – directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to resuse an already existing directory
+\fBworkdir\fP \-\- directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to resuse an already existing directory
 .IP \(bu 2
-\fBdebug\fP – debug types string (optional, keyword)
+\fBdebug\fP \-\- debug types string (optional, keyword)
 .IP \(bu 2
-\fBhfswitch\fP – Switch used to determine the hostifle switch used with your MPI distribution. Default is \-machinefile (optional,keyword)
+\fBhfswitch\fP \-\- Switch used to determine the hostifle switch used with your MPI distribution. Default is \-machinefile (optional,keyword)
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -509,32 +549,7 @@ completion : based on a directory \fBpylauncher_tmp\fP with jobid environment va
 .INDENT 7.0
 .TP
 .B Parameters
-\fBcommandfile\fP – name of file with commandlines (required)
-.UNINDENT
-.sp
-:param hostlist : list of hostnames
-:param cores: number of cores (keyword, optional, default=4, see \fBFileCommandlineGenerator\fP for more explanation)
-:param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory
-:param debug: debug types string (optional, keyword)
-.UNINDENT
-.INDENT 0.0
-.TP
-.B pylauncher3.IbrunRemoteLauncher(commandfile, hostlist, **kwargs)
-A LauncherJob for a file of small MPI jobs, executed remotely.
-.sp
-The following values are specified for your convenience:
-.INDENT 7.0
-.IP \(bu 2
-commandexecutor : IbrunExecutor
-.IP \(bu 2
-taskgenerator : based on the \fBcommandfile\fP argument
-.IP \(bu 2
-completion : based on a directory \fBpylauncher_tmp\fP with jobid environment variables attached
-.UNINDENT
-.INDENT 7.0
-.TP
-.B Parameters
-\fBcommandfile\fP – name of file with commandlines (required)
+\fBcommandfile\fP \-\- name of file with commandlines (required)
 .UNINDENT
 .sp
 :param hostlist : list of hostnames
@@ -547,7 +562,7 @@ completion : based on a directory \fBpylauncher_tmp\fP with jobid environment va
 .B class pylauncher3.DynamicLauncher(**kwargs)
 A LauncherJob derived class that is designed for dynamic adding of 
 commands. This should make it easier to integrate
-in environments that expect to “submit” jobs one at a time.
+in environments that expect to "submit" jobs one at a time.
 .sp
 This has two extra methods:
 * append(commandline) : add commandline to the internal queueu
@@ -558,14 +573,14 @@ the ClassicLauncher.
 .INDENT 7.0
 .TP
 .B Parameters
-\fBhostpool\fP – (optional) by default based on HostListByName())
+\fBhostpool\fP \-\- (optional) by default based on HostListByName())
 .UNINDENT
 .sp
 :
 .UNINDENT
 .SS Commandline generation
 .sp
-The term ‘commandline’ has a technical meaning:
+The term \(aqcommandline\(aq has a technical meaning:
 a commandline is a two\-element list or a tuple where the first member is the
 Unix command and the second is a core count. These commandline tuples are generated
 by a couple of types of generators.
@@ -602,9 +617,9 @@ In that case, the generator will yield a COMMAND that is \fBstall\fP\&.
 .B Parameters
 .INDENT 7.0
 .IP \(bu 2
-\fBlist\fP – (keyword, default [] ) initial list of Commandline objects
+\fBlist\fP \-\- (keyword, default [] ) initial list of Commandline objects
 .IP \(bu 2
-\fBnax\fP – (keyword, default None) see above for explanation
+\fBnax\fP \-\- (keyword, default None) see above for explanation
 .UNINDENT
 .UNINDENT
 .INDENT 7.0
@@ -641,15 +656,16 @@ In that case, the generator will yield a COMMAND that is \fBstall\fP\&.
 .B Parameters
 .INDENT 7.0
 .IP \(bu 2
-\fBlist\fP – (keyword, default [] ) initial list of Commandline objects
+\fBlist\fP \-\- (keyword, default [] ) initial list of Commandline objects
 .IP \(bu 2
-\fBnax\fP – (keyword, default None) see above for explanation
+\fBnax\fP \-\- (keyword, default None) see above for explanation
 .UNINDENT
 .UNINDENT
 .INDENT 7.0
 .TP
 .B abort()
-Stop the generator, even if there are still elements in the commands list
+Stop the generator, even if there are still elements in the commands list.
+Where is this called?
 .UNINDENT
 .INDENT 7.0
 .TP
@@ -669,25 +685,25 @@ generator is stalling or has stopped
 Bases: \fI\%pylauncher3.CommandlineGenerator\fP
 .sp
 A generator for commandline files:
-blank lines and lines starting with the comment character ‘#’ are ignored
+blank lines and lines starting with the comment character \(aq#\(aq are ignored
 .INDENT 7.0
 .IP \(bu 2
 cores is 1 by default, other constants allowed.
 .IP \(bu 2
-cores==’file’ means the file has << count,command >> lines
+cores==\(aqfile\(aq means the file has << count,command >> lines
 .IP \(bu 2
-if the file has core counts, but you don’t specify the ‘file’ value, they are ignored.
+if the file has core counts, but you don\(aqt specify the \(aqfile\(aq value, they are ignored.
 .UNINDENT
 .INDENT 7.0
 .TP
 .B Parameters
 .INDENT 7.0
 .IP \(bu 2
-\fBfilename\fP – (required) name of the file with commandlines
+\fBfilename\fP \-\- (required) name of the file with commandlines
 .IP \(bu 2
-\fBcores\fP – (keyword, default 1) core count to be used for all commands
+\fBcores\fP \-\- (keyword, default 1) core count to be used for all commands
 .IP \(bu 2
-\fBdependencies\fP – (keyword, default False) are there task dependencies?
+\fBdependencies\fP \-\- (keyword, default False) are there task dependencies?
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -700,7 +716,7 @@ A CommandlineGenerator with an extra method:
 .sp
 \fBappend\fP: add a Commandline object to the list
 .sp
-The ‘nmax=0’ parameter value makes the generator keep expecting new stuff.
+The \(aqnmax=0\(aq parameter value makes the generator keep expecting new stuff.
 .INDENT 7.0
 .TP
 .B append(command)
@@ -718,11 +734,11 @@ A CommandlineGenerator object based on finding files in a directory.
 .B Parameters
 .INDENT 7.0
 .IP \(bu 2
-\fBcommand_directory\fP – (directory name, required) directory where commandlines are found; unlike launcher job work directories, this can be reused.
+\fBcommand_directory\fP \-\- (directory name, required) directory where commandlines are found; unlike launcher job work directories, this can be reused.
 .IP \(bu 2
-\fBcommandfile_root\fP – (string, required) only files that start with this, followed by a dash, are inspected for commands. A file can contain more than one command.
+\fBcommandfile_root\fP \-\- (string, required) only files that start with this, followed by a dash, are inspected for commands. A file can contain more than one command.
 .IP \(bu 2
-\fBcores\fP – (keyword, optional, default 1) core count for the commandlines.
+\fBcores\fP \-\- (keyword, optional, default 1) core count for the commandlines.
 .UNINDENT
 .UNINDENT
 .INDENT 7.0
@@ -754,7 +770,7 @@ the way tasks (see below) are started on nodes in that pool. Executors are also
 discussed below.
 .INDENT 0.0
 .TP
-.B class pylauncher3.Node(host=None, core=None, nodeid=\- 1)
+.B class pylauncher3.Node(host=None, core=None, nodeid=\- 1, phys_core=\(aq0\-0\(aq)
 A abstract object for a slot to execute a job. Most of the time
 this will correspond to a core.
 .sp
@@ -777,9 +793,9 @@ Make a node unoccupied
 .UNINDENT
 .INDENT 0.0
 .TP
-.B class pylauncher3.HostList(hostlist=[], tag=\(aq\(aq)
+.B class pylauncher3.HostList(hostlist=[], tag=\(aq\(aq, **kwargs)
 Object describing a list of hosts. Each host is a dictionary
-with a \fBhost\fP and \fBcore\fP field.
+with a \fBhost\fP and \fBcore\fP  and \fBphys_core\fP field.
 .sp
 Arguments:
 .INDENT 7.0
@@ -792,13 +808,15 @@ tag : something like \fB\&.tacc.utexas.edu\fP may be necessary to ssh to hosts i
 This is an iteratable object; it yields the host/core dictionary objects.
 .INDENT 7.0
 .TP
-.B append(h, c=0)
+.B append(h, c=0, p=\(aq0\-0\(aq)
 Arguments:
 .INDENT 7.0
 .IP \(bu 2
 h : hostname
 .IP \(bu 2
 c (optional, default zero) : core number
+.IP \(bu 2
+p (optional, default zero) : physical core range
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -812,16 +830,16 @@ the basic data structures.
 .B Parameters
 .INDENT 7.0
 .IP \(bu 2
-\fBcommandexecutor\fP – (keyword, optional, default=\(ga\(gaLocalExecutor\(ga\(ga) the \fBExecutor\fP object for this host pool
+\fBcommandexecutor\fP \-\- (keyword, optional, default=\(ga\(gaLocalExecutor\(ga\(ga) the \fBExecutor\fP object for this host pool
 .IP \(bu 2
-\fBworkdir\fP – (keyword, optional) the workdir for the command executor
+\fBworkdir\fP \-\- (keyword, optional) the workdir for the command executor
 .IP \(bu 2
-\fBdebug\fP – (keyword, optional) a string of debug types; if this contains ‘host’, anything derived from \fBHostPoolBase\fP will do a debug trace
+\fBdebug\fP \-\- (keyword, optional) a string of debug types; if this contains \(aqhost\(aq, anything derived from \fBHostPoolBase\fP will do a debug trace
 .UNINDENT
 .UNINDENT
 .INDENT 7.0
 .TP
-.B append_node(host=\(aqlocalhost\(aq, core=0)
+.B append_node(host=\(aqlocalhost\(aq, core=0, phys_core=\(aq0\-0\(aq)
 Create a new item in this pool by specifying either a Node object
 or a hostname plus core number. This function is called in a loop when a
 \fBHostPool\fP is created from a \fBHostList\fP object.
@@ -875,11 +893,11 @@ is a list of Node objects.
 .B Parameters
 .INDENT 7.0
 .IP \(bu 2
-\fBnhosts\fP – the number of slots in the pool; this will use the localhost
+\fBnhosts\fP \-\- the number of slots in the pool; this will use the localhost
 .IP \(bu 2
-\fBhostlist\fP – HostList object; this takes preference over the previous option
+\fBhostlist\fP \-\- HostList object; this takes preference over the previous option
 .IP \(bu 2
-\fBcommandexecutor\fP – (optional) a prefixer routine, by default LocalExecutor
+\fBcommandexecutor\fP \-\- (optional) a prefixer routine, by default LocalExecutor
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -899,11 +917,11 @@ The only locator objects allowed at the moment are consecutive subsets.
 .B Parameters
 .INDENT 7.0
 .IP \(bu 2
-\fBpool\fP – HostPool (optional)
+\fBpool\fP \-\- HostPool (optional)
 .IP \(bu 2
-\fBextent\fP – number of nodes requested
+\fBextent\fP \-\- number of nodes requested
 .IP \(bu 2
-\fBoffset\fP – location of the first node in the pool
+\fBoffset\fP \-\- location of the first node in the pool
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -930,13 +948,13 @@ A Task is an abstract object associated with a commandline
 .B Parameters
 .INDENT 7.0
 .IP \(bu 2
-\fBcommand\fP – (required) Commandline object; note that this contains the core count
+\fBcommand\fP \-\- (required) Commandline object; note that this contains the core count
 .IP \(bu 2
-\fBcompletion\fP – (keyword, optional) Completion object; if unspecified the trivial completion is used.
+\fBcompletion\fP \-\- (keyword, optional) Completion object; if unspecified the trivial completion is used.
 .IP \(bu 2
-\fBtaskid\fP – (keyword) identifying number of this task; has to be unique in a job, also has to be equal to the taskid of the completion
+\fBtaskid\fP \-\- (keyword) identifying number of this task; has to be unique in a job, also has to be equal to the taskid of the completion
 .IP \(bu 2
-\fBdebug\fP – (keyword, optional) string of debug keywords
+\fBdebug\fP \-\- (keyword, optional) string of debug keywords
 .UNINDENT
 .UNINDENT
 .INDENT 7.0
@@ -947,7 +965,7 @@ Execute the completion test of this Task
 .INDENT 7.0
 .TP
 .B line_with_completion()
-Return the task’s commandline with completion attached
+Return the task\(aqs commandline with completion attached
 .UNINDENT
 .INDENT 7.0
 .TP
@@ -958,9 +976,9 @@ Start the task.
 .B Parameters
 .INDENT 7.0
 .IP \(bu 2
-\fBpool\fP – HostLocator object (keyword, required) : this describes the nodes on which to start the task
+\fBpool\fP \-\- HostLocator object (keyword, required) : this describes the nodes on which to start the task
 .IP \(bu 2
-\fBcommandexecutor\fP – (keyword, optional) prefixer routine, by default the commandexecutor of the pool is used
+\fBcommandexecutor\fP \-\- (keyword, optional) prefixer routine, by default the commandexecutor of the pool is used
 .UNINDENT
 .UNINDENT
 .sp
@@ -1029,13 +1047,13 @@ can accept an imposed taskcount number.
 .B Parameters
 .INDENT 7.0
 .IP \(bu 2
-\fBcommandlinegenerator\fP – either a list of unix commands, or a CommandlineGenerator object
+\fBcommandlinegenerator\fP \-\- either a list of unix commands, or a CommandlineGenerator object
 .IP \(bu 2
-\fBcompletion\fP – (optional) a function of one variable (the task id) that returns Completion objects
+\fBcompletion\fP \-\- (optional) a function of one variable (the task id) that returns Completion objects
 .IP \(bu 2
-\fBdebug\fP – (optional) string of requested debug modes
+\fBdebug\fP \-\- (optional) string of requested debug modes
 .IP \(bu 2
-\fBskip\fP – (optional) list of tasks to skip, this is for restarted jobs
+\fBskip\fP \-\- (optional) list of tasks to skip, this is for restarted jobs
 .UNINDENT
 .UNINDENT
 .INDENT 7.0
@@ -1044,9 +1062,9 @@ can accept an imposed taskcount number.
 Deliver a Task object, or a special string:
 .INDENT 7.0
 .IP \(bu 2
-“stall” : the commandline generator will give more, all in good time
+"stall" : the commandline generator will give more, all in good time
 .IP \(bu 2
-“stop” : we are totally done
+"stop" : we are totally done
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -1075,12 +1093,15 @@ All derived classes need to define a \fBexecute\fP method.
 .B Parameters
 .INDENT 7.0
 .IP \(bu 2
-\fBcatch_output\fP – (keyword, optional, default=True) state whether command output gets caught, or just goes to stdout
+\fBcatch_output\fP \-\- (keyword, optional, default=True) state whether command output gets caught, or just goes to stdout
 .IP \(bu 2
-\fBworkdir\fP – (optional, default=”pylauncher_tmpdir_exec”) directory for exec and out files
+\fBworkdir\fP \-\- (optional, default="pylauncher_tmpdir_exec") directory for exec and out files
 .IP \(bu 2
-\fBdebug\fP – (optional) string of debug modes; include “exec” to trace this class
+\fBdebug\fP \-\- (optional) string of debug modes; include "exec" to trace this class
 .UNINDENT
+.TP
+.B Parame numa_ctl
+(optional) numa binding. Only supported "core" for SSH executor.
 .UNINDENT
 .sp
 Important note: the \fBworkdir\fP should not already exist. You have to remove it yourself.
@@ -1091,7 +1112,7 @@ Test that the working directory is (in) a subdirectory of the cwd
 .UNINDENT
 .INDENT 7.0
 .TP
-.B wrap(command)
+.B wrap(command, prefix=\(aq\(aq)
 Take a commandline, write it to a small file, and return the 
 commandline that sources that file
 .UNINDENT
@@ -1105,7 +1126,7 @@ Execute a commandline locally, in the background.
 .INDENT 7.0
 .TP
 .B Parameters
-\fBprefix\fP – (keyword, optional, default null string) for recalcitrant shells, the possibility to specify ‘/bin/sh’ or so
+\fBprefix\fP \-\- (keyword, optional, default null string) for recalcitrant shells, the possibility to specify \(aq/bin/sh\(aq or so
 .UNINDENT
 .UNINDENT
 .INDENT 0.0
@@ -1116,7 +1137,7 @@ Bases: \fI\%pylauncher3.Executor\fP
 Intelligent ssh connection.
 .sp
 This is either a new paramiko ssh connection or a copy of an existing one,
-so that we don’t open multiple connections to one node.
+so that we don\(aqt open multiple connections to one node.
 .sp
 Commands are executed with:
 \fBcd\fP to the current directory, and 
@@ -1140,7 +1161,7 @@ result is wrapped with Executor.wrap
 .INDENT 7.0
 .TP
 .B Parameters
-\fBpool\fP – (required) either a Node or HostLocator
+\fBpool\fP \-\- (required) either a Node or HostLocator
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -1156,9 +1177,9 @@ that is in use at TACC
 .B Parameters
 .INDENT 7.0
 .IP \(bu 2
-\fBpool\fP – (required) \fBHostLocator\fP object
+\fBpool\fP \-\- (required) \fBHostLocator\fP object
 .IP \(bu 2
-\fBstdout\fP – (optional) a file that is open for writing; by default \fBsubprocess.PIPE\fP is used
+\fBstdout\fP \-\- (optional) a file that is open for writing; by default \fBsubprocess.PIPE\fP is used
 .UNINDENT
 .UNINDENT
 .INDENT 7.0
@@ -1181,7 +1202,7 @@ released.
 .B class pylauncher3.Completion(taskid=0)
 Define a completion object for a task.
 .sp
-The base class doesn’t do a lot: it immediately returns true on the 
+The base class doesn\(aqt do a lot: it immediately returns true on the 
 completion test.
 .INDENT 7.0
 .TP
@@ -1207,17 +1228,17 @@ The completion test then tests for the existence of that file.
 .B Parameters
 .INDENT 7.0
 .IP \(bu 2
-\fBtaskid\fP – (keyword, required) this has to be unique. Unfortunately we can not test for that.
+\fBtaskid\fP \-\- (keyword, required) this has to be unique. Unfortunately we can not test for that.
 .IP \(bu 2
-\fBstampdir\fP – (keyword, optional, default is self.stampdir, which is “.”) directory where the stampfile is left
+\fBstampdir\fP \-\- (keyword, optional, default is self.stampdir, which is ".") directory where the stampfile is left
 .IP \(bu 2
-\fBstamproot\fP – (keyword, optional, default is “expire”) root of the stampfile name
+\fBstamproot\fP \-\- (keyword, optional, default is "expire") root of the stampfile name
 .UNINDENT
 .UNINDENT
 .INDENT 7.0
 .TP
 .B attach(txt)
-Append a ‘touch’ command to the txt argument
+Append a \(aqtouch\(aq command to the txt argument
 .UNINDENT
 .INDENT 7.0
 .TP
@@ -1260,17 +1281,17 @@ LauncherJob class. Keyword arguments:
 .B Parameters
 .INDENT 7.0
 .IP \(bu 2
-\fBhostpool\fP – a HostPool instance (required)
+\fBhostpool\fP \-\- a HostPool instance (required)
 .IP \(bu 2
-\fBtaskgenerator\fP – a TaskGenerator instance (required)
+\fBtaskgenerator\fP \-\- a TaskGenerator instance (required)
 .IP \(bu 2
-\fBdelay\fP – between task checks  (optional)
+\fBdelay\fP \-\- between task checks  (optional)
 .IP \(bu 2
-\fBdebug\fP – list of keywords (optional)
+\fBdebug\fP \-\- list of keywords (optional)
 .IP \(bu 2
-\fBgather_output\fP – (keyword, optional, default None) filename to gather all command output
+\fBgather_output\fP \-\- (keyword, optional, default None) filename to gather all command output
 .IP \(bu 2
-\fBmaxruntime\fP – (keyword, optional, default zero) if nonzero, maximum running time in seconds
+\fBmaxruntime\fP \-\- (keyword, optional, default zero) if nonzero, maximum running time in seconds
 .UNINDENT
 .UNINDENT
 .INDENT 7.0
@@ -1281,7 +1302,7 @@ Invoke the launcher job, and call \fBtick\fP until all jobs are finished.
 .INDENT 7.0
 .TP
 .B tick()
-This routine does a single time step in a launcher’s life, and reports back
+This routine does a single time step in a launcher\(aqs life, and reports back
 to the user. Specifically:
 .INDENT 7.0
 .IP \(bu 2
@@ -1332,6 +1353,12 @@ Give a proper hostlist. Currently this work for the following hosts:
 \fBfrontera\fP : Frontera at TACC, using SLURM
 .IP \(bu 2
 \fBlonghorn\fP : Longhorn at TACC, using SLURM
+.IP \(bu 2
+
+.nf
+\(ga\(ga
+.fi
+frontera*’’ : Frontera at TACC, using SLRUM
 .IP \(bu 2
 \fBpace\fP : PACE at Georgia Tech, using PBS
 .IP \(bu 2

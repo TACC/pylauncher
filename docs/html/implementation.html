@@ -4,7 +4,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Implementation &#8212; PyLauncher 3.2 documentation</title>
     <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -149,27 +149,6 @@ Therefore, the following list of launcher commands exist.</p>
 :param debug: debug types string (optional, keyword)</p>
 </dd></dl>
 
-<dl class="py function">
-<dt id="pylauncher3.IbrunRemoteLauncher">
-<code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">IbrunRemoteLauncher</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">commandfile</span></em>, <em class="sig-param"><span class="n">hostlist</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#IbrunRemoteLauncher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.IbrunRemoteLauncher" title="Permalink to this definition">¶</a></dt>
-<dd><p>A LauncherJob for a file of small MPI jobs, executed remotely.</p>
-<p>The following values are specified for your convenience:</p>
-<ul class="simple">
-<li><p>commandexecutor : IbrunExecutor</p></li>
-<li><p>taskgenerator : based on the <code class="docutils literal notranslate"><span class="pre">commandfile</span></code> argument</p></li>
-<li><p>completion : based on a directory <code class="docutils literal notranslate"><span class="pre">pylauncher_tmp</span></code> with jobid environment variables attached</p></li>
-</ul>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>commandfile</strong> – name of file with commandlines (required)</p>
-</dd>
-</dl>
-<p>:param hostlist : list of hostnames
-:param cores: number of cores (keyword, optional, default=4, see <code class="docutils literal notranslate"><span class="pre">FileCommandlineGenerator</span></code> for more explanation)
-:param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory
-:param debug: debug types string (optional, keyword)</p>
-</dd></dl>
-
 <dl class="py class">
 <dt id="pylauncher3.DynamicLauncher">
 <em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">DynamicLauncher</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#DynamicLauncher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.DynamicLauncher" title="Permalink to this definition">¶</a></dt>
@@ -263,7 +242,8 @@ In that case, the generator will yield a COMMAND that is <code class="docutils l
 <dl class="py method">
 <dt id="pylauncher3.CommandlineGenerator.abort">
 <code class="sig-name descname">abort</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#CommandlineGenerator.abort"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.CommandlineGenerator.abort" title="Permalink to this definition">¶</a></dt>
-<dd><p>Stop the generator, even if there are still elements in the commands list</p>
+<dd><p>Stop the generator, even if there are still elements in the commands list.
+Where is this called?</p>
 </dd></dl>
 
 <dl class="py method">
@@ -358,7 +338,7 @@ the way tasks (see below) are started on nodes in that pool. Executors are also
 discussed below.</p>
 <dl class="py class">
 <dt id="pylauncher3.Node">
-<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">Node</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">host</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">core</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">nodeid</span><span class="o">=</span><span class="default_value">- 1</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Node" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">Node</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">host</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">core</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">nodeid</span><span class="o">=</span><span class="default_value">- 1</span></em>, <em class="sig-param"><span class="n">phys_core</span><span class="o">=</span><span class="default_value">'0-0'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Node" title="Permalink to this definition">¶</a></dt>
 <dd><p>A abstract object for a slot to execute a job. Most of the time
 this will correspond to a core.</p>
 <p>A node can have a task associated with it or be free.</p>
@@ -384,9 +364,9 @@ this will correspond to a core.</p>
 
 <dl class="py class">
 <dt id="pylauncher3.HostList">
-<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">HostList</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">hostlist</span><span class="o">=</span><span class="default_value">[]</span></em>, <em class="sig-param"><span class="n">tag</span><span class="o">=</span><span class="default_value">''</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostList" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">HostList</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">hostlist</span><span class="o">=</span><span class="default_value">[]</span></em>, <em class="sig-param"><span class="n">tag</span><span class="o">=</span><span class="default_value">''</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostList" title="Permalink to this definition">¶</a></dt>
 <dd><p>Object describing a list of hosts. Each host is a dictionary
-with a <code class="docutils literal notranslate"><span class="pre">host</span></code> and <code class="docutils literal notranslate"><span class="pre">core</span></code> field.</p>
+with a <code class="docutils literal notranslate"><span class="pre">host</span></code> and <code class="docutils literal notranslate"><span class="pre">core</span></code>  and <code class="docutils literal notranslate"><span class="pre">phys_core</span></code> field.</p>
 <p>Arguments:</p>
 <ul class="simple">
 <li><p>list : list of hostname strings</p></li>
@@ -395,11 +375,12 @@ with a <code class="docutils literal notranslate"><span class="pre">host</span><
 <p>This is an iteratable object; it yields the host/core dictionary objects.</p>
 <dl class="py method">
 <dt id="pylauncher3.HostList.append">
-<code class="sig-name descname">append</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">h</span></em>, <em class="sig-param"><span class="n">c</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostList.append"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostList.append" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">append</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">h</span></em>, <em class="sig-param"><span class="n">c</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">p</span><span class="o">=</span><span class="default_value">'0-0'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostList.append"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostList.append" title="Permalink to this definition">¶</a></dt>
 <dd><p>Arguments:</p>
 <ul class="simple">
 <li><p>h : hostname</p></li>
 <li><p>c (optional, default zero) : core number</p></li>
+<li><p>p (optional, default zero) : physical core range</p></li>
 </ul>
 </dd></dl>
 
@@ -421,7 +402,7 @@ the basic data structures.</p>
 </dl>
 <dl class="py method">
 <dt id="pylauncher3.HostPoolBase.append_node">
-<code class="sig-name descname">append_node</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">host</span><span class="o">=</span><span class="default_value">'localhost'</span></em>, <em class="sig-param"><span class="n">core</span><span class="o">=</span><span class="default_value">0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostPoolBase.append_node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostPoolBase.append_node" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">append_node</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">host</span><span class="o">=</span><span class="default_value">'localhost'</span></em>, <em class="sig-param"><span class="n">core</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">phys_core</span><span class="o">=</span><span class="default_value">'0-0'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostPoolBase.append_node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostPoolBase.append_node" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a new item in this pool by specifying either a Node object
 or a hostname plus core number. This function is called in a loop when a
 <code class="docutils literal notranslate"><span class="pre">HostPool</span></code> is created from a <code class="docutils literal notranslate"><span class="pre">HostList</span></code> object.</p>
@@ -472,7 +453,7 @@ or a hostname plus core number. This function is called in a loop when a
 <dl class="py class">
 <dt id="pylauncher3.HostPool">
 <em class="property">class </em><code class="sig-prename descclassname">pylauncher3.</code><code class="sig-name descname">HostPool</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#HostPool"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.HostPool" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference internal" href="#pylauncher3.HostPoolBase" title="pylauncher3.HostPoolBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">pylauncher3.HostPoolBase</span></code></a></p>
+<dd><p>Bases: <a class="reference internal" href="trace.html#pylauncher3.HostPoolBase" title="pylauncher3.HostPoolBase"><code class="xref py py-class docutils literal notranslate"><span class="pre">pylauncher3.HostPoolBase</span></code></a></p>
 <p>A structure to manage a bunch of Node objects.
 The main internal object is the <code class="docutils literal notranslate"><span class="pre">nodes</span></code> member, which 
 is a list of Node objects.</p>
@@ -674,6 +655,9 @@ mechanisms.</p>
 <li><p><strong>debug</strong> – (optional) string of debug modes; include “exec” to trace this class</p></li>
 </ul>
 </dd>
+<dt class="field-even">Parame numa_ctl</dt>
+<dd class="field-even"><p>(optional) numa binding. Only supported “core” for SSH executor.</p>
+</dd>
 </dl>
 <p>Important note: the <code class="docutils literal notranslate"><span class="pre">workdir</span></code> should not already exist. You have to remove it yourself.</p>
 <dl class="py method">
@@ -684,7 +668,7 @@ mechanisms.</p>
 
 <dl class="py method">
 <dt id="pylauncher3.Executor.wrap">
-<code class="sig-name descname">wrap</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">command</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Executor.wrap"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Executor.wrap" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">wrap</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">command</span></em>, <em class="sig-param"><span class="n">prefix</span><span class="o">=</span><span class="default_value">''</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pylauncher3.html#Executor.wrap"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pylauncher3.Executor.wrap" title="Permalink to this definition">¶</a></dt>
 <dd><p>Take a commandline, write it to a small file, and return the 
 commandline that sources that file</p>
 </dd></dl>
@@ -950,7 +934,7 @@ to the user. Specifically:</p>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2013-2020, Victor Eijkhout.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 3.2.1.
     </div>
   </body>
 </html>
