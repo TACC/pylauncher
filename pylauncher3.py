@@ -3668,11 +3668,12 @@ def IbrunLauncher(commandfile,**kwargs):
     debug = kwargs.pop("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     cores = kwargs.pop("cores",4)
+    dependencies = kwargs.pop("dependencies", False)
     job = LauncherJob(
         hostpool=HostPool( hostlist=HostListByName(debug=debug),
             commandexecutor=IbrunExecutor(workdir=workdir,debug=debug), debug=debug ),
         taskgenerator=TaskGenerator( 
-            FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
+            FileCommandlineGenerator(commandfile,cores=cores,dependencies=dependencies,debug=debug),
             completion=lambda x:FileCompletion(taskid=x,
                                       stamproot="expire",stampdir=workdir),
             debug=debug ),
