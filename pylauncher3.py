@@ -260,7 +260,7 @@ class Observable:
         self.observers.pop(observer)
     def notify(self, msg):
         for obs in self.observers:
-            obs.update(msg)
+            obs.update(msg, self)
 
 class Commandline(Observable):
     """A Commandline is basically a dict containing at least the following members:
@@ -273,13 +273,22 @@ class Commandline(Observable):
         self.data = {'command':command}
         self.data["cores"] = int( kwargs.pop("cores",1) )
         self.data["dependencies"] = kwargs.pop("dependencies",None)
-        self.observers = []
+        Observable.__init__(self)
     def __getitem__(self,ind):
         return self.data[ind]
     def __str__(self):
         r = "command=<<%s>>, cores=%d, dep=%s" % (self["command"],self["cores"],self["dependencies"])
         return r
-
+    def update(self, msg, obj):
+        if msg == 'completed':
+            try:
+                self.data["dependencies"].remove(obj)
+            except ValueError:
+                # strange...
+                pass
+        else:
+            # strange...
+            pass
 
 
 class CommandlineGenerator():
@@ -337,20 +346,23 @@ class CommandlineGenerator():
             return Commandline("stop")
             #raise StopIteration
         elif len(self.list)>0:
-            j = self.list[0]; self.list = self.list[1:]
-            DebugTraceMsg("Popping command off list <<%s>>" % str(j),
-                          self.debug,prefix="Cmd")
-            print("Popping command off list <<%s>>" % str(j))
-            self.njobs += 1; return j
+            return self._popCommand()
         else:
             return Commandline("stall")
+    def _popCommand(self):
+        j = self.list[0]; self.list = self.list[1:]
+        DebugTraceMsg("Popping command off list <<%s>>" % str(j),
+                      self.debug,prefix="Cmd")
+        print("Popping command off list <<%s>>" % str(j))
+        self.njobs += 1; return j
     def __iter__(self): return self
     def __len__(self): return len(self.list)
 
 class DependenciesCommandlineGenerator(CommandlineGenerator):
     def __init__(self,**kwargs):
         lst = kwargs.pop("list", [])
-        kwargs["list"] = self.interpretDependencies(lst)
+        lst = self.interpretDependencies(lst)
+        kwargs["list"] = lst
         CommandlineGenerator.__init__(self, **kwargs)
 
     def interpretDependencies(self, lst):
@@ -362,6 +374,15 @@ class DependenciesCommandlineGenerator(CommandlineGenerator):
                 lst[idx].register(cmd)
                 cmd.data['dependencies'] = [lst[idx]]
         return lst
+    def _popCommand(self):
+        for i,cmd in enumerate(self.list):
+            if not cmd.data['dependencies']:
+                j = cmd
+                self.list.pop(i)
+                print("Popping command off list[%d] <<%s>>" % (i, str(j)))
+                self.njobs += 1; return j
+        # nothing is ready to be poppod
+        return Commandline("stall")
 
 
 
@@ -909,6 +930,7 @@ class Task():
         self.has_started = False
         DebugTraceMsg("created task <<%s>>" % str(self),self.debug,prefix="Task")
         self.nodes = None
+        self.commandobj = command
     def start_on_nodes(self,**kwargs):
         """Start the task.
 
@@ -954,6 +976,7 @@ class Task():
         completed = self.has_started and self.completion.test()
         if completed:
             self.runningtime = time.time()-self.starttime
+            self.commandobj.notify('completed')
             DebugTraceMsg("completed %d in %5.3f" % (self.taskid,self.runningtime),
                           self.debug,prefix="Task")
         return completed
