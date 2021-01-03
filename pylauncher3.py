@@ -249,7 +249,20 @@ def testSleepCommandGeneratorBarrier():
     print("barriers:",count_barrier)
     assert(count_barrier==nbarrier)
 
-class Commandline():
+class Observable:
+    def __init__(self):
+        self.observers = []
+    def update(self, msg):
+        pass
+    def register(self, observer):
+        self.observers.append(observer)
+    def unregister(self, observer):
+        self.observers.pop(observer)
+    def notify(self, msg):
+        for obs in self.observers:
+            obs.update(msg)
+
+class Commandline(Observable):
     """A Commandline is basically a dict containing at least the following members:
 
     * command : a unix commandline
@@ -260,11 +273,14 @@ class Commandline():
         self.data = {'command':command}
         self.data["cores"] = int( kwargs.pop("cores",1) )
         self.data["dependencies"] = kwargs.pop("dependencies",None)
+        self.observers = []
     def __getitem__(self,ind):
         return self.data[ind]
     def __str__(self):
-        r = "command=<<%s>>, cores=%d" % (self["command"],self["cores"])
+        r = "command=<<%s>>, cores=%d, dep=%s" % (self["command"],self["cores"],self["dependencies"])
         return r
+
+
 
 class CommandlineGenerator():
     """An iteratable class that generates a stream of ``Commandline`` objects.
@@ -324,11 +340,30 @@ class CommandlineGenerator():
             j = self.list[0]; self.list = self.list[1:]
             DebugTraceMsg("Popping command off list <<%s>>" % str(j),
                           self.debug,prefix="Cmd")
+            print("Popping command off list <<%s>>" % str(j))
             self.njobs += 1; return j
         else:
             return Commandline("stall")
     def __iter__(self): return self
     def __len__(self): return len(self.list)
+
+class DependenciesCommandlineGenerator(CommandlineGenerator):
+    def __init__(self,**kwargs):
+        lst = kwargs.pop("list", [])
+        kwargs["list"] = self.interpretDependencies(lst)
+        CommandlineGenerator.__init__(self, **kwargs)
+
+    def interpretDependencies(self, lst):
+        for cmd in lst:
+            dep = cmd.data.get('dependencies', None)
+            assert isinstance(dep, str)
+            if len(dep) > 0:
+                idx = int(dep)
+                lst[idx].register(cmd)
+                cmd.data['dependencies'] = [lst[idx]]
+        return lst
+
+
 
 def testGeneratorList():
     """testGeneratorList: Generate commands from a list and count them"""
@@ -380,7 +415,7 @@ class ListCommandlineGenerator(CommandlineGenerator):
         commandlist = [ Commandline(l,cores=cores) for l in kwargs.pop("list",[]) ]
         CommandlineGenerator.__init__(self,list=commandlist,**kwargs)
 
-class FileCommandlineGenerator(CommandlineGenerator):
+class FileCommandlineGenerator(DependenciesCommandlineGenerator):
     """A generator for commandline files:
     blank lines and lines starting with the comment character '#' are ignored
 
@@ -424,7 +459,7 @@ class FileCommandlineGenerator(CommandlineGenerator):
                 c = cores
             commandlist.append( Commandline(l,cores=c,dependencies=td) )
             count += 1
-        CommandlineGenerator.__init__(self,list=commandlist,**kwargs)
+        DependenciesCommandlineGenerator.__init__(self,list=commandlist,**kwargs)
 
 class StateFileCommandlineGenerator(CommandlineGenerator):
     """A generator for the lines in a queuestate restart file.
