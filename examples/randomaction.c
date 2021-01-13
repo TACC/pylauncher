@@ -12,6 +12,10 @@
 #include <time.h>
 #include <unistd.h>
 
+#ifndef WAIT
+#define WAIT 10
+#endif
+
 int main(int argc,char **argv) {
   srand(time(NULL));
 
@@ -20,7 +24,7 @@ int main(int argc,char **argv) {
    * but max 30
    */
   int nseconds = atoi(argv[1]);
-  if (nseconds>30) nseconds = 30;
+  if (nseconds>WAIT) nseconds = WAIT;
   nseconds = rand() % nseconds;
 
   printf("I am going to sleep for %d seconds\n",nseconds);

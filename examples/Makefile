@@ -1,3 +1,10 @@
+################################################################
+####
+#### Makefile for the pylauncher examples
+#### pylauncher is copyright Victor Eijkhout 2010-2021
+####
+################################################################
+
 info ::
 	@echo "================================================================"
 	@echo " This makefile tries to make it easy to run and submit example programs"
@@ -52,12 +59,21 @@ micsubmit :
 	        > jobscr ; \
 	  sbatch jobscr
 
-CPROGRAMS = parallel randomsleep
+CPROGRAMS = parallel randomaction
+info ::
+	@echo 
+	@echo "make PROGRAM"
+	@echo "    with C programs: ${CPROGRAMS}"
+	@echo "    compiled with WAIT=SLURM_NPROCS"
 .SECONDEXPANSION:
-parallel randomsleep : $$@.c
-	mpicc -o $@ $@.c
+.PHONY: randomaction
+parallel randomaction :
+	@slurm=${SLURM_NPROCS} && slurm=$${slurm:=40} \
+	&& wait=${WAIT} && wait=$${wait:=$${slurm}} \
+	&& echo "compile $@ with wait=$$wait" \
+	&& mpicc -o $@ $@.c -DWAIT=$${wait:=20}
 clean ::
-	@/bin/rm -f ${CPROGRAMS}
+	@rm -f ${CPROGRAMS}
 
 info ::
 	@echo 
@@ -69,18 +85,27 @@ unittests :
 
 info ::
 	@echo
-	@echo "make commandlines [NODES=...] [TIME=...] [COMMAND=...]"
-#[COVERAGE=... (default=${COVERAGE})]"
-NODES = 2
+	@echo "make commandlines [COVERAGE=...] [ NCORES=...] [TIME=...] [COMMAND=...]"
+	@echo "    number of jobs = COVERAGE * NCORES"
+	@echo "    values: ${COVERAGE} ${NCORES}"
+	@echo "make randomcommandlines : use"
+	@echo "    COMMAND=\"mkdir -p random/PYL_ID && cd random/PYL_ID && ../../randomaction PYL_ID > random.out\""
+NCORES = ${SLURM_NPROCS}
 TIME = 20
 COVERAGE = 4
-CORESPERNODE = 16
 COMMAND = sleep
 .PHONY : commandlines
 commandlines :
-	export number_of_jobs=$$[ ${COVERAGE} * ${NODES} * ${CORESPERNODE} ] \
+	@export number_of_jobs=$$[ ${COVERAGE} * ${NCORES} ] \
 	&& echo "make $$number_of_jobs commandlines" \
-	&& PYTHONPATH=..:${PYTHONPATH} python3 make_commandlines.py ${COMMAND} $$number_of_jobs 1 $$[ 2*${TIME} ]
+	&& PYTHONPATH=..:${PYTHONPATH} python3 make_commandlines.py "${COMMAND}" $$number_of_jobs 1 $$[ 2*${TIME} ]
+.PHONY: randomcommandlines
+randomcommandlines :
+	@make --no-print-directory commandlines \
+	    COVERAGE=${COVERAGE} NCORES=${NCORES} \
+	    COMMAND="mkdir -p random/PYL_ID && cd random/PYL_ID && ../../randomaction PYL_ID > random.out"
+clean ::
+	@rm -rf random
 
 info ::
 	@echo 
