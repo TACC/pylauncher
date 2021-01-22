@@ -4,7 +4,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>A quick tutorial &#8212; PyLauncher 3.2 documentation</title>
     <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -55,12 +55,35 @@ If you are at TACC, do <code class="docutils literal notranslate"><span class="p
 <div class="section" id="batch-operation">
 <h2>Batch operation<a class="headerlink" href="#batch-operation" title="Permalink to this headline">¶</a></h2>
 <p>The most common usage scenario is to use the launcher to bundle many small jobs
-into a single batch submission on a cluster. In that case, put</p>
-<blockquote>
-<div><p>module load python3</p>
-<p>python3 your_launcher_file.py</p>
-</div></blockquote>
-<p>in the jobscript.</p>
+into a single batch submission on a cluster. In that case, put:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">module</span> <span class="n">load</span> <span class="n">python3</span>
+<span class="n">python3</span> <span class="n">your_launcher_file</span><span class="o">.</span><span class="n">py</span>
+</pre></div>
+</div>
+<p>in the jobscript.
+Note that python is started sequentially here;
+all parallelism is handled inside the pylauncher code.</p>
+</div>
+<div class="section" id="parallelism-handling">
+<h2>Parallelism handling<a class="headerlink" href="#parallelism-handling" title="Permalink to this headline">¶</a></h2>
+<p>Parallelism with the pylauncher is influenced by the following:</p>
+<ul class="simple">
+<li><p>The SLURM/PBS node and core count</p></li>
+<li><p>The OMP_NUM_PROCS environment variable</p></li>
+<li><p>Core count specifications in the pylauncher python script</p></li>
+<li><p>Core count specifications in the commandlines file.</p></li>
+</ul>
+<p>The most important thing to know is that the pylauncher uses the SLURM/PBS parameters
+to discover how many cores there are available.
+It is most convenient to set these parameters to the number of actual cores present.
+So if you have a 40-core node, set <code class="docutils literal notranslate"><span class="pre">tasks-per-node=40</span></code>. This tells the pylauncher
+that there are 40 cores; it does not imply that there will be 40 tasks.</p>
+<p>If each of your commandlines needs to run on a single core, this is all you need to
+know about parallelism.</p>
+<div class="section" id="affinity">
+<h3>Affinity<a class="headerlink" href="#affinity" title="Permalink to this headline">¶</a></h3>
+<p>There is an experimental option <code class="docutils literal notranslate"><span class="pre">numactl=&quot;core&quot;</span></code>.</p>
+</div>
 </div>
 <div class="section" id="examples">
 <h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
@@ -79,8 +102,7 @@ each to be executed on a single core.</p>
 <span class="c1">## Emulate the classic launcher, using a one liner</span>
 <span class="c1">##</span>
 
-<span class="c1">#pylauncher.ClassicLauncher(&quot;corecommandlines&quot;,debug=&quot;job+host+task&quot;)</span>
-<span class="n">pylauncher3</span><span class="o">.</span><span class="n">ClassicLauncher</span><span class="p">(</span><span class="s2">&quot;commandlines&quot;</span><span class="p">,</span><span class="n">debug</span><span class="o">=</span><span class="s2">&quot;job&quot;</span><span class="p">)</span>
+<span class="n">pylauncher3</span><span class="o">.</span><span class="n">ClassicLauncher</span><span class="p">(</span><span class="s2">&quot;commandlines&quot;</span><span class="p">,</span><span class="n">debug</span><span class="o">=</span><span class="s2">&quot;host+job+exec&quot;</span><span class="p">)</span>
 
 </pre></div>
 </div>
@@ -112,11 +134,15 @@ each job.</p>
 <span class="c1">##</span>
 
 <span class="n">pylauncher3</span><span class="o">.</span><span class="n">ClassicLauncher</span><span class="p">(</span><span class="s2">&quot;commandlines&quot;</span><span class="p">,</span>
-                           <span class="n">debug</span><span class="o">=</span><span class="s2">&quot;job+task+host+exec+command&quot;</span><span class="p">,</span>
-                           <span class="n">cores</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-
+                            <span class="n">cores</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+                            <span class="n">debug</span><span class="o">=</span><span class="s2">&quot;job+host+exec&quot;</span><span class="p">,</span>
+                            <span class="p">)</span>
 </pre></div>
 </div>
+<p>You still need to set <code class="docutils literal notranslate"><span class="pre">OMP_NUM_PROCS</span></code> to tell your code how many cores it can take.</p>
+<p>Also note that this core count is not reflected in your SLURM setup:
+as remarked above that only tells the pylauncher how many cores there are
+on each node (<code class="docutils literal notranslate"><span class="pre">--tasks-per-node</span></code>) or in total for your whole job (<code class="docutils literal notranslate"><span class="pre">-n</span></code>).</p>
 </div>
 <div class="section" id="variable-count-multi-core-jobs">
 <h3>Variable count multi-core jobs<a class="headerlink" href="#variable-count-multi-core-jobs" title="Permalink to this headline">¶</a></h3>
@@ -157,16 +183,16 @@ the launcher invocation that that is where the counts are found.</p>
 instances simultaneously, use the <code class="docutils literal notranslate"><span class="pre">IbrunLauncher</span></code>.</p>
 <p>Each commandline needs to start with a number indicating
 on how many cores the command is to run:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">4</span><span class="p">,</span><span class="o">./</span><span class="n">parallel</span> <span class="mi">0</span> <span class="mi">10</span>
-<span class="mi">4</span><span class="p">,</span><span class="o">./</span><span class="n">parallel</span> <span class="mi">1</span> <span class="mi">10</span>
-<span class="mi">4</span><span class="p">,</span><span class="o">./</span><span class="n">parallel</span> <span class="mi">2</span> <span class="mi">10</span>
-<span class="mi">4</span><span class="p">,</span><span class="o">./</span><span class="n">parallel</span> <span class="mi">3</span> <span class="mi">10</span>
-<span class="mi">4</span><span class="p">,</span><span class="o">./</span><span class="n">parallel</span> <span class="mi">4</span> <span class="mi">10</span>
-<span class="mi">4</span><span class="p">,</span><span class="o">./</span><span class="n">parallel</span> <span class="mi">5</span> <span class="mi">10</span>
-<span class="mi">4</span><span class="p">,</span><span class="o">./</span><span class="n">parallel</span> <span class="mi">6</span> <span class="mi">10</span>
-<span class="mi">4</span><span class="p">,</span><span class="o">./</span><span class="n">parallel</span> <span class="mi">7</span> <span class="mi">10</span>
-<span class="mi">4</span><span class="p">,</span><span class="o">./</span><span class="n">parallel</span> <span class="mi">8</span> <span class="mi">10</span>
-<span class="mi">4</span><span class="p">,</span><span class="o">./</span><span class="n">parallel</span> <span class="mi">9</span> <span class="mi">10</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">./</span><span class="n">parallel</span> <span class="mi">0</span> <span class="mi">10</span>
+<span class="o">./</span><span class="n">parallel</span> <span class="mi">1</span> <span class="mi">10</span>
+<span class="o">./</span><span class="n">parallel</span> <span class="mi">2</span> <span class="mi">10</span>
+<span class="o">./</span><span class="n">parallel</span> <span class="mi">3</span> <span class="mi">10</span>
+<span class="o">./</span><span class="n">parallel</span> <span class="mi">4</span> <span class="mi">10</span>
+<span class="o">./</span><span class="n">parallel</span> <span class="mi">5</span> <span class="mi">10</span>
+<span class="o">./</span><span class="n">parallel</span> <span class="mi">6</span> <span class="mi">10</span>
+<span class="o">./</span><span class="n">parallel</span> <span class="mi">7</span> <span class="mi">10</span>
+<span class="o">./</span><span class="n">parallel</span> <span class="mi">8</span> <span class="mi">10</span>
+<span class="o">./</span><span class="n">parallel</span> <span class="mi">9</span> <span class="mi">10</span>
 </pre></div>
 </div>
 <p>This example uses a provided program, <code class="docutils literal notranslate"><span class="pre">parallel.c</span></code> of two parameters:</p>
@@ -194,9 +220,9 @@ the number of cores of your machine.</p></li>
 is running. It is possible to run the python script in one location (say, a container)
 while spawning jobs elsewhere. First, the <code class="docutils literal notranslate"><span class="pre">RemoteLauncher</span></code> takes a hostlist
 and spawns jobs there through an ssh connection:</p>
-<blockquote>
-<div><p>def RemoteLauncher(commandfile,hostlist,**kwargs)</p>
-</div></blockquote>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">RemoteLauncher</span><span class="p">(</span><span class="n">commandfile</span><span class="p">,</span><span class="n">hostlist</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</pre></div>
+</div>
 <p>Optional arguments:</p>
 <ul>
 <li><p><code class="docutils literal notranslate"><span class="pre">workdir</span></code> : location for the temporary files</p></li>
@@ -223,7 +249,6 @@ to kill them when they overrun some limit, you can add the</p>
 <span class="c1">## Classic launcher with a per-task timeout</span>
 <span class="c1">##</span>
 
-<span class="c1">#pylauncher.ClassicLauncher(&quot;corecommandlines&quot;,debug=&quot;job+host+task&quot;)</span>
 <span class="n">pylauncher3</span><span class="o">.</span><span class="n">ClassicLauncher</span><span class="p">(</span><span class="s2">&quot;commandlines&quot;</span><span class="p">,</span><span class="n">taskmaxruntime</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span><span class="n">delay</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">debug</span><span class="o">=</span><span class="s2">&quot;job+host&quot;</span><span class="p">)</span>
 
 </pre></div>
@@ -270,6 +295,10 @@ which ones were still scheduled to fun. You can submit a job using the
 <li><a class="reference internal" href="#">A quick tutorial</a><ul>
 <li><a class="reference internal" href="#setup">Setup</a></li>
 <li><a class="reference internal" href="#batch-operation">Batch operation</a></li>
+<li><a class="reference internal" href="#parallelism-handling">Parallelism handling</a><ul>
+<li><a class="reference internal" href="#affinity">Affinity</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#examples">Examples</a><ul>
 <li><a class="reference internal" href="#single-core-jobs">Single-core jobs</a></li>
 <li><a class="reference internal" href="#constant-count-multi-core-jobs">Constant count multi-core jobs</a></li>
@@ -334,7 +363,7 @@ which ones were still scheduled to fun. You can submit a job using the
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2013-2020, Victor Eijkhout.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 3.1.1.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 3.2.1.
     </div>
   </body>
 </html>

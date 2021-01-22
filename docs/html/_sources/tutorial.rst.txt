@@ -13,18 +13,40 @@ Batch operation
 ===============
 
 The most common usage scenario is to use the launcher to bundle many small jobs
-into a single batch submission on a cluster. In that case, put
-
-  ::
+into a single batch submission on a cluster. In that case, put::
 
   module load python3
-
-  ::
-
   python3 your_launcher_file.py
 
-in the jobscript. 
+in the jobscript.
+Note that python is started sequentially here;
+all parallelism is handled inside the pylauncher code.
 
+====================
+Parallelism handling
+====================
+
+Parallelism with the pylauncher is influenced by the following:
+
+* The SLURM/PBS node and core count
+* The OMP_NUM_PROCS environment variable
+* Core count specifications in the pylauncher python script
+* Core count specifications in the commandlines file.
+
+The most important thing to know is that the pylauncher uses the SLURM/PBS parameters
+to discover how many cores there are available.
+It is most convenient to set these parameters to the number of actual cores present.
+So if you have a 40-core node, set ``tasks-per-node=40``. This tells the pylauncher
+that there are 40 cores; it does not imply that there will be 40 tasks.
+
+If each of your commandlines needs to run on a single core, this is all you need to
+know about parallelism.
+
+----------------
+Affinity
+----------------
+
+There is an experimental option ``numactl="core"``.
 
 ========
 Examples
@@ -57,6 +79,12 @@ launcher invocation specifies a core count that is to be used for
 each job.
 
 .. literalinclude:: ../../examples/example_core_launcher.py
+
+You still need to set ``OMP_NUM_PROCS`` to tell your code how many cores it can take.
+
+Also note that this core count is not reflected in your SLURM setup:
+as remarked above that only tells the pylauncher how many cores there are
+on each node (``--tasks-per-node``) or in total for your whole job (``-n``).
 
 ------------------------------
 Variable count multi-core jobs
@@ -116,9 +144,7 @@ Remote jobs
 The launchers so far spawned all jobs on the machine where the launcher python script
 is running. It is possible to run the python script in one location (say, a container)
 while spawning jobs elsewhere. First, the ``RemoteLauncher`` takes a hostlist
-and spawns jobs there through an ssh connection:
-
-  ::
+and spawns jobs there through an ssh connection::
 
   def RemoteLauncher(commandfile,hostlist,**kwargs)
 
