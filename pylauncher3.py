@@ -138,6 +138,7 @@ def NoRandomFile():
         os.remove(fn)
     return fn
 def RandomNumber(tmax,tmin=0):
+    tmin = int(tmin); tmax = int(tmax)
     return int( tmin+(tmax-tmin)*random.random() )
 
 class CountedCommandGenerator():
@@ -1489,6 +1490,8 @@ class SLURMHostList(HostList):
         except:
             print("Could not detect physical cores per node, setting to 1")
             cores_per_node = 1
+        cores_per_node = int( kwargs.get("corespernode",cores_per_node) )
+        print( "using cores per node: %d" % cores_per_node )
         cores_per_job = int( cores_per_node / jobs_per_node )
         hlist = hs.expand_hostlist(hlist_str)
         for h in hlist:
@@ -1599,7 +1602,7 @@ def HostListByName(**kwargs):
     elif cluster=="maverick":
         hostlist = SLURMHostList(tag=".maverick.tacc.utexas.edu",**kwargs)
     elif cluster=="stampede2-knl":
-        hostlist = SLURMHostList(tag=".stampede2.tacc.utexas.edu",ncores=68,**kwargs)
+        hostlist = SLURMHostList(tag=".stampede2.tacc.utexas.edu",**kwargs)
     elif cluster in [ "stampede2","stampede2-skx" ]:
         hostlist = SLURMHostList(tag=".stampede2.tacc.utexas.edu",**kwargs)
     elif re.match("frontera",cluster):
@@ -3549,7 +3552,8 @@ def ClassicLauncher(commandfile,*args,**kwargs):
 
     :param commandfile: name of file with commandlines (required)
     :param resume: if 1,yes interpret the commandfile as a queuestate file
-    :param cores: number of cores (keyword, optional, default=1)
+    :param cores: number of cores per commandline (keyword, optional, default=1)
+    :param corespernode: mostly for weird KNL core numbering
     :param workdir: (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory
     :param debug: debug types string (optional, keyword)
     """
@@ -3557,6 +3561,7 @@ def ClassicLauncher(commandfile,*args,**kwargs):
     debug = kwargs.pop("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     cores = kwargs.pop("cores",1)
+    corespernode = kwargs.pop("corespernode",None)
     numactl = kwargs.pop("numactl",None)
     resume = kwargs.pop("resume",None)
     if resume is not None and not (resume=="0" or resume=="no"):
@@ -3565,7 +3570,7 @@ def ClassicLauncher(commandfile,*args,**kwargs):
         generator = FileCommandlineGenerator(commandfile,cores=cores,debug=debug)
     job = LauncherJob(
         hostpool=HostPool(
-            hostlist=HostListByName(debug=debug),
+            hostlist=HostListByName(corespernode=corespernode,debug=debug),
             commandexecutor=SSHExecutor(workdir=workdir,numactl=numactl,debug=debug), 
             debug=debug ),
         taskgenerator=TaskGenerator( 

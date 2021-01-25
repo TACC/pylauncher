@@ -1,0 +1,36 @@
+#!/bin/bash
+
+##
+## a job script for running a large pylauncher run
+##
+
+#SBATCH   -p normal
+#SBATCH   -J pylauncherscalingtest
+#SBATCH   -o pylauncherscalingtest.o%j
+#SBATCH   -e pylauncherscalingtest.o%j
+#SBATCH   --tasks-per-node 40
+#SBATCH   -N 30
+#SBATCH   -t 1:00:00
+#SBATCH -A A-ccsc
+
+module load python3
+export PYTHONPATH=..:${PYTHONPATH}
+python3 make_sleepcommandlines.py \
+    ${SLURM_NPROCS} $(( 2 * SLURM_NPROCS / 3 )) $(( 4 * SLURM_NPROCS / 3 ))
+
+pyscript=examples_generated.py
+cat >${pyscript} <<EOF
+#!/usr/bin/env python
+
+import os
+import pylauncher3
+
+print(os.environ["TACC_SYSTEM"])
+if "TACC_NODE_TYPE" in os.environ:
+    print(os.environ["TACC_NODE_TYPE"])
+
+pylauncher3.ClassicLauncher("sleepcommandlines",corespernode=64,debug="host+job",delay=.2)
+EOF
+
+rm -rf pylauncher_tmp*
+python3 ${pyscript}

@@ -9,6 +9,7 @@
 #SBATCH   -p QUEUE
 #SBATCH   -J pylaunchertest
 #SBATCH   -o pylaunchertest.o%j
+#SBATCH   -e pylaunchertest.o%j
 #SBATCH   -n CORES
 #SBATCH   -N NODES
 #SBATCH   -t 0:10:00

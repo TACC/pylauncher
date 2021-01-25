@@ -49,15 +49,6 @@ submit :
 	        > jobscript_generated ; \
 	  sbatch jobscript_generated
 example_shifted_ibrun_dependencies = parallel
-micsubmit :
-	make ${${EXECUTABLE}_dependencies}
-	echo "submitting ${EXECUTABLE}  on  MIC"
-	export QUEUE=development ; \
-	  cat jobscr.mic \
-	      | sed \
-	        -e "s/EXECUTABLE/${EXECUTABLE}/" -e "s/QUEUE/$$QUEUE/" \
-	        > jobscr ; \
-	  sbatch jobscr
 
 CPROGRAMS = parallel randomaction
 info ::
