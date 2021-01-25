@@ -1,5 +1,5 @@
 docstring = \
-"""pylauncher.py version 3.3
+"""pylauncher.py version 3.4
 
 A python based launcher utility for packaging sequential or
 low parallel jobs in one big parallel job
@@ -11,6 +11,9 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+3.4
+- print flushing
+- corespernode parameter
 3.3
 - adding barrier command
 - incorporate frontera-clx
@@ -76,7 +79,7 @@ import hostlist3 as hs
 class LauncherException(Exception):
     """A very basic exception mechanism"""
     def __init__(self,str):
-        print(str)
+        print(str,flush=True)
         self.str = str
     def __str__(self):
         return self.str
@@ -96,7 +99,7 @@ def DebugTraceMsg(msg,sw=False,prefix=""):
     if prefix!="":
         longprefix += prefix+": "
     for l in msg.split("\n"):
-        print(longprefix+l)
+        print(longprefix+l,flush=True)
         longprefix = len(longprefix)*" "
     if debugtracefile is not None:
         debugtracefile.write(msg+"\n")
@@ -118,7 +121,7 @@ def NoRandomDir():
     return dirname
 def MakeRandomDir():
     dirname = RandomDir()
-    print("using random dir:",dirname)
+    print("using random dir:",dirname,flush=True)
     try: 
         os.makedirs(dirname,exist_ok=True)
     except OSError:
@@ -221,7 +224,7 @@ def testSleepCommandGenerator():
     generator = SleepCommandGenerator(nmax=ntasks,tmax=tmax)
     count = 0
     for g in generator:
-        gs = g.split(); print(gs)
+        gs = g.split(); print(gs,flush=True)
         # echo i 2>&1 > /dev/null ; sleep t
         # 0    1 2    3 4         5 6     7
         assert( int(gs[1])==count and int(gs[7])<=tmax )
@@ -237,17 +240,17 @@ def testSleepCommandGeneratorBarrier():
     for g in generator:
         if g==pylauncherBarrierString:
             count_barrier += 1
-            print("counted barrier %d after %d lines" % (count_barrier,count))
+            print("counted barrier %d after %d lines" % (count_barrier,count),flush=True)
             assert(count_barrier<=nbarrier)
             continue
-        gs = g.split(); print(gs)
+        gs = g.split(); print(gs,flush=True)
         # echo i 2>&1 > /dev/null ; sleep t
         # 0    1 2    3 4         5 6     7
         assert( int(gs[1])==count and int(gs[7])<=tmax )
         count += 1
-    print("tasks:",count)
+    print("tasks:",count,flush=True)
     assert(count==ntasks)
-    print("barriers:",count_barrier)
+    print("barriers:",count_barrier,flush=True)
     assert(count_barrier==nbarrier)
 
 class Commandline():
@@ -337,11 +340,11 @@ def testGeneratorList():
     gen = CommandlineGenerator(list=clist)
     count = 0
     for g in gen:
-        print(g)
+        print(g,flush=True)
         if count==len(clist)+1:
             assert(False)
         count += 1
-    print("seen %d commands" % count)
+    print("seen %d commands" % count,flush=True)
     assert(count==len(clist))
 
 class testGeneratorStuff():
@@ -352,7 +355,7 @@ class testGeneratorStuff():
         count = 0
         for g in gen:
             count += 1; gen.list.append(5) # this should be in an inherited class
-        print("seen %d commands" % count)
+        print("seen %d commands" % count,flush=True)
         assert(count==len(clist)+1)
 
     def testGeneratorListFinish(self):
@@ -363,12 +366,12 @@ class testGeneratorStuff():
         for g in gen:
             count += 1; gen.list.append(3*count)
             if count==nstop: gen.abort()
-        print("seen %d commands" % count)
+        print("seen %d commands" % count,flush=True)
         assert(count==nstop)
 
     def testGeneratorStalling(self):
         gen = CommandlineGenerator(list=[],nmax=0)
-        rc = gen.next(); print(rc)
+        rc = gen.next(); print(rc,flush=True)
         assert(rc["command"]=="stall")
 
 class ListCommandlineGenerator(CommandlineGenerator):
@@ -479,13 +482,13 @@ class testCommandlineGeneratorStuff():
         fh.close()
         generator = FileCommandlineGenerator(fn)
         rc = generator.next(); r = rc["command"]; c = rc["cores"]
-        print(r); assert(r=="a" and str(c)=="1")
+        print(r,flush=True); assert(r=="a" and str(c)=="1")
         rc = generator.next(); r = rc["command"]; c = rc["cores"]
-        print(r); assert(r=="b" and str(c)=="1")
+        print(r,flush=True); assert(r=="b" and str(c)=="1")
         rc = generator.next(); r = rc["command"]; c = rc["cores"]
-        print(r); assert(r=="c" and str(c)=="1")
+        print(r,flush=True); assert(r=="c" and str(c)=="1")
         rc = generator.next(); r = rc["command"]; c = rc["cores"]
-        print(r); assert(r=="d" and str(c)=="1")
+        print(r,flush=True); assert(r=="d" and str(c)=="1")
         try:
             rc = generator.next()
             assert(False)
@@ -503,16 +506,16 @@ class testCommandlineGeneratorStuff():
         fh.close()
         generator = FileCommandlineGenerator(fn,cores="file")
         rc = generator.next(); r = rc["command"]; c = rc["cores"]
-        print("<<r=%s>>,<<c=%s>>" % (r,str(c)))
+        print("<<r=%s>>,<<c=%s>>" % (r,str(c)),flush=True)
         assert(r=="a" and str(c)=="1")
         rc = generator.next(); r = rc["command"]; c = rc["cores"]
-        print("<<r=%s>>,<<c=%s>>" % (r,str(c)))
+        print("<<r=%s>>,<<c=%s>>" % (r,str(c)),flush=True)
         assert(r=="b" and str(c)=="3")
         rc = generator.next(); r = rc["command"]; c = rc["cores"]
-        print("<<r=%s>>,<<c=%s>>" % (r,str(c)))
+        print("<<r=%s>>,<<c=%s>>" % (r,str(c)),flush=True)
         assert(r=="c" and str(c)=="2")
         rc = generator.next(); r = rc["command"]; c = rc["cores"]
-        print("<<r=%s>>,<<c=%s>>" % (r,str(c)))
+        print("<<r=%s>>,<<c=%s>>" % (r,str(c)),flush=True)
         assert(r=="d" and str(c)=="5")
         try:
             rc = generator.next()
@@ -556,24 +559,24 @@ class testDynamicGeneratorStuff():
     def testDynamicGeneratorStalling(self):
         generator = DynamicCommandlineGenerator(list=[])
         # generator is empty
-        print("len:",len(generator))
+        print("len:",len(generator),flush=True)
         assert(len(generator)==0)
         rc = generator.next(); r = rc["command"]; c = rc["cores"]
-        print(r,c)
+        print(r,c,flush=True)
         assert(r=="stall")
         #
         generator.append( Commandline("foo") )
         # generator has one item
-        print("len:",len(generator))
+        print("len:",len(generator),flush=True)
         assert(len(generator)==1)
         rc = generator.next(); r = rc["command"]; c = rc["cores"]
-        print(r,c)
+        print(r,c,flush=True)
         assert(r=="foo")
         # generator is empty again
-        print("len:",len(generator))
+        print("len:",len(generator),flush=True)
         assert(len(generator)==0)
         rc = generator.next(); r = rc["command"]; c = rc["cores"]
-        print(r,c)
+        print(r,c,flush=True)
         assert(r=="stall")
         generator.finish()
         # generator is empty and finished so it raises StopIteration
@@ -608,7 +611,7 @@ class DirectoryCommandlineGenerator(DynamicCommandlineGenerator):
         If the finish name is present, and all scheduled jobs are finished, finish the generator.
         """
         dircontents = os.listdir(self.command_directory)
-        print("contents",dircontents)
+        print("contents",dircontents,flush=True)
         #
         for f in dircontents:
             if re.match(self.commandfile_root,f):
@@ -617,12 +620,12 @@ class DirectoryCommandlineGenerator(DynamicCommandlineGenerator):
                     testopen = open(long_filename,"a+")
                     testopen.close()
                 except IOError:
-                    print("file still open",f)
+                    print("file still open",f,flush=True)
                     continue
                 jobnumber = f.split('-')[1]
                 if jobnumber not in self.scheduled_jobs:
                     self.scheduled_jobs.append(jobnumber)
-                    print("scheduling job",jobnumber)
+                    print("scheduling job",jobnumber,flush=True)
                     with open(long_filename,"r") as commandfile:
                         for l in commandfile:
                             l = l.strip()
@@ -637,7 +640,7 @@ class DirectoryCommandlineGenerator(DynamicCommandlineGenerator):
 class testDirectoryCommandlineGenerators():
     def setup(self):
         self.dirname = MakeRandomDir()
-        print("running Directory Generator in <<%s>>" % self.dirname)
+        print("running Directory Generator in <<%s>>" % self.dirname,flush=True)
         self.fileroot = RandomFile()+"MECS"; self.nsleep = 5
         # create the command files
         self.nums = [ 0,2,4,6 ]
@@ -666,27 +669,27 @@ class testDirectoryCommandlineGenerators():
     def testDirectoryCommandlineGenerator(self):
         """testDirectoryCommandlineGenerator: test finding commands in directory"""
         self.makefiles()
-        print("files:",self.files)
+        print("files:",self.files,flush=True)
         assert(len(self.files)==len(self.nums)+1)
         # now process the files
         gen = DirectoryCommandlineGenerator(self.dirname,self.fileroot)
         for ig,g in enumerate( gen ):
-            print(ig,g)
+            print(ig,g,flush=True)
         assert(ig==len(self.nums)-1)
     def testDirectoryCommandlineGeneratorJob(self):
         """testDirectoryCommandlineGeneratorJob: test finding commands in directory"""
         self.makefiles()
-        print("files:",self.files)
+        print("files:",self.files,flush=True)
         assert(len(self.files)==len(self.nums)+1)
         # now process the files
         gen = DirectoryCommandlineGenerator(self.dirname,self.fileroot)
         j = self.makejob(gen)
         starttime = time.time()
         while True:
-            r = j.tick(); print(r)
+            r = j.tick(); print(r,flush=True)
             if r=="finished": break
             if time.time()-starttime>self.nsleep+len(self.nums)*j.delay+1:
-                print("This is taking too long"); assert(False)
+                print("This is taking too long",flush=True); assert(False)
         assert(True)
     def testDirectoryCommandlineGeneratorFromZero(self):
         """testDirectoryCommandlineGeneratorFromZero: start with empty directory"""
@@ -699,26 +702,26 @@ class testDirectoryCommandlineGenerators():
         assert(len(self.files)==len(self.nums)+1)
         # now process the files
         for ig,g in enumerate( gen ):
-            print(ig,g)
+            print(ig,g,flush=True)
         assert(ig==len(self.nums)-1)
     def testDirectoryCommandlineGeneratorJobFromZero(self):
         """testDirectoryCommandlineGeneratorJob: test finding commands in directory"""
         # first we create the generator on an empty directory
         gen = DirectoryCommandlineGenerator(self.dirname,self.fileroot)
         j = self.makejob(gen)
-        r = j.tick(); print(r)
+        r = j.tick(); print(r,flush=True)
         assert(r=="stalling")
         # now actually make the files
         self.makefiles()
-        print("files:",self.files)
+        print("files:",self.files,flush=True)
         assert(len(self.files)==len(self.nums)+1)
         # now process the files
         starttime = time.time()
         while True:
-            r = j.tick(); print(r)
+            r = j.tick(); print(r,flush=True)
             if r=="finished": break
             if time.time()-starttime>self.nsleep+len(self.nums)*j.delay+1:
-                print("This is taking too long")
+                print("This is taking too long",flush=True)
                 assert(False)
         assert(True)
 
@@ -766,10 +769,10 @@ class TestCommandlineGenerators():
         """testFileCommandlineGenerator: exhaust the lines of a file"""
         count = 0
         for lc in FileCommandlineGenerator(self.fn,cores=1):
-            print(lc)
+            print(lc,flush=True)
             l = lc["command"]
             count += 1
-        print("counted: %d, should be %d" % (count,self.ncommand))
+        print("counted: %d, should be %d" % (count,self.ncommand),flush=True)
         assert(count==self.ncommand)
     def testDynamicCommandlineGeneratorInf(self):
         """testDynamicCommandlineGeneratorInf: generate commands until dynamic finish"""
@@ -782,7 +785,7 @@ class TestCommandlineGenerators():
         more_commands = SleepCommandGenerator()
         generator = DynamicCommandlineGenerator( list=clist )
         for count,command in enumerate(generator):
-            print(count)
+            print(count,flush=True)
             generator.append( Commandline(more_commands.next()) ) 
             if count==nmax:
                 generator.abort()
@@ -949,7 +952,7 @@ class testCompletions():
         os.system("rm -f expirefoo5")
         task = Task( Commandline("/bin/true"),taskid=5,
               completion=FileCompletion(taskid=5,stamproot="expirefoo",stampdir=".",))
-        print("expected stamp:",task.completion.stampname())
+        print("expected stamp:",task.completion.stampname(),flush=True)
         task.start_on_nodes()
         time.sleep(1)
         assert(os.path.isfile("./expirefoo5"))
@@ -1007,16 +1010,16 @@ class testTasksOnSingleNode():
                             completion=FileCompletion(taskid=1,
                                                       stamproot=self.stampname),
                             debug="exec+task+ssh")
-        print("starting task:",t)
+        print("starting task:",t,flush=True)
         t.start_on_nodes(pool=self.pool.request_nodes(1))
         assert(time.time()-start<1)
         time.sleep(nsleep+1)
         dircontent = os.listdir(t.completion.stampdir)
         print("looking for stamp <<%s>> in <<%s>>" % \
-            (self.stampname,t.completion.stampdir))
-        print(sorted(dircontent))
+              (self.stampname,t.completion.stampdir),flush=True)
+        print(sorted(dircontent),flush=True)
         stamps = [ f for f in dircontent if re.match("%s" % self.stampname,f) ]
-        print("stamps:",stamps)
+        print("stamps:",stamps,flush=True)
         assert(len(stamps)==1)
 
 class testTasks():
@@ -1060,7 +1063,7 @@ class testTasks():
         time.sleep(nsleep+1)
         dircontent = os.listdir(stampdir)
         stamps = [ f for f in dircontent if re.match("%s" % self.stampname,f) ]
-        print("stamps:",stamps)
+        print("stamps:",stamps,flush=True)
         assert(len(stamps)==self.ntasks)
     def testCompleteOnStamp(self):
         """testCompleteOnStamp: make sure stampfiles are detected"""
@@ -1077,12 +1080,12 @@ class testTasks():
             if functools.reduce( lambda x,y: x and y,
                        [ t.hasCompleted() for t in tasks ] ): break
             if time.time()-start>nsleep+2:
-                print("this is taking too long")
+                print("this is taking too long",flush=True)
                 assert(False)
         dircontent = os.listdir(".")
-        print("dir content:",sorted(dircontent))
+        print("dir content:",sorted(dircontent),flush=True)
         stamps = [ f for f in dircontent if re.search(stamproot,f) ]
-        print("stamps:",stamps)
+        print("stamps:",stamps,flush=True)
         assert(len(stamps)==self.ntasks)
     def testCompleteOnDefaultStamp(self):
         """testCompleteOnDefaultStamp: make sure stampfiles are detected in default setup"""
@@ -1094,19 +1097,19 @@ class testTasks():
             t.start_on_nodes(pool=self.pool.request_nodes(1))
             tasks.append(t)
         stamproot = t.completion.stamproot
-        print("stamps based on:",stamproot)
+        print("stamps based on:",stamproot,flush=True)
         finished = [ False for i in range(self.ntasks) ]
         while True:
-            print("tick")
+            print("tick",flush=True)
             if functools.reduce( lambda x,y: x and y,
                        [ t.hasCompleted() for t in tasks ] ): break
             if time.time()-start>nsleep+3:
-                print("this is taking too long")
+                print("this is taking too long",flush=True)
                 assert(False)
             time.sleep(1)
         dircontent = os.listdir(self.stampdir)
         stamps = [ f for f in dircontent if re.match("%s" % stamproot,f) ]
-        print("stamps:",sorted(stamps))
+        print("stamps:",sorted(stamps),flush=True)
         assert(len(stamps)==self.ntasks)
 
 #
@@ -1211,7 +1214,7 @@ class HostPoolBase():
     def __init__(self,**kwargs):
         self.nodes = []
         self.commandexecutor = kwargs.pop("commandexecutor",None)
-        #print("set HostPoolBase commandexecutor to",str(self.commandexecutor))
+        #print("set HostPoolBase commandexecutor to",str(self.commandexecutor),flush=True)
         workdir = kwargs.pop("workdir",None)
         if self.commandexecutor is None:
             self.commandexecutor = LocalExecutor(workdir=workdir)
@@ -1346,13 +1349,13 @@ class HostPool(HostPoolBase):
         nhosts = kwargs.pop("nhosts",None)
         if hostlist is not None:
             if self.debug:
-                print("Making hostpool on %s" % str(hostlist))
+                print("Making hostpool on %s" % str(hostlist),flush=True)
             nhosts = len(hostlist)
             for h in hostlist:
                 self.append_node(host=h['host'],core = h['core'],phys_core=h['phys_core'])
         elif nhosts is not None:
             if self.debug:
-                print("Making hostpool size %d on localhost" % nhosts)
+                print("Making hostpool size %d on localhost" % nhosts,flush=True)
             localhost = HostName()
             hostlist = [ localhost for i in range(nhosts) ]
             for i in range(nhosts):
@@ -1412,7 +1415,7 @@ def testStartTaskOnPool():
     time.sleep(1)
     with open(fn,"r") as f:
         for l in f:
-            l = l.strip(); print(l)
+            l = l.strip(); print(l,flush=True)
             assert(l==word)
     os.system("/bin/rm -f %s" % fn)
     assert(True)
@@ -1486,12 +1489,12 @@ class SLURMHostList(HostList):
             cores_per_node = re.search(r'([0-9]+)',cores_per_node).groups()[0]
             cores_per_node = int(cores_per_node)
             cores_per_node = kwargs.get("ncores",cores_per_node) # not elegant
-            print("Detecting %d cores per node" % cores_per_node)
+            print("Detecting %d cores per node" % cores_per_node,flush=True)
         except:
-            print("Could not detect physical cores per node, setting to 1")
+            print("Could not detect physical cores per node, setting to 1",flush=True)
             cores_per_node = 1
         cores_per_node = int( kwargs.get("corespernode",cores_per_node) )
-        print( "using cores per node: %d" % cores_per_node )
+        print( "using cores per node: %d" % cores_per_node ,flush=True)
         cores_per_job = int( cores_per_node / jobs_per_node )
         hlist = hs.expand_hostlist(hlist_str)
         for h in hlist:
@@ -1617,12 +1620,12 @@ def HostListByName(**kwargs):
     else:
         hostlist = HostList(hostlist=[HostName()])
     if debug:
-        print("Hostlist on %s  of size %d: %s" % (cluster,len(hostlist),str(hostlist)))
+        print("Hostlist on %s  of size %d: %s" % (cluster,len(hostlist),str(hostlist)),flush=True)
     return hostlist
         
 def testTACChostlist():
     for h in HostListByName(debug="host"):
-        print("hostfile line:",h)
+        print("hostfile line:",h,flush=True)
         assert( 'core' in h and 'host' in h )
         host = h["host"].split(".")
         #assert( len(host)>1 and host[1]==HostName() )
@@ -1666,7 +1669,7 @@ def testPEhostpools():
     elif cluster=="longhorn":
         assert(len(pool)%40==0)
     else:
-        print("Detecting host",cluster)
+        print("Detecting host",cluster,flush=True)
         assert(True)
     # cleanup
     if os.path.isdir(tmpdir):
@@ -1852,7 +1855,7 @@ def testTaskQueue():
     assert(task in queue.running)
     time.sleep(nsleep)
     complete_id = queue.find_recently_completed().taskid
-    print("found completed:",complete_id)
+    print("found completed:",complete_id,flush=True)
     assert(complete_id==t_id)
     task.completion.cleanup()
     assert(True)
@@ -1879,10 +1882,10 @@ def testTaskQueueWithLauncherdir():
     assert(task in queue.running)
     time.sleep(nsleep)
     complete_id = queue.find_recently_completed().taskid
-    print("completed:",complete_id)
+    print("completed:",complete_id,flush=True)
     assert(complete_id==t_id)
     files = os.listdir(dirname)#queue.launcherdir)
-    print(files)
+    print(files,flush=True)
     assert(len(files)==1)
     os.system("/bin/rm -rf %s" % dirname)
     assert(True)
@@ -1988,7 +1991,7 @@ class TestTaskGenerators():
                 t  = g.next()
             except: break
             count += 1
-        print("%d s/b %d" % (count,self.ncommand))
+        print("%d s/b %d" % (count,self.ncommand),flush=True)
         assert(count==self.ncommand)
     def testFileTaskGeneratorIteratable(self):
         """testFileTaskGeneratorIteratable: test that the taskgenerator can deal with a file"""
@@ -1997,7 +2000,7 @@ class TestTaskGenerators():
                 FileCommandlineGenerator(self.fn,cores=1,debug="command"),
                 debug="task") ):
             count += 1
-        print("%d s/b %d" % (count,self.ncommand))
+        print("%d s/b %d" % (count,self.ncommand),flush=True)
         assert(count==self.ncommand)
     def testFileTaskGeneratorNext(self):
         """testFileTaskGeneratorNext: file task generator, but using a while/next loop"""
@@ -2011,9 +2014,9 @@ class TestTaskGenerators():
             except: break
             count += 1
             if time.time()-starttime>3:
-                print("this is taking too long")
+                print("this is taking too long",flush=True)
                 assert(False)
-        print("%d s/b %d" % (count,self.ncommand))
+        print("%d s/b %d" % (count,self.ncommand),flush=True)
         assert(count==self.ncommand)
     def testDynamicTaskGeneratorLong(self):
         """testDynamicTaskGeneratorLong: generate tasks until dynamic finish"""
@@ -2030,7 +2033,7 @@ class TestTaskGenerators():
             except:
                 break
             count += 1
-        print("count %d s/b %d" % (count,nmax))
+        print("count %d s/b %d" % (count,nmax),flush=True)
         assert(count==nmax)
     def testDynamicTaskGeneratorShort(self):
         """testDynamicTaskGeneratorShort: generate tasks until dynamic finish"""
@@ -2047,7 +2050,7 @@ class TestTaskGenerators():
             except:
                 break
             count += 1
-        print("count %d s/b %d" % (count,nmax))
+        print("count %d s/b %d" % (count,nmax),flush=True)
         assert(count==nmax)
     def ttestTaskGeneratorTmpDir(self):
         nmax = self.ncommand; pool = HostPool(nhosts=nmax)
@@ -2058,7 +2061,7 @@ class TestTaskGenerators():
             if locator is None:
                 raise LauncherException("there should be space")
             t.start_on_nodes(locator)
-        files = os.listdir(self.dir); print(files)
+        files = os.listdir(self.dir); print(files,flush=True)
         assert(len(files)==nmax)
     def testFileTaskGeneratorSkip(self):
         """testFileTaskGeneratorSkip: test that the taskgenerator can skip"""
@@ -2071,7 +2074,7 @@ class TestTaskGenerators():
                 t  = g.next()
             except: break
             count += 1
-        print("executed %d plus skipped %d s/b %d" % (count,len(skip),self.ncommand))
+        print("executed %d plus skipped %d s/b %d" % (count,len(skip),self.ncommand),flush=True)
         assert(count+len(skip)==self.ncommand)
 
 def testModuleCommandline():
@@ -2217,7 +2220,7 @@ def testExecutorTmpDir():
         shutil.rmtree(tmpdir)
 
 def testExecutorTmpDirRandom():
-    wd = "a%d" % RandomID(); print("testing with executor tmpdir",wd)
+    wd = "a%d" % RandomID(); print("testing with executor tmpdir",wd,flush=True)
     # cleanup from failed tests
     tmpdir = os.getcwd()+"/"+wd
     if os.path.isdir(tmpdir):
@@ -2268,7 +2271,7 @@ def testLocalExecutor():
     touched = RandomFile()
     # test the basic mechanisms
     x.execute("touch %s" % touched)
-    print(os.listdir(x.workdir))
+    print(os.listdir(x.workdir),flush=True)
     assert(os.path.isdir(wd))
     assert(os.path.isfile(wd+"/exec0"))
     time.sleep(1)
@@ -2311,7 +2314,7 @@ def ssh_client(host,debug=False):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     if debug:
-        print("Create paramiko ssh client to",host)
+        print("Create paramiko ssh client to",host,flush=True)
     ssh.connect(host)
     return ssh
 
@@ -2343,11 +2346,11 @@ class SSHExecutor(Executor):
             node.ssh_client = self.node_client_dict[host]
             node.ssh_client_unique = False
         else:
-            print("making ssh client to host",host)
+            print("making ssh client to host",host,flush=True)
             try : 
                 node.ssh_client = ssh_client(host,debug=self.debug)
             except: ## VLE is this an exception class? socket.gaierror as e:
-                print("\nParamiko could not create ssh client\n")
+                print("\nParamiko could not create ssh client\n",flush=True)
             node.ssh_client_unique = True
             self.node_client_dict[host] = node.ssh_client
     def release_from_node(self,node):
@@ -2418,7 +2421,7 @@ class testPermanentSSHconnection():
         and compare the contents to where we ssh'ed."""
         hosts = DefaultHostPool().unique_hostnames()
         if len(hosts)>1:
-            print("available hosts:",hosts)
+            print("available hosts:",hosts,flush=True)
             self.setup()
             pool = HostPool(hostlist=HostList([hosts[1]]),
                             commandexecutor=SSHExecutor(debug="exec"))
@@ -2430,7 +2433,7 @@ class testPermanentSSHconnection():
                 try:
                     with open(fn) as outfile:
                         for line in outfile:
-                            line = line.strip(); print("<<%s>> <<%s>>" % (line,hosts[1]))
+                            line = line.strip(); print("<<%s>> <<%s>>" % (line,hosts[1]),flush=True)
                             assert(line==hosts[1])
                             break
                 except: 
@@ -2438,7 +2441,7 @@ class testPermanentSSHconnection():
             else:
                 command = "cat %s/%s" % (pwd,fn)
                 p = subprocess.Popen(command,shell=True,stdout=subprocess.PIPE)
-                hostread = p.communicate()[0].strip(); print(hostread)
+                hostread = p.communicate()[0].strip(); print(hostread,flush=True)
                 assert(hostread==hosts[1])
             os.system("/bin/rm -f %s" % fn)
         else: assert(True)
@@ -2449,7 +2452,7 @@ class testPermanentSSHconnection():
         start = time.time()
         t.start_on_nodes(pool=HostLocator(pool=pool,extent=1,offset=0))
         elapsed = time.time()-start
-        print("elapsed time for an ssh",elapsed)
+        print("elapsed time for an ssh",elapsed,flush=True)
         assert(elapsed<1)
     def ttestSSHbusy(self):
         """testSSHbusy: start a couple of sleep tasks and confirm their existence.
@@ -2474,10 +2477,10 @@ class testPermanentSSHconnection():
         time.sleep(t+1)
         for task in tasks:
             assert( task.hasCompleted() )
-        print("ps lines:")
+        print("ps lines:",flush=True)
         for p in psread:
-            print(p)
-        print(len(psread))
+            print(p,flush=True)
+        print(len(psread),flush=True)
         assert(len(psread)==2*n) # once wrapped with chmod 777, once by itself.
     def testSSHLeaveStamp(self):
         """testSSHLeaveStamp: leave a single stampfile"""
@@ -2487,17 +2490,17 @@ class testPermanentSSHconnection():
         t = RandomSleepTask(taskid=taskid,t=nsleep,stamproot=self.stampname,debug="task")
         nodepool = taccpool.request_nodes(1)
         assert(nodepool is not None)
-        print("available pool:",str(nodepool))
+        print("available pool:",str(nodepool),flush=True)
         assert(nodepool.offset==0)
         t.start_on_nodes(pool=nodepool)
         taccpool.occupyNodes(nodepool,t.taskid)
         time.sleep(nsleep+1)
         curdir = t.completion.stampdir; dircontent = os.listdir(curdir)
         print("looking for stamps in <<%s>> and found <<%s>>" % \
-            (curdir,sorted(dircontent)))
+              (curdir,sorted(dircontent)),flush=True)
         stamps = [ f for f in dircontent if re.match("%s" % self.stampname,f) ]
-        print("stamps:",sorted(stamps))
-        wanted = self.stampname+str(taskid); print("wanted:",wanted)
+        print("stamps:",sorted(stamps),flush=True)
+        wanted = self.stampname+str(taskid); print("wanted:",wanted,flush=True)
         assert(wanted in stamps)
     def testSSHLeaveStampLoop(self):
         """testSSHLeaveStampLoop: make sure tasks leave a stampfile"""
@@ -2510,17 +2513,17 @@ class testPermanentSSHconnection():
                 nodepool = taccpool.request_nodes(1)
                 if nodepool is None:
                     assert(False) # there should be enough nodes open
-                print("available pool:",str(nodepool))
+                print("available pool:",str(nodepool),flush=True)
                 assert(nodepool.offset==itask)
                 t.start_on_nodes(pool=nodepool)
                 taccpool.occupyNodes(nodepool,t.taskid)
-            interval = time.time()-start; print("this took %e seconds" % interval)
+            interval = time.time()-start; print("this took %e seconds" % interval,flush=True)
             assert(interval<ntasks*.5)
             time.sleep(nsleep+1)
             dir = t.completion.stampdir; dircontent = os.listdir(dir)
-            print("looking for stamps and found:",sorted(dircontent))
+            print("looking for stamps and found:",sorted(dircontent),flush=True)
             stamps = [ f for f in dircontent if re.match("%s" % self.stampname,f) ]
-            print("stamps:",sorted(stamps))
+            print("stamps:",sorted(stamps),flush=True)
             assert(len(stamps)==ntasks)
         else: assert(True)
     def testSSHLeaveLocalResult(self):
@@ -2537,9 +2540,9 @@ class testPermanentSSHconnection():
         taccpool.occupyNodes(nodepool,t.taskid)
         time.sleep(nsleep+1)
         assert(t.completion.test())
-        print("stampdir:",sorted(os.listdir(t.completion.stampdir)))
+        print("stampdir:",sorted(os.listdir(t.completion.stampdir)),flush=True)
         dircontent = os.listdir(os.getcwd())
-        print("looking for result locally and found <<%s>>" % sorted(dircontent))
+        print("looking for result locally and found <<%s>>" % sorted(dircontent),flush=True)
         assert(tmpfile in dircontent)
     def testSSHLeaveStampLoop(self):
         """testSSHLeaveStampLoop: make sure tasks leave a stampfile"""
@@ -2552,17 +2555,17 @@ class testPermanentSSHconnection():
                 nodepool = taccpool.request_nodes(1)
                 if nodepool is None:
                     assert(False) # there should be enough nodes open
-                print("available pool:",str(nodepool))
+                print("available pool:",str(nodepool),flush=True)
                 assert(nodepool.offset==itask)
                 t.start_on_nodes(pool=nodepool)
                 taccpool.occupyNodes(nodepool,t.taskid)
-            interval = time.time()-start; print("this took %e seconds" % interval)
+            interval = time.time()-start; print("this took %e seconds" % interval,flush=True)
             assert(interval<ntasks*.5)
             time.sleep(nsleep+1)
             dir = t.completion.stampdir; dircontent = os.listdir(dir)
-            print("looking for stamps and found:",sorted(dircontent))
+            print("looking for stamps and found:",sorted(dircontent),flush=True)
             stamps = [ f for f in dircontent if re.match("%s" % self.stampname,f) ]
-            print("stamps:",sorted(stamps))
+            print("stamps:",sorted(stamps),flush=True)
             assert(len(stamps)==ntasks)
         else: assert(True)
     def testRemoteSSHEnv(self):
@@ -2571,7 +2574,7 @@ class testPermanentSSHconnection():
         """
         hosts = DefaultHostPool().unique_hostnames()
         if len(hosts)>1:
-            print("available hosts:",hosts)
+            print("available hosts:",hosts,flush=True)
             self.setup()
             pool = HostPool(hostlist=HostList([hosts[1]]),
                             commandexecutor=SSHExecutor())
@@ -2585,7 +2588,7 @@ class testPermanentSSHconnection():
                 try:
                     with open(fn) as outfile:
                         for line in outfile:
-                            line = line.strip(); print("<<%s>>" % line)
+                            line = line.strip(); print("<<%s>>" % line,flush=True)
                             assert(line==val)
                             break
                 except: 
@@ -2593,7 +2596,7 @@ class testPermanentSSHconnection():
             else:
                 command = "cat %s/%s" % (pwd,fn)
                 p = subprocess.Popen(command,shell=True,stdout=subprocess.PIPE)
-                hostread = p.communicate()[0].strip(); print(hostread)
+                hostread = p.communicate()[0].strip(); print(hostread,flush=True)
                 assert(hostread==val)
             os.system("/bin/rm -f %s" % fn)
         else: assert(True)
@@ -2602,14 +2605,14 @@ class testLeaveSSHOutput():
     def setup(self):
         ndirs = 3
         self.dirs = [ RandomDir() for d in range(ndirs) ]
-        print("creating directories:",self.dirs,"in",os.getcwd())
+        print("creating directories:",self.dirs,"in",os.getcwd(),flush=True)
         for d in self.dirs:
             absdir = os.getcwd()+"/"+d
             if os.path.isfile(absdir):
                 raise LauncherException("Problem running this test")
             if os.path.isdir(absdir):
                 shutil.rmtree(absdir)
-            print("creating",absdir)
+            print("creating",absdir,flush=True)
             os.mkdir(absdir)
         tmpdir = os.getcwd()+"/"+Executor.default_workdir
         if os.path.isdir(tmpdir):
@@ -2621,12 +2624,12 @@ class testLeaveSSHOutput():
                 shutil.rmtree(d)            
     def testSSHLeaveResultAbsolute(self):
         """testSSHLeaveResultAbsolute: create a file in a directory and detect that it's there"""
-        print("curdir  :",sorted(os.listdir(os.getcwd())))
-        print("available",self.dirs)
+        print("curdir  :",sorted(os.listdir(os.getcwd())),flush=True)
+        print("available",self.dirs,flush=True)
         taskid = RandomID()
         start = time.time()
         tmpdir = self.dirs[0]; tmpfile = RandomFile(); absdir = os.getcwd()+"/"+tmpdir
-        print("going to create %s in %s" % (tmpfile,tmpdir))
+        print("going to create %s in %s" % (tmpfile,tmpdir),flush=True)
         t = Task( Commandline("cd %s; touch %s" % (absdir,tmpfile)),
                   taskid=taskid,
                   completion=FileCompletion(taskid=taskid),debug="task+exec+ssh")
@@ -2636,19 +2639,19 @@ class testLeaveSSHOutput():
         self.taccpool.occupyNodes(nodepool,t.taskid)
         time.sleep(1)
         assert(t.completion.test())
-        print("stampdir:",sorted(os.listdir(t.completion.stampdir)))
+        print("stampdir:",sorted(os.listdir(t.completion.stampdir)),flush=True)
         dircontent = os.listdir(absdir)
         print("looking for result in <<%s>> and found <<%s>>" % \
-            (absdir,sorted(dircontent)))
+              (absdir,sorted(dircontent)),flush=True)
         assert(tmpfile in dircontent)
     def testSSHLeaveResultRelative(self):
         """testSSHLeaveResultRelative: create a file in a directory and detect that it's there"""
-        print("curdir  :",sorted(os.listdir(os.getcwd())))
-        print("available",self.dirs)
+        print("curdir  :",sorted(os.listdir(os.getcwd())),flush=True)
+        print("available",self.dirs,flush=True)
         taskid = RandomID()
         start = time.time()
         tmpdir = self.dirs[0]; tmpfile = RandomFile(); absdir = os.getcwd()+"/"+tmpdir
-        print("going to create %s in %s" % (tmpfile,tmpdir))
+        print("going to create %s in %s" % (tmpfile,tmpdir),flush=True)
         t = Task( Commandline("cd %s; touch %s" % (tmpdir,tmpfile)),
                   taskid=taskid,
                   completion=FileCompletion(taskid=taskid),debug="task+exec+ssh")
@@ -2658,10 +2661,10 @@ class testLeaveSSHOutput():
         self.taccpool.occupyNodes(nodepool,t.taskid)
         time.sleep(1)
         assert(t.completion.test())
-        print("stampdir:",sorted(os.listdir(t.completion.stampdir)))
+        print("stampdir:",sorted(os.listdir(t.completion.stampdir)),flush=True)
         dircontent = os.listdir(absdir)
         print("looking for result in <<%s>> and found <<%s>>" % \
-            (absdir,sorted(dircontent)))
+              (absdir,sorted(dircontent)),flush=True)
         assert(tmpfile in dircontent)
     def testLeaveModResultsImmediately(self):
         """testLeaveModResultsImmediately: Leave results in multiple directories"""
@@ -2701,7 +2704,7 @@ class testLeaveSSHOutput():
         for d in self.dirs[1:]:
             content = os.listdir(d)
             assert(len(content)>=int(ntasks/len(self.taccpool)))
-        content0 = os.listdir(self.dirs[0]); print(sorted(content0))
+        content0 = os.listdir(self.dirs[0]); print(sorted(content0),flush=True)
         stamps = [ f for f in content0 if re.search("expire",f) ]
         assert(len(stamps)==ntasks)
 
@@ -2868,19 +2871,19 @@ int main(int argc,char **argv) {
         # put a task on half the nodes
         line1 = os.getcwd()+"/"+self.testprog_name
         nodes1 = pool.request_nodes(nnodes)
-        print("line1:", line1)
+        print("line1:", line1,flush=True)
         out1 = RandomFile(); out_handle1 = open(out1,"w")
         ibrun_executor.execute(line1,pool=nodes1,stdout=out_handle1)
         pool.occupyNodes(nodes1,1)
         # put a task on the other half of the nodes
         line2 = os.getcwd()+"/"+self.testprog_name
         nodes2 = pool.request_nodes(nnodes)
-        print("line2:", line2)
+        print("line2:", line2,flush=True)
         out2 = RandomFile(); out_handle2 = open(out2,"w")
         ibrun_executor.execute(line2,pool=nodes2,stdout=out_handle2)
         pool.occupyNodes(nodes2,2)
         # there should be no nodes left
-        no_nodes = pool.request_nodes(1); print(no_nodes)
+        no_nodes = pool.request_nodes(1); print(no_nodes,flush=True)
         assert(no_nodes is None)
         # see if the result was left
         time.sleep(nslp)
@@ -2889,7 +2892,7 @@ int main(int argc,char **argv) {
             t = 0
             for line in output1:
                 line = line.strip()
-                print("output1:",line)
+                print("output1:",line,flush=True)
                 if re.match("TACC",line): continue
                 t += 1
                 if t==1: hostname1 = line
@@ -2900,7 +2903,7 @@ int main(int argc,char **argv) {
             t = 0
             for line in output2:
                 line = line.strip()
-                print("output2:",line)
+                print("output2:",line,flush=True)
                 if re.match("TACC",line): continue
                 t += 1
                 if t==1: hostname2 = line
@@ -3125,13 +3128,13 @@ class TestLocalLauncherJobs():
         while True:
             res = job.tick()
             elapsed = time.time()-starttime
-            print("tick:",job.tock,"elapsed: %5.3e" % elapsed,"result:",res)
+            print("tick:",job.tock,"elapsed: %5.3e" % elapsed,"result:",res,flush=True)
             if res=="finished": break
             elif re.match("^expire",res):
-                print(res)
+                print(res,flush=True)
             if elapsed>2+ntasks*job.delay+self.maxsleep:
                 estr = "This is taking too long: %d sec for %d tasks" % (int(elapsed),ntasks)
-                print(estr)
+                print(estr,flush=True)
                 raise LauncherException(estr)
         assert(True)
     def testLocalFileTaskJobCustom(self):
@@ -3150,16 +3153,16 @@ class TestLocalLauncherJobs():
             res = job.tick()
             assert( os.path.isdir(self.launcherdir) )
             elapsed = time.time()-starttime
-            print("tick:",job.tock,"elapsed: %5.3e" % elapsed,"result:",res)
+            print("tick:",job.tock,"elapsed: %5.3e" % elapsed,"result:",res,flush=True)
             if res=="finished": break
             elif re.match("^expire",res):
-                print(res)
+                print(res,flush=True)
             if elapsed>2+ntasks*job.delay+self.maxsleep:
                 estr = "This is taking too long: %d sec for %d tasks" % (int(elapsed),ntasks)
-                print(estr)
+                print(estr,flush=True)
                 raise LauncherException(estr)
         if elapsed<self.maxsleep:
-            print("This finished too quickly: %d s/b %d" % (elapsed,self.maxsleep))
+            print("This finished too quickly: %d s/b %d" % (elapsed,self.maxsleep),flush=True)
             assert(False)
         assert(True)
 
@@ -3175,7 +3178,7 @@ class TestExistingWorkdir():
         self.ncores = len(self.hostpool)
     def makecommandfile(self,ncommand):
         self.ncommand = ncommand; self.maxsleep = 4
-        print("Making %d commands" % ncommand)
+        print("Making %d commands" % ncommand,flush=True)
         self.removecommandfile()
         MakeRandomSleepFile( self.fn,self.ncommand,
                              tmin=self.maxsleep,tmax=self.maxsleep)
@@ -3207,10 +3210,10 @@ class TestExistingWorkdir():
                 maxruntime = self.maxsleep+1
                 )
             job.run()
-            print("Hm. We managed to reuse a workdir")
+            print("Hm. We managed to reuse a workdir",flush=True)
             result = False # this should except out becuase of the workdir
         except: 
-            print("Exception: attempting to reuse workdir")
+            print("Exception: attempting to reuse workdir",flush=True)
             result = True
         assert(result)
 
@@ -3224,7 +3227,7 @@ class fooTestBreakRestart():
         self.ncores = len(self.hostpool)
     def makecommandfile(self,ncommand):
         self.ncommand = ncommand; self.maxsleep = 4
-        print("Making %d commands" % ncommand)
+        print("Making %d commands" % ncommand,flush=True)
         self.removecommandfile()
         MakeRandomSleepFile( self.fn,self.ncommand,
                              tmin=self.maxsleep,tmax=self.maxsleep)
@@ -3244,10 +3247,10 @@ class fooTestBreakRestart():
             maxruntime = self.maxsleep+1
             )
         job.run()
-        print(job.final_report())
+        print(job.final_report(),flush=True)
         completed = job.queue.completed
         noncomp = job.queue.running+job.queue.queue
-        print("lengths of completed / noncomp",len(completed),len(noncomp))
+        print("lengths of completed / noncomp",len(completed),len(noncomp),flush=True)
         # assert(len(completed)==self.ncores) ## this is not easily predicted
         assert(len(noncomp)>0)
         assert(len(completed)+len(noncomp)==ntasks)
@@ -3297,15 +3300,15 @@ class TestSSHLauncherJobs():
         while True:
             res = job.tick()
             elapsed = time.time()-starttime
-            print("tick:",job.tock,"elapsed: %5.3e" % elapsed,"result:",res)
+            print("tick:",job.tock,"elapsed: %5.3e" % elapsed,"result:",res,flush=True)
             if res=="finished": break
             elif re.match("^expire",res):
-                print(res)
+                print(res,flush=True)
             if elapsed>2+ntasks*job.delay+self.maxsleep:
                 estr = "This is taking too long: %d sec for %d tasks" % (int(elapsed),ntasks)
-                print(estr)
+                print(estr,flush=True)
                 assert(False)
-        duration = time.time()-starttime; print(duration)
+        duration = time.time()-starttime; print(duration,flush=True)
         assert(duration>=self.tmin)
     def testLauncherJobRun(self):
         """testLauncherJobRun: test with ssh'ing, and just let it run"""
@@ -3322,7 +3325,7 @@ class TestSSHLauncherJobs():
             )
         starttime = time.time()
         job.run()
-        duration = time.time()-starttime; print(duration)
+        duration = time.time()-starttime; print(duration,flush=True)
         assert(duration>=self.tmin)
     def testMulticoreTaskGenerator(self):
         """testMulticoreTaskGenerator: This is preliminary to the next test"""
@@ -3355,7 +3358,7 @@ class TestSSHLauncherJobs():
             )
         starttime = time.time()
         job.run()
-        duration = time.time()-starttime; print(duration)
+        duration = time.time()-starttime; print(duration,flush=True)
         assert(duration>=self.tmin)
     def testLauncherJobRunWithWait(self):
         ntasks = 2*len(self.hostpool); delay = .2
@@ -3368,7 +3371,7 @@ class TestSSHLauncherJobs():
             debug="queue,job"
             )
         job.run()
-        print("tasks completed %d s/b %d" % (job.completed,self.ncommand))
+        print("tasks completed %d s/b %d" % (job.completed,self.ncommand),flush=True)
         assert(job.completed==self.ncommand)
 
 class testIBRUNLauncherJobs():
@@ -3408,13 +3411,13 @@ class testIBRUNLauncherJobs():
         while True:
             res = job.tick()
             elapsed = time.time()-starttime
-            print("tick:",job.tock,"elapsed: %5.3e" % elapsed,"result:",res)
+            print("tick:",job.tock,"elapsed: %5.3e" % elapsed,"result:",res,flush=True)
             if res=="finished": break
             elif re.match("^expire",res):
-                print(res)
+                print(res,flush=True)
             if elapsed>2+ntasks*job.delay+self.maxsleep:
                 estr = "This is taking too long: %d sec for %d tasks" % (int(elapsed),ntasks)
-                print(estr)
+                print(estr,flush=True)
                 assert(False)
         assert(True)
     def testIbrunFileTaskJob(self):
@@ -3432,13 +3435,13 @@ class testIBRUNLauncherJobs():
         while True:
             res = job.tick()
             elapsed = time.time()-starttime
-            print("tick:",job.tock,"elapsed: %5.3e" % elapsed,"result:",res)
+            print("tick:",job.tock,"elapsed: %5.3e" % elapsed,"result:",res,flush=True)
             if res=="finished": break
             elif re.match("^expire",res):
-                print(res)
+                print(res,flush=True)
             if elapsed>2+ntasks*job.delay+self.maxsleep:
                 estr = "This is taking too long: %d sec for %d tasks" % (int(elapsed),ntasks)
-                print(estr)
+                print(estr,flush=True)
                 assert(False)
         assert(True)
     def testLauncherJobIbRun(self):
@@ -3458,7 +3461,7 @@ class testIBRUNLauncherJobs():
 
 def testChDir():
     tmpdir = "pylauncher_tmpdir_test%d" % RandomID(); tmpfile = RandomFile()
-    abs_tmpdir = os.getcwd()+"/"+tmpdir; print("working dir:",abs_tmpdir)
+    abs_tmpdir = os.getcwd()+"/"+tmpdir; print("working dir:",abs_tmpdir,flush=True)
     os.system("rm -rf %s" % abs_tmpdir)
     os.system("mkdir -p %s" % abs_tmpdir)
     os.chdir(tmpdir)
@@ -3470,9 +3473,9 @@ def testChDir():
             ),
       debug="task+queue+exec")
     job.run(); time.sleep(1)
-    dircontent = os.listdir("."); print(". :",sorted(dircontent))
-    dircontent = os.listdir(".."); print(".. :",sorted(dircontent))
-    dircontent = os.listdir(abs_tmpdir); print(abs_tmpdir,":",sorted(dircontent))
+    dircontent = os.listdir("."); print(". :",sorted(dircontent),flush=True)
+    dircontent = os.listdir(".."); print(".. :",sorted(dircontent),flush=True)
+    dircontent = os.listdir(abs_tmpdir); print(abs_tmpdir,":",sorted(dircontent),flush=True)
     assert(tmpfile in dircontent)
     os.system("rm -rf %s" % abs_tmpdir)
 
@@ -3480,7 +3483,7 @@ def testParamJob():
     # first make a C program that parses its argument
     testdir = MakeRandomDir()
     testprog_name = "print_program"
-    print("Making c program <<%s>> in <<%s>>" % (testprog_name,testdir))
+    print("Making c program <<%s>> in <<%s>>" % (testprog_name,testdir),flush=True)
     os.system("pwd")
     with open( os.path.join(testdir,testprog_name+".c"),'w') as testprog:
         testprog.write("""
@@ -3537,7 +3540,7 @@ int main(int argc,char **argv) {
 #             ),
 #       debug="task+queue+exec")
 #     job.run()
-#     runtime = time.time()-tstart; print(nsleep,runtime)
+#     runtime = time.time()-tstart; print(nsleep,runtime,flush=True)
 #     assert(runtime>2*nsleep)
 
 def ClassicLauncher(commandfile,*args,**kwargs):
@@ -3580,7 +3583,7 @@ def ClassicLauncher(commandfile,*args,**kwargs):
             debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report())
+    print(job.final_report(),flush=True)
 
 def LocalLauncher(commandfile,nhosts,*args,**kwargs):
     """A LauncherJob for a file of single or multi-threaded commands, running locally
@@ -3616,7 +3619,7 @@ def LocalLauncher(commandfile,nhosts,*args,**kwargs):
             debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report())
+    print(job.final_report(),flush=True)
 
 def ResumeClassicLauncher(commandfile,**kwargs):
     ClassicLauncher(commandfile,resume=1,**kwargs)
@@ -3652,7 +3655,7 @@ def MPILauncher(commandfile,**kwargs):
             debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report())
+    print(job.final_report(),flush=True)
 
 def IbrunLauncher(commandfile,**kwargs):
     """A LauncherJob for a file of small MPI jobs.
@@ -3683,7 +3686,7 @@ def IbrunLauncher(commandfile,**kwargs):
             debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report())
+    print(job.final_report(),flush=True)
 
 def RemoteLauncher(commandfile,hostlist,**kwargs):
     """A LauncherJob for a file of single or multi-thread commands, executed remotely.
@@ -3716,7 +3719,7 @@ def RemoteLauncher(commandfile,hostlist,**kwargs):
             debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report())
+    print(job.final_report(),flush=True)
 
 def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
     """A LauncherJob for a file of small MPI jobs, executed remotely.
@@ -3749,7 +3752,7 @@ def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
             debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report())
+    print(job.final_report(),flush=True)
 
 class DynamicLauncher(LauncherJob):
     """A LauncherJob derived class that is designed for dynamic adding of 
@@ -3812,7 +3815,7 @@ def MICLauncher(commandfile,**kwargs):
             debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report())
+    print(job.final_report(),flush=True)
 
 os.environ["PYLAUNCHER_ENABLED"] = "1"
 
