@@ -1485,7 +1485,7 @@ class SLURMHostList(HostList):
         jobs_per_node = int(N/p) # requested cores per node
         try :
             # SLURM_JOB_CPUS_PER_NODE=56(x2)
-            cores_per_node = os.environ["SLURM_JOB_CPUS_PER_NODE"]
+            cores_per_node = os.environ["SLURM_TASKS_PER_NODE"]
             cores_per_node = re.search(r'([0-9]+)',cores_per_node).groups()[0]
             cores_per_node = int(cores_per_node)
             cores_per_node = kwargs.get("ncores",cores_per_node) # not elegant
@@ -1493,15 +1493,21 @@ class SLURMHostList(HostList):
         except:
             print("Could not detect physical cores per node, setting to 1",flush=True)
             cores_per_node = 1
-        cores_per_node = int( kwargs.get("corespernode",cores_per_node) )
-        print( "using cores per node: %d" % cores_per_node ,flush=True)
+        cpn_override = kwargs.get("corespernode",None)
+        if cpn_override:
+            cores_per_node = int( cpn_override )
+            print( "Override of SLURM value: using %d cores per node" % cores_per_node ,flush=True)
         cores_per_job = int( cores_per_node / jobs_per_node )
         hlist = hs.expand_hostlist(hlist_str)
         for h in hlist:
             for i in range(jobs_per_node):
                 job_core = "%d-%d" % ( i * cores_per_job, (i+1) * cores_per_job-1 )
                 self.append(h,i,job_core)
-
+# SLURM_TASKS_PER_NODE=48
+# SLURM_NPROCS=48
+# SLURM_TACC_CORES=48
+# SLURM_CPUS_ON_NODE=96
+# SLURM_JOB_CPUS_PER_NODE=96
 
 class PBSHostList(HostList):
     def __init__(self,**kwargs):

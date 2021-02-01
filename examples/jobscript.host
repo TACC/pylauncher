@@ -1,0 +1,34 @@
+#!/bin/bash
+
+##
+## a job script for testing the pylauncher hostpool
+##
+
+#SBATCH   -p normal
+#SBATCH   -J pylauncherscalingtest
+#SBATCH   -o pylauncherscalingtest.o%j
+#SBATCH   -e pylauncherscalingtest.o%j
+#SBATCH   --tasks-per-node 40
+#SBATCH   -N 2
+#SBATCH   -t 0:05:00
+#SBATCH -A A-ccsc
+
+module load python3
+export PYTHONPATH=..:${PYTHONPATH}
+
+pyscript=examples_generated.py
+cat >${pyscript} <<EOF
+#!/usr/bin/env python
+
+import os
+import pylauncher3
+
+hostpool = pylauncher3.HostPool(
+    hostlist=pylauncher3.HostListByName(),
+    commandexecutor=pylauncher3.SSHExecutor(), 
+    )
+print("Host pool size: %d" % len(hostpool) )
+EOF
+
+rm -rf pylauncher_tmp*
+python3 ${pyscript}
