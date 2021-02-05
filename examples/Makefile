@@ -87,6 +87,7 @@ COVERAGE = 4
 COMMAND = sleep
 .PHONY : commandlines
 commandlines :
+	@if [ -z "${NCORES}" ] ; then echo "Please set NCORES variable" && exit 1 ; fi
 	@export number_of_jobs=$$[ ${COVERAGE} * ${NCORES} ] \
 	&& echo "make $$number_of_jobs commandlines" \
 	&& PYTHONPATH=..:${PYTHONPATH} python3 make_commandlines.py "${COMMAND}" $$number_of_jobs 1 $$[ 2*${TIME} ]
