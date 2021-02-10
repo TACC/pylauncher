@@ -29,11 +29,11 @@ int main(int argc,char **argv) {
   MPI_Get_processor_name(procname,&namelen);
 
   MPI_Barrier(MPI_COMM_WORLD);
-  sprintf(outfile,"pytmp-%04d-%04d",jobno,mytid);
-  f = fopen(outfile,"w");
-  fprintf(f,"on host %s\n",procname);
-  fprintf(f,"%d/%d working\n",mytid,ntids);
-  fclose(f);
+  /* sprintf(outfile,"pytmp-%04d-%04d",jobno,mytid); */
+  /* f = fopen(outfile,"w"); */
+  /* fprintf(f,"on host %s\n",procname); */
+  /* fprintf(f,"%d/%d working\n",mytid,ntids); */
+  /* fclose(f); */
 
   if (mytid==0) {
     printf("Job %d on %d processors\n",jobno,ntids);
