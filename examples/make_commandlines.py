@@ -24,7 +24,7 @@ cfile.write("#### python %s \n" % (sys.argv));
 cfile.write("####\n");
 ##g = pylauncher3.CountedCommandGenerator(command=command)
 for i in range(int(njobs)):
-    j = "%s" % (command)
+    j = "%s %s %s" % (command,tmin,tmax)
     cfile.write( str(j) + "\n" )
     
 cfile.close()

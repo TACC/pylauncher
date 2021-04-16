@@ -15,7 +15,7 @@ info ::
 
 EXECUTABLE = example_classic_launcher
 SSH =
-RUN = python
+RUN = python3
 NODES = 2
 CORESPERNODE = 16
 QUEUE = development
@@ -32,37 +32,52 @@ info ::
 	@echo "    example_variable_core_launcher : variable core jobs, found in ""corecommandlines"""
 	@echo "(note: remove the project line or replace by your own!)"
 #make ${${EXECUTABLE}_dependencies}
+NAME = 
+script :
+	@export HOSTNAME=`hostname -f | awk -F "." '{print $$2}'` \
+	 && export found="no" \
+	 &&  case $$HOSTNAME in \
+	        ( frontera ) export found="yes" ;; \
+	        ( stampede2 ) export found="yes" ;; \
+	        ( ls5 ) export found="yes" ;; \
+	         esac \
+	 && if [ "$$found" = "no" ] ; then echo "Unknown host `hostname -f`" ; exit 1 ; fi \
+	 && echo "generating script for ${EXECUTABLE} on $$HOSTNAME" \
+	 && eval export CORES=$$[ ${CORESPERNODE}*${NODES} ] \
+	 && eval export MINUTES=$$[ 2* ${COVERAGE} * ${TIME} / 60 ] \
+	 && export QUEUE=`if [ $$CORES -le 256 ] ; then echo development ; else echo normal ; fi` \
+	 && if [ ! -z "${SLURM_NNODES}" ] ; then \
+	        echo "We are on a compute node: I am making a shell script" \
+	         && template="shellscript_template" && generated="shellscript_generated" \
+	    ; else \
+	        echo "We are on the login node: I am making a batch script" \
+	         && template="jobscript_template.$$HOSTNAME" && generated="jobscript_generated" \
+	    ; fi \
+	 && cat $${template} | sed -e "s/SSH/${SSH}/" -e "s/RUN/${RUN}/" \
+	        -e "s/EXECUTABLE/${EXECUTABLE}/" -e "s/NODES/${NODES}/" \
+	        -e "s/NAME/${NAME}/" \
+	        -e "s/CORES/$$CORES/" -e "s/QUEUE/$$QUEUE/" \
+	        -e "s/MINUTES/$$MINUTES/" \
+	        > $${generated}
 submit :
-	@export HOSTNAME=`hostname -f | awk -F "." '{print $$2}'` ; \
-	  export found="no" ; \
-	  case $$HOSTNAME in \
-	    ( stampede2 ) export found="yes" ;; \
-	    ( ls5 ) export found="yes" ;; \
-	    esac ; \
-	  if [ "$$found" = "no" ] ; then echo "Unknown host `hostname -f`" ; exit 1 ; fi ; \
-	  echo "submitting ${EXECUTABLE}  on  $$HOSTNAME" ; \
-	  eval export CORES=$$[ ${CORESPERNODE}*${NODES} ] ; \
-	  export QUEUE=`if [ $$CORES -le 256 ] ; then echo development ; else echo normal ; fi` ; \
-	  cat jobscript_template.$$HOSTNAME | sed -e "s/SSH/${SSH}/" -e "s/RUN/${RUN}/" \
-	        -e "s/EXECUTABLE/${EXECUTABLE}/" \
-	        -e "s/NODES/${NODES}/" -e "s/CORES/$$CORES/" -e "s/QUEUE/$$QUEUE/" \
-	        > jobscript_generated ; \
-	  sbatch jobscript_generated
+	sbatch jobscript_generated
+
 example_shifted_ibrun_dependencies = parallel
 
-CPROGRAMS = parallel randomaction
+CPROGRAMS = parallel randomaction randomsleep
 info ::
 	@echo 
 	@echo "make PROGRAM"
 	@echo "    with C programs: ${CPROGRAMS}"
 	@echo "    compiled with WAIT=SLURM_NPROCS"
 .SECONDEXPANSION:
-.PHONY: randomaction
 parallel randomaction :
 	@slurm=${SLURM_NPROCS} && slurm=$${slurm:=40} \
 	&& wait=${WAIT} && wait=$${wait:=$${slurm}} \
 	&& echo "compile $@ with wait=$$wait" \
 	&& mpicc -o $@ $@.c -DWAIT=$${wait:=20}
+randomsleep :
+	mpicc -g -O2 -o $@ $@.c 
 clean ::
 	@rm -f ${CPROGRAMS}
 
@@ -83,6 +98,7 @@ info ::
 	@echo "    COMMAND=\"mkdir -p random/PYL_ID && cd random/PYL_ID && ../../randomaction PYL_ID > random.out\""
 NCORES = ${SLURM_NPROCS}
 TIME = 20
+TMIN = 0
 COVERAGE = 4
 COMMAND = sleep
 .PHONY : commandlines
@@ -90,7 +106,13 @@ commandlines :
 	@if [ -z "${NCORES}" ] ; then echo "Please set NCORES variable" && exit 1 ; fi
 	@export number_of_jobs=$$[ ${COVERAGE} * ${NCORES} ] \
 	&& echo "make $$number_of_jobs commandlines" \
-	&& PYTHONPATH=..:${PYTHONPATH} python3 make_commandlines.py "${COMMAND}" $$number_of_jobs 1 $$[ 2*${TIME} ]
+	&& PYTHONPATH=..:${PYTHONPATH} python3 make_commandlines.py \
+	        "${COMMAND}" $$number_of_jobs \
+	        `if [ "${TMIN}" = "0" ] ;   then echo 1 ; \
+	         elif [ "${TMIN}" = "1" ] ; then echo ${TIME} ; \
+	         else                            echo ${TMIN} ; fi` \
+	        ${TIME}
+
 .PHONY: randomcommandlines
 randomcommandlines :
 	@make --no-print-directory commandlines \

@@ -7,12 +7,12 @@
 ####
 
 #SBATCH   -p QUEUE
-#SBATCH   -J pylaunchertest
-#SBATCH   -o pylaunchertest.o%j
-#SBATCH   -e pylaunchertest.o%j
+#SBATCH   -J pylaunchertestNAME
+#SBATCH   -o pylaunchertestNAME.o%j
+#SBATCH   -e pylaunchertestNAME.o%j
 #SBATCH   -n CORES
 #SBATCH   -N NODES
-#SBATCH   -t 0:10:00
+#SBATCH   -t 0:40:00
 #SBATCH -A A-ccsc                  # replace by your own project
 
 module load python3
