@@ -1570,7 +1570,7 @@ def ClusterName():
 
 def ClusterHasSharedFileSystem():
     """This test is only used in some unit tests"""
-    return ClusterName() in ["ls4","ls5","maverick","stampede","stampede2","stampede2-knl","stampede2-skx","mic"]
+    return ClusterName() in ["ls4","ls5","ls6","maverick","stampede","stampede2","stampede2-knl","stampede2-skx","mic"]
 
 def JobId():
     """This function is installation dependent: it inspects the environment variable
@@ -1580,7 +1580,7 @@ def JobId():
     hostname = ClusterName()
     if hostname=="ls4":
         return os.environ["JOB_ID"]
-    elif hostname in ["ls5","maverick","stampede","stampede2","stampede2-knl","stampede2-skx"]:
+    elif hostname in ["ls5","ls6","maverick","stampede","stampede2","stampede2-knl","stampede2-skx"]:
         return os.environ["SLURM_JOB_ID"]
     elif hostname in ["pace"]:
         return os.environ["PBS_JOBID"]
@@ -1591,6 +1591,7 @@ def HostListByName(**kwargs):
     """Give a proper hostlist. Currently this work for the following hosts:
 
     * ``ls5``: Lonestar5 at TACC, using SLURM
+    * ``ls6``: Lonestar6 at TACC, using SLURM
     * ``maverick``: Maverick at TACC, using SLURM
     * ``stampede``: Stampede at TACC, using SLURM
     * ``frontera`` : Frontera at TACC, using SLURM
@@ -1608,6 +1609,8 @@ def HostListByName(**kwargs):
         hostlist = SGEHostList(tag=".ls4.tacc.utexas.edu",**kwargs)
     elif cluster=="ls5": # ls5 nodes don't have fully qualified hostname
         hostlist = SLURMHostList(tag="",**kwargs)
+    elif cluster=="ls6":
+        hostlist = SGEHostList(tag=".ls6.tacc.utexas.edu",**kwargs)
     elif cluster=="maverick":
         hostlist = SLURMHostList(tag=".maverick.tacc.utexas.edu",**kwargs)
     elif cluster=="stampede2-knl":
