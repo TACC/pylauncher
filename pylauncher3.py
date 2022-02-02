@@ -1610,7 +1610,7 @@ def HostListByName(**kwargs):
     elif cluster=="ls5": # ls5 nodes don't have fully qualified hostname
         hostlist = SLURMHostList(tag="",**kwargs)
     elif cluster=="ls6":
-        hostlist = SGEHostList(tag=".ls6.tacc.utexas.edu",**kwargs)
+        hostlist = SLURMHostList(tag=".ls6.tacc.utexas.edu",**kwargs)
     elif cluster=="maverick":
         hostlist = SLURMHostList(tag=".maverick.tacc.utexas.edu",**kwargs)
     elif cluster=="stampede2-knl":
