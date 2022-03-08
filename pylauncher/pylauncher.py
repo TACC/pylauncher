@@ -1,5 +1,17 @@
+################################################################
+####
+#### This file is part of the `pylauncher' package
+#### for parametric job launching
+####
+#### Copyright Victor Eijkhout 2010-2022
+#### eijkhout@tacc.utexas.edu
+####
+#### https://github.com/TACC/pylauncher
+####
+################################################################
+
 docstring = \
-"""pylauncher.py version 3.4
+"""pylauncher.py version 4.0
 
 A python based launcher utility for packaging sequential or
 low parallel jobs in one big parallel job
@@ -11,6 +23,9 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+4.0 
+- turning into a package; all examples updated
+
 3.4
 - print flushing
 - corespernode parameter

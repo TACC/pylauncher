@@ -1,6 +1,17 @@
 #!/usr/bin/env python
+################################################################
+####
+#### This file is part of the `pylauncher' package
+#### for parametric job launching
+####
+#### Copyright Victor Eijkhout 2010-2022
+#### eijkhout@tacc.utexas.edu
+####
+#### https://github.com/TACC/pylauncher
+####
+################################################################
 
-import pylauncher3
+from pylauncher import pylauncher as launcher
 
 ##
 ## Execute locally
@@ -9,5 +20,5 @@ import pylauncher3
 ##
 
 ncores = 24
-pylauncher3.LocalLauncher("commandlines",ncores,debug="job") # debug="job+host+task")
+launcher.LocalLauncher("commandlines",ncores,debug="job") # debug="job+host+task")
 

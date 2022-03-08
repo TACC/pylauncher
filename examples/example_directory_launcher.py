@@ -1,4 +1,15 @@
 #!/usr/bin/env python
+################################################################
+####
+#### This file is part of the `pylauncher' package
+#### for parametric job launching
+####
+#### Copyright Victor Eijkhout 2010-2022
+#### eijkhout@tacc.utexas.edu
+####
+#### https://github.com/TACC/pylauncher
+####
+################################################################
 
 ##
 ## make a file of commandlines, tuned to the current run
@@ -14,6 +25,6 @@ with open("directorycommandlines","w") as commandfile:
 ## Emulate the classic launcher, using a one liner
 ##
 
-import pylauncher3
-pylauncher3.ClassicLauncher("directorycommandlines",debug="host+job+exec")
+from pylauncher import pylauncher as launcher
+launcher.ClassicLauncher("directorycommandlines",debug="host+job+exec")
 
