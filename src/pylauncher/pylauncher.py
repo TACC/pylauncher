@@ -89,7 +89,7 @@ import stat
 import subprocess
 import sys
 import time
-import hostlist3 as hs
+from pylauncher import hostlist3 as hs
 
 class LauncherException(Exception):
     """A very basic exception mechanism"""
