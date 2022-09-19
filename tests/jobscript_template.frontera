@@ -1,0 +1,21 @@
+#!/bin/bash
+
+####
+#### Do not look at this file:
+#### it is converted to an actual job script
+#### through the makefile.
+####
+
+#SBATCH   -p QUEUE
+#SBATCH   -J pylaunchertestNAME
+#SBATCH   -o pylaunchertestNAME.o%j
+#SBATCH   -e pylaunchertestNAME.o%j
+#SBATCH   -n CORES
+#SBATCH   -N NODES
+#SBATCH   -t 0:40:00
+#SBATCH -A A-ccsc                  # replace by your own project
+
+module load python3
+## for local testing:
+#export PYTHONPATH=..:${PYTHONPATH}
+SSH RUN EXECUTABLE.py
