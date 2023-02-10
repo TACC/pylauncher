@@ -89,6 +89,9 @@ unittests :
 	@ln -s ../pylauncher.py pylauncher.py
 	@make submit RUN=nosetests EXECUTABLE=pylauncher
 
+##
+## input files
+##
 info ::
 	@echo
 	@echo "make commandlines [COVERAGE=...] [ NCORES=...] [TIME=...] [COMMAND=...]"
@@ -121,15 +124,30 @@ randomcommandlines :
 clean ::
 	@rm -rf random
 
+##
+## run
+##
+info ::
+	@echo "make localrun EXAMPLE=..."
+EXAMPLE = example_classic_launcher.py
+.PHONY: localrun
+localrun :
+	@if [ ! -f "${EXAMPLE}" ] ; then \
+	    echo "No such file: ${EXAMPLE}" && exit 1 ; fi 
+	PYTHONPATH=../src/pylauncher:${PYTHONPATH} python3 ${EXAMPLE}
+clean ::
+	@rm -rf pylauncher_tmp*
+
+##
+## clean rules
+##
+
 info ::
 	@echo 
 	@echo "make clean"
 
 clean ::
-	@for d in "./" "./resume" "./sockets" ; do \
-	  ( cd $$d ; \
-	    /bin/rm -rf *.pyc *~ *.o *.log \
-	      pylauncher_tmp* pylaunchertest* pylauncher*.{e,o}[0-9]* ${HOME}/pylauncher_tmp* \
+	@/bin/rm -rf *.pyc *~ *.o *.log \
+	      pylaunchertest* pylauncher*.{e,o}[0-9]* \
 	      expire* sleepexpire* tmpdir* tasktest* dirtest queuestate* pytmp* \
-	      jobscript_generated ; ) ; done
-#	@cd sockets ; make clean
+	      jobscript_generated 
