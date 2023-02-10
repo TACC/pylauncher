@@ -134,7 +134,7 @@ EXAMPLE = example_classic_launcher.py
 localrun :
 	@if [ ! -f "${EXAMPLE}" ] ; then \
 	    echo "No such file: ${EXAMPLE}" && exit 1 ; fi 
-	PYTHONPATH=../src/pylauncher:${PYTHONPATH} python3 ${EXAMPLE}
+	PYTHONPATH=../src:${PYTHONPATH} python3 ${EXAMPLE}
 clean ::
 	@rm -rf pylauncher_tmp*
 
