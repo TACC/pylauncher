@@ -1,7 +1,7 @@
 ################################################################
 ####
 #### Makefile for the pylauncher examples
-#### pylauncher is copyright Victor Eijkhout 2010-2021
+#### pylauncher is copyright Victor Eijkhout 2010-2023
 ####
 ################################################################
 
@@ -106,7 +106,7 @@ commandlines :
 	@if [ -z "${NCORES}" ] ; then echo "Please set NCORES variable" && exit 1 ; fi
 	@export number_of_jobs=$$[ ${COVERAGE} * ${NCORES} ] \
 	&& echo "make $$number_of_jobs commandlines" \
-	&& PYTHONPATH=..:${PYTHONPATH} python3 make_commandlines.py \
+	&& PYTHONPATH=../src/pylauncher:${PYTHONPATH} python3 make_commandlines.py \
 	        "${COMMAND}" $$number_of_jobs \
 	        `if [ "${TMIN}" = "0" ] ;   then echo 1 ; \
 	         elif [ "${TMIN}" = "1" ] ; then echo ${TIME} ; \
