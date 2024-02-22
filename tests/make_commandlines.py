@@ -4,7 +4,7 @@
 #### This file is part of the `pylauncher' package
 #### for parametric job launching
 ####
-#### Copyright Victor Eijkhout 2010-2023
+#### Copyright Victor Eijkhout 2010-2024
 #### eijkhout@tacc.utexas.edu
 ####
 #### https://github.com/TACC/pylauncher
@@ -17,6 +17,7 @@ import sys
 
 if len(sys.argv)!=5:
     print("Usage: make_commandlines.py command njobs tmin tmax")
+    print(f"Not: {sys.argv}")
     sys.exit(1)
 
 prog,command,njobs,tmin,tmax = sys.argv
