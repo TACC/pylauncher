@@ -59,7 +59,7 @@ script :
 	        -e "s/CORES/$$CORES/" -e "s/QUEUE/$$QUEUE/" \
 	        -e "s/MINUTES/$$MINUTES/" \
 	        > $${generated}
-submit :
+submit : script
 	sbatch jobscript_generated
 
 example_shifted_ibrun_dependencies = parallel
