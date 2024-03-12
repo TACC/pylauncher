@@ -3,7 +3,7 @@
 #### This file is part of the `pylauncher' package
 #### for parametric job launching
 ####
-#### Copyright Victor Eijkhout 2010-2022
+#### Copyright Victor Eijkhout 2010-2024
 #### eijkhout@tacc.utexas.edu
 ####
 #### https://github.com/TACC/pylauncher
@@ -11,7 +11,7 @@
 ################################################################
 
 docstring = \
-"""pylauncher.py version 4.0
+"""pylauncher.py version 4.1
 
 A python based launcher utility for packaging sequential or
 low parallel jobs in one big parallel job
@@ -23,6 +23,8 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+4.1
+- adding stampede3
 4.0 
 - turning into a package; all examples updated
 
@@ -89,7 +91,7 @@ import stat
 import subprocess
 import sys
 import time
-from pylauncher import hostlist3 as hs
+import hostlist3 as hs
 
 class LauncherException(Exception):
     """A very basic exception mechanism"""
@@ -1584,8 +1586,12 @@ def ClusterName():
     return None
 
 def ClusterHasSharedFileSystem():
-    """This test is only used in some unit tests"""
-    return ClusterName() in ["ls4","ls5","ls6","maverick","stampede","stampede2","stampede2-knl","stampede2-skx","mic"]
+    """This test is only used in some unit tests.
+    The matching tests accomodate clusters with TACC_NODE_TYPE values.
+    """
+    clustername = ClusterName()
+    return clustername in ["mic","ls4","ls5","ls6","maverick",] \
+        or re.match('stampede2',clustername) or re.match('stampede3',clustername)
 
 def JobId():
     """This function is installation dependent: it inspects the environment variable
@@ -1595,7 +1601,8 @@ def JobId():
     hostname = ClusterName()
     if hostname=="ls4":
         return os.environ["JOB_ID"]
-    elif hostname in ["ls5","ls6","maverick","stampede","stampede2","stampede2-knl","stampede2-skx"]:
+    elif hostname in ["ls5","ls6","maverick","stampede",] \
+            or re.match('stampede2',hostname) or re.match('stampede3',hostname):
         return os.environ["SLURM_JOB_ID"]
     elif hostname in ["pace"]:
         return os.environ["PBS_JOBID"]
@@ -1628,10 +1635,10 @@ def HostListByName(**kwargs):
         hostlist = SLURMHostList(tag=".ls6.tacc.utexas.edu",**kwargs)
     elif cluster=="maverick":
         hostlist = SLURMHostList(tag=".maverick.tacc.utexas.edu",**kwargs)
-    elif cluster=="stampede2-knl":
+    elif re.match('stampede2',cluster):
         hostlist = SLURMHostList(tag=".stampede2.tacc.utexas.edu",**kwargs)
-    elif cluster in [ "stampede2","stampede2-skx" ]:
-        hostlist = SLURMHostList(tag=".stampede2.tacc.utexas.edu",**kwargs)
+    elif re.match('stampede3',cluster):
+        hostlist = SLURMHostList(tag=".stampede3.tacc.utexas.edu",**kwargs)
     elif re.match("frontera",cluster):
         hostlist = SLURMHostList(
             tag=".frontera.tacc.utexas.edu",**kwargs)

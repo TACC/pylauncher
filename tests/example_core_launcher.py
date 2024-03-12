@@ -4,14 +4,14 @@
 #### This file is part of the `pylauncher' package
 #### for parametric job launching
 ####
-#### Copyright Victor Eijkhout 2010-2022
+#### Copyright Victor Eijkhout 2010-2024
 #### eijkhout@tacc.utexas.edu
 ####
 #### https://github.com/TACC/pylauncher
 ####
 ################################################################
 
-from pylauncher import pylauncher as launcher
+import pylauncher as launcher
 
 ##
 ## Emulate the classic launcher, using a one liner

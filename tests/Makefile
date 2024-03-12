@@ -122,6 +122,7 @@ randomcommandlines :
 	    COVERAGE=${COVERAGE} NCORES=${NCORES} \
 	    COMMAND="mkdir -p random/PYL_ID && cd random/PYL_ID && ../../randomaction PYL_ID > random.out"
 clean ::
+	@echo "clean random"
 	@rm -rf random
 
 ##
@@ -136,7 +137,8 @@ localrun :
 	    echo "No such file: ${EXAMPLE}" && exit 1 ; fi 
 	PYTHONPATH=../src:${PYTHONPATH} python3 ${EXAMPLE}
 clean ::
-	@rm -rf pylauncher_tmp*
+	@echo "clean tmp dir"
+	@/bin/rm -rf pylauncher_tmp*
 
 ##
 ## clean rules
@@ -147,7 +149,11 @@ info ::
 	@echo "make clean"
 
 clean ::
-	@/bin/rm -rf *.pyc *~ *.o *.log \
-	      pylaunchertest* pylauncher*.{e,o}[0-9]* \
+	@echo "clean simple files"
+	@/bin/rm -f *.pyc *~ *.o *.log \
 	      expire* sleepexpire* tmpdir* tasktest* dirtest queuestate* pytmp* \
-	      jobscript_generated 
+	      jobscript_generated
+	@echo "clean job output"
+	@/bin/rm -rf pylauncher*.{e,o}[0-9]*
+	@echo "clean test output"
+	@/bin/rm -rf pylaunchertest*
