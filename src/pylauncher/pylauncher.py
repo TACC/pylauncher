@@ -951,7 +951,7 @@ class Task():
 class testCompletions():
     def setup(self):
         # get rid of old workdirs
-        tmpdir = os.getcwd()+"/"+Executor.default_workdir
+        tmpdir = os.getcwd()+"/"+Executor.default_workdir()
         if os.path.isdir(tmpdir):
             try:
                 shutil.rmtree(tmpdir)
@@ -1015,7 +1015,7 @@ class testTasksOnSingleNode():
     stampname = "pylauncher_tmp_singlenode_tasktest"
     def setup(self):
         os.system( "rm -f %s*" % RandomSleepTask.stamproot )
-        tmpdir = os.getcwd()+"/"+Executor.default_workdir
+        tmpdir = os.getcwd()+"/"+Executor.default_workdir()
         if os.path.isdir(tmpdir):
             shutil.rmtree(tmpdir)
         self.pool = LocalHostPool(nhosts=1)
@@ -1231,7 +1231,6 @@ class HostPoolBase():
     def __init__(self,**kwargs):
         self.nodes = []
         self.commandexecutor = kwargs.pop("commandexecutor",None)
-        #print("set HostPoolBase commandexecutor to",str(self.commandexecutor),flush=True)
         workdir = kwargs.pop("workdir",None)
         if self.commandexecutor is None:
             self.commandexecutor = LocalExecutor(workdir=workdir)
@@ -1391,7 +1390,7 @@ class HostPool(HostPoolBase):
 
 def testHostPoolN():
     # get rid of old workdirs
-    tmpdir = os.getcwd()+"/"+Executor.default_workdir
+    tmpdir = os.getcwd()+"/"+Executor.default_workdir()
     if os.path.isdir(tmpdir):
         shutil.rmtree(tmpdir)
     # test
@@ -1421,7 +1420,7 @@ def testHostPoolN():
 def testStartTaskOnPool():
     import random
     # get rid of old workdirs
-    tmpdir = os.getcwd()+"/"+Executor.default_workdir
+    tmpdir = os.getcwd()+"/"+Executor.default_workdir()
     if os.path.isdir(tmpdir):
         shutil.rmtree(tmpdir)
     # test
@@ -1683,7 +1682,7 @@ class DefaultHostPool(HostPool):
 def testPEhostpools():
     """testPEhostpools: Test that we get the right number of cores on the TACC hosts"""
     # get rid of old workdirs
-    tmpdir = os.getcwd()+"/"+Executor.default_workdir
+    tmpdir = os.getcwd()+"/"+Executor.default_workdir()
     if os.path.isdir(tmpdir):
         shutil.rmtree(tmpdir)
     # test
@@ -1725,8 +1724,8 @@ class LocalHostPool(HostPool):
             debug=self.debug,**kwargs)
 
 def testHostPoolWorkdirforcing():
-    os.system("/bin/rm -rf "+Executor.default_workdir)
-    os.mkdir(Executor.default_workdir)
+    os.system("/bin/rm -rf "+Executor.default_workdir())
+    os.mkdir(Executor.default_workdir())
     try:
         exc = Executor()
         assert(False)
@@ -1873,7 +1872,7 @@ def testTaskQueue():
     """testTaskQueue: queue and detect a task in a queue
     using the default task prefixer and completion tester"""
     # get rid of old workdirs
-    tmpdir = os.getcwd()+"/"+Executor.default_workdir
+    tmpdir = os.getcwd()+"/"+Executor.default_workdir()
     if os.path.isdir(tmpdir):
         shutil.rmtree(tmpdir)
     # test
@@ -1897,7 +1896,7 @@ def testTaskQueue():
 def testTaskQueueWithLauncherdir():
     """testTaskQueueWithLauncherdir: same, but test correct use of launcherdir"""
     # get rid of old workdirs
-    tmpdir = os.getcwd()+"/"+Executor.default_workdir
+    tmpdir = os.getcwd()+"/"+Executor.default_workdir()
     if os.path.isdir(tmpdir):
         shutil.rmtree(tmpdir)
     # test
@@ -2141,13 +2140,12 @@ class Executor():
     All derived classes need to define a ``execute`` method.
 
     :param catch_output: (keyword, optional, default=True) state whether command output gets caught, or just goes to stdout
-    :param workdir: (optional, default="pylauncher_tmpdir_exec") directory for exec and out files
+    :param workdir: required, directory for exec and out files
     :parame numa_ctl: (optional) numa binding. Only supported "core" for SSH executor.
     :param debug: (optional) string of debug modes; include "exec" to trace this class
 
     Important note: the ``workdir`` should not already exist. You have to remove it yourself.
     """
-    default_workdir = "pylauncher_tmpdir_exec"
     execstring = "exec"
     outstring = "out"
     def __init__(self,**kwargs):
@@ -2158,27 +2156,19 @@ class Executor():
             self.append_output = kwargs.pop("append_output",None)
         self.count = 0
         self.numactl = kwargs.pop("numactl",None)
-        workdir = kwargs.pop("workdir",None)
-        if workdir is None:
-            self.workdir = self.default_workdir
-        else: self.workdir = workdir
-        force_workdir = kwargs.pop("force_workdir",False)
-        if self.workdir[0]!="/":
-            self.workdir = os.getcwd()+"/"+self.workdir
-        DebugTraceMsg("Using executor workdir <<%s>>" % self.workdir,
-                     self.debug,prefix="Exec")
-        if os.path.isfile(self.workdir):
-            raise LauncherException(
-                "Serious problem creating executor workdir <<%s>>" % self.workdir)
-        elif not os.path.isdir(self.workdir):
-            os.mkdir(self.workdir)
-            # if force_workdir:
-            #     os.system("/bin/rm -rf %s" % self.workdir)
-            # else:
-            #     raise LauncherException(
-            #         "I will not reuse an executor workdir <<%s>>" % self.workdir)
-        if not self.workdir_is_safe():
-            raise LauncherException("Unsafe working dir <<%s>>; pls remove" % self.workdir)
+        if workdir := kwargs.pop("workdir",None):
+            print( f"explicit workdir: <<{workdir}>>" )
+            self.workdir = workdir
+            if self.workdir[0]!="/":
+                self.workdir = os.getcwd()+"/"+self.workdir
+            DebugTraceMsg("Using executor workdir <<%s>>" % self.workdir,
+                          self.debug,prefix="Exec")
+            if os.path.isdir(self.workdir):
+                print( f"Implementor warning: re-using workdir <<{self.workdir}>>" )
+            else:
+                os.mkdir(self.workdir)
+        else:
+            raise LauncherException("Executor needs explicit workdir")
         if len(kwargs)>0:
             raise LauncherException("Unprocessed Executor args: %s" % str(kwargs))
     def workdir_is_safe(self):
@@ -3602,10 +3592,13 @@ def ClassicLauncher(commandfile,*args,**kwargs):
         generator = StateFileCommandlineGenerator(commandfile,cores=cores,debug=debug)
     else:
         generator = FileCommandlineGenerator(commandfile,cores=cores,debug=debug)
+    commandexecutor = SSHExecutor(workdir=workdir,numactl=numactl,debug=debug)
     job = LauncherJob(
         hostpool=HostPool(
-            hostlist=HostListByName(corespernode=corespernode,debug=debug),
-            commandexecutor=SSHExecutor(workdir=workdir,numactl=numactl,debug=debug), 
+            hostlist=HostListByName\
+                (commandexecutor=commandexecutor,workdir=workdir,
+                 corespernode=corespernode,debug=debug),
+            commandexecutor=commandexecutor,workdir=workdir,
             debug=debug ),
         taskgenerator=TaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
