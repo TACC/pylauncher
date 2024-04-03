@@ -24,7 +24,7 @@ chris.blanton@gatech.edu
 otoelog = """
 Change log
 4.1
-- adding stampede3
+- adding stampede3, workdir improvement
 4.0 
 - turning into a package; all examples updated
 
