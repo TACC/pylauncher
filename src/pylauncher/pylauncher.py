@@ -2168,6 +2168,8 @@ class Executor():
                           self.debug,prefix="Exec")
             if os.path.isdir(self.workdir):
                 print( f"Implementor warning: re-using workdir <<{self.workdir}>>" )
+            elif os.path.isfile(self.workdir):
+                raise LauncherException( f"Workdir <<{self.workdir}>> should not be a file" )
             else:
                 os.mkdir(self.workdir)
         else:
