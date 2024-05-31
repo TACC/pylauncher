@@ -1,7 +1,7 @@
 ################################################################
 ####
 #### Makefile for the pylauncher examples
-#### pylauncher is copyright Victor Eijkhout 2010-2023
+#### pylauncher is copyright Victor Eijkhout 2010-2024
 ####
 ################################################################
 
@@ -16,7 +16,7 @@ info ::
 EXECUTABLE = example_classic_launcher
 SSH =
 RUN = python3
-NODES = 2
+NODES = 3
 CORESPERNODE = 16
 QUEUE = development
 info ::
@@ -31,27 +31,20 @@ info ::
 	@echo "    example_core_launcher : mult core jobs (constant count), found in ""commandlines"""
 	@echo "    example_variable_core_launcher : variable core jobs, found in ""corecommandlines"""
 	@echo "(note: remove the project line or replace by your own!)"
-#make ${${EXECUTABLE}_dependencies}
 NAME = 
 script :
 	@export HOSTNAME=`hostname -f | awk -F "." '{print $$2}'` \
-	 && export found="no" \
-	 &&  case $$HOSTNAME in \
-	        ( frontera ) export found="yes" ;; \
-	        ( stampede2 ) export found="yes" ;; \
-	        ( ls5 ) export found="yes" ;; \
-	         esac \
-	 && if [ "$$found" = "no" ] ; then echo "Unknown host `hostname -f`" ; exit 1 ; fi \
 	 && echo "generating script for ${EXECUTABLE} on $$HOSTNAME" \
 	 && eval export CORES=$$[ ${CORESPERNODE}*${NODES} ] \
 	 && eval export MINUTES=$$[ 2* ${COVERAGE} * ${TIME} / 60 ] \
-	 && export QUEUE=`if [ $$CORES -le 256 ] ; then echo development ; else echo normal ; fi` \
+	 && if [ "${TACC_SYSTEM}" = "stampede3" ] ; then \
+	      QUEUE=skx-dev ; else QUEUE=development ; fi \
 	 && if [ ! -z "${SLURM_NNODES}" ] ; then \
 	        echo "We are on a compute node: I am making a shell script" \
 	         && template="shellscript_template" && generated="shellscript_generated" \
 	    ; else \
 	        echo "We are on the login node: I am making a batch script" \
-	         && template="jobscript_template.$$HOSTNAME" && generated="jobscript_generated" \
+	         && template="jobscript_template" && generated="jobscript_generated" \
 	    ; fi \
 	 && cat $${template} | sed -e "s/SSH/${SSH}/" -e "s/RUN/${RUN}/" \
 	        -e "s/EXECUTABLE/${EXECUTABLE}/" -e "s/NODES/${NODES}/" \
@@ -59,8 +52,8 @@ script :
 	        -e "s/CORES/$$CORES/" -e "s/QUEUE/$$QUEUE/" \
 	        -e "s/MINUTES/$$MINUTES/" \
 	        > $${generated}
-submit : script
-	sbatch jobscript_generated
+submit :
+	PYTHONPATH=../src/pylauncher:${PYTHONPATH} sbatch jobscript_generated
 
 example_shifted_ibrun_dependencies = parallel
 
@@ -154,6 +147,6 @@ clean ::
 	      expire* sleepexpire* tmpdir* tasktest* dirtest queuestate* pytmp* \
 	      jobscript_generated
 	@echo "clean job output"
-	@/bin/rm -rf pylauncher*.{e,o}[0-9]*
+	@/bin/rm -rf pylauncher*.{e,o}[0-9]* pylauncher_out*
 	@echo "clean test output"
 	@/bin/rm -rf pylaunchertest*
