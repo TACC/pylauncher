@@ -23,6 +23,8 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+4.2
+- queuestate through explicit option
 4.1
 - adding stampede3
 4.0 
@@ -1757,6 +1759,7 @@ class TaskQueue():
     def __init__(self,**kwargs):
         self.queue = []; self.running = []; self.completed = []; self.aborted = []
         self.maxsimul = 0; self.submitdelay = 0
+        self.queuestate = kwargs.pop("queuestate","queuestate")
         self.debugs = kwargs.pop("debug",False)
         self.debug = re.search("queue",self.debugs)
         if len(kwargs)>0:
@@ -1846,14 +1849,14 @@ running   %3d jobs: %s
         for t in self.completed:
             state += "%s: %s\n" % (t.taskid,t.command)
         return state
-        f = open("queuestate","w")
-        f.write("queued\n")
-        for t in self.queue:     f.write("%s: %s\n" % (t.taskid,t.command))
-        f.write("running\n")
-        for t in self.running:   f.write("%s: %s\n" % (t.taskid,t.command))
-        f.write("completed\n")
-        for t in self.completed: f.write("%s: %s\n" % (t.taskid,t.command))
-        f.close()
+        # f = open(self.queuestate,"w")
+        # f.write("queued\n")
+        # for t in self.queue:     f.write("%s: %s\n" % (t.taskid,t.command))
+        # f.write("running\n")
+        # for t in self.running:   f.write("%s: %s\n" % (t.taskid,t.command))
+        # f.write("completed\n")
+        # for t in self.completed: f.write("%s: %s\n" % (t.taskid,t.command))
+        # f.close()
     def final_report(self,runningtime):
         """Return a string describing the max and average runtime for each task."""
         times = [ t.runningtime for t in self.completed]
@@ -2967,6 +2970,7 @@ class LauncherJob():
         if self.hostpool is None:
             raise LauncherException("Need a host pool")
         self.workdir = kwargs.pop("workdir",".")
+        self.queuestate = self.workdir+"/"+kwargs.pop("queuestate","queuestate")
         DebugTraceMsg("Host pool: <<%s>>" % str(self.hostpool),
                       re.search("host",self.debugs),"Job")
         self.taskgenerator = kwargs.pop("taskgenerator",None)
@@ -3102,7 +3106,8 @@ class LauncherJob():
                     break
             res = self.tick()
             # update the restart file
-            state_f = open(self.workdir+"/queuestate","w")        
+            state_f = open(self.queuestate,"w")        
+            # state_f = open(self.workdir+"/queuestate","w")        
             state_f.write( self.queue.savestate() )
             state_f.close()
             # process the result
