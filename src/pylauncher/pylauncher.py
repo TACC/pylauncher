@@ -1848,14 +1848,6 @@ running   %3d jobs: %s
         for t in self.completed:
             state += "%s: %s\n" % (t.taskid,t.command)
         return state
-        # f = open(self.queuestate,"w")
-        # f.write("queued\n")
-        # for t in self.queue:     f.write("%s: %s\n" % (t.taskid,t.command))
-        # f.write("running\n")
-        # for t in self.running:   f.write("%s: %s\n" % (t.taskid,t.command))
-        # f.write("completed\n")
-        # for t in self.completed: f.write("%s: %s\n" % (t.taskid,t.command))
-        # f.close()
     def final_report(self,runningtime):
         """Return a string describing the max and average runtime for each task."""
         times = [ t.runningtime for t in self.completed]
@@ -3097,9 +3089,13 @@ class LauncherJob():
                 if elapsed>self.maxruntime:
                     break
             res = self.tick()
-            # update the restart file
+            ##
+            ## update the restart file
+            ## first create recursive directories if needed
+            ##
+            qdir = re.sub( r'[^/]+$','',self.queuestate)
+            os.makedirs(qdir,exist_ok=True)
             state_f = open(self.queuestate,"w")        
-            # state_f = open(self.workdir+"/queuestate","w")        
             state_f.write( self.queue.savestate() )
             state_f.close()
             # process the result
