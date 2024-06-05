@@ -2359,16 +2359,16 @@ class SSHExecutor(Executor):
         DebugTraceMsg("Created SSH Executor",self.debug,prefix="Exec")
     def setup_on_node(self,node):
         host = node.hostname
-        DebugTraceMsg("Set up connection to <<%s>>" % host,self.debug,prefix="SSH")
+        DebugTraceMsg( f"Set up connection to {host}",self.debug,prefix="SSH")
         if host in self.node_client_dict:
             node.ssh_client = self.node_client_dict[host]
             node.ssh_client_unique = False
         else:
-            print("making ssh client to host",host,flush=True)
+            DebugTraceMsg( f"making ssh client to host: {host}",self.debug,prefix="SSH")
             try : 
                 node.ssh_client = ssh_client(host,debug=self.debug)
             except: ## VLE is this an exception class? socket.gaierror as e:
-                print("\nParamiko could not create ssh client\n",flush=True)
+                print( f"\nParamiko could not create ssh client to {host}\n",flush=True)
             node.ssh_client_unique = True
             self.node_client_dict[host] = node.ssh_client
     def release_from_node(self,node):

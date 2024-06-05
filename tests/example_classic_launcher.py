@@ -22,5 +22,5 @@ launcher.ClassicLauncher\
     ("commandlines",
      # optional spec of output dir:
      # workdir=f"pylauncher_out{os.environ['SLURM_JOBID']}",
-     debug="host+exec+job")
+     debug="ssh+host+exec+job")
 
