@@ -2397,11 +2397,14 @@ class SSHExecutor(Executor):
             raise LauncherException("Unprocessed SSHExecutor args: %s" % str(kwargs))
         if self.numactl is None:
             exec_prefix = ""
-        else:
-            if self.numactl!="core":
-                raise LauncherException("Unknown numactl: %s" % self.numactl)
+        elif self.numactl=="core":
             cores = pool.first_range()
             exec_prefix = "numactl -C %s " % cores
+        elif self.numactl=="gpu":
+            cores = pool.first_range()
+            exec_prefix = "CUDA_VISIBLE_DEVICES=%s " % cores
+        else:
+            raise LauncherException("Unknown numactl: %s" % self.numactl)
         # construct the command line with environment, workdir and expiration
         env_line = environment_list()
         wrapped_line = self.wrap(env_line+usercommand+"\n",prefix=exec_prefix)
@@ -3706,6 +3709,38 @@ def IbrunLauncher(commandfile,**kwargs):
     job = LauncherJob(
         hostpool=HostPool( hostlist=HostListByName(debug=debug),
             commandexecutor=IbrunExecutor(workdir=workdir,debug=debug), debug=debug ),
+        taskgenerator=TaskGenerator( 
+            FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
+            completion=lambda x:FileCompletion(taskid=x,
+                                      stamproot="expire",stampdir=workdir),
+            debug=debug ),
+        debug=debug,**kwargs)
+    job.run()
+    print(job.final_report(),flush=True)
+
+def GPULauncher(commandfile,**kwargs):
+    """A LauncherJob for a file of small MPI jobs.
+
+    The following values are specified for your convenience:
+
+    * hostpool : based on HostListByName
+    * commandexecutor : GPUExecutor
+    * taskgenerator : based on the ``commandfile`` argument
+    * completion : based on a directory ``pylauncher_tmp`` with jobid environment variables attached
+
+    :param commandfile: name of file with commandlines (required)
+    :param cores: number of cores (keyword, optional, default=4, see ``FileCommandlineGenerator`` for more explanation)
+    :param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory
+    :param debug: debug types string (optional, keyword)
+    """
+    jobid = JobId()
+    debug = kwargs.pop("debug","")
+    workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
+    cores = kwargs.pop("cores",1)
+    job = LauncherJob(
+        hostpool=HostPool( hostlist=HostListByName(debug=debug),
+            commandexecutor=SSHExecutor(workdir=workdir,debug=debug), 
+            self.numactl="gpu", debug=debug ),
         taskgenerator=TaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
             completion=lambda x:FileCompletion(taskid=x,
