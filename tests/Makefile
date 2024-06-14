@@ -18,12 +18,14 @@ SSH =
 RUN = python3
 NODES = 3
 CORESPERNODE = 16
+MINUTES = 20
 QUEUE = development
 info ::
-	@echo 
-	@echo "make submit"
+	@echo "================ script submission"
+	@echo "make script submit"
 	@echo "    [EXECUTABLE=... (default: ${EXECUTABLE})]"
-	@echo "    [NODES=... (default: ${NODES})] [CORESPERNODE=... (default: ${CORESPERNODE})]"
+	@echo "    [NODES=... (default: ${NODES})]"
+	@echo "    [CORESPERNODE=... (default: ${CORESPERNODE})]"
 	@echo "    [QUEUE=... (default: ${QUEUE})]"
 	@echo "  this submits a jobscript (see jobscr.hostname) to the queue"
 	@echo "  available programs:"
@@ -35,22 +37,13 @@ NAME =
 script :
 	@export HOSTNAME=`hostname -f | awk -F "." '{print $$2}'` \
 	 && echo "generating script for ${EXECUTABLE} on $$HOSTNAME" \
-	 && eval export CORES=$$[ ${CORESPERNODE}*${NODES} ] \
-	 && eval export MINUTES=$$[ 2* ${COVERAGE} * ${TIME} / 60 ] \
-	 && if [ "${TACC_SYSTEM}" = "stampede3" ] ; then \
-	      QUEUE=skx-dev ; else QUEUE=development ; fi \
-	 && if [ ! -z "${SLURM_NNODES}" ] ; then \
-	        echo "We are on a compute node: I am making a shell script" \
-	         && template="shellscript_template" && generated="shellscript_generated" \
-	    ; else \
-	        echo "We are on the login node: I am making a batch script" \
-	         && template="jobscript_template" && generated="jobscript_generated" \
-	    ; fi \
+	 && template="jobscript_template" && generated="jobscript_generated" \
 	 && cat $${template} | sed -e "s/SSH/${SSH}/" -e "s/RUN/${RUN}/" \
 	        -e "s/EXECUTABLE/${EXECUTABLE}/" -e "s/NODES/${NODES}/" \
 	        -e "s/NAME/${NAME}/" \
-	        -e "s/CORES/$$CORES/" -e "s/QUEUE/$$QUEUE/" \
-	        -e "s/MINUTES/$$MINUTES/" \
+	        -e "s/CORESPERNODE/${CORESPERNODE}/" -e "s/QUEUE/${QUEUE}/" \
+	        -e "s/MINUTES/${MINUTES}/" \
+	        -e "/####/d" \
 	        > $${generated}
 submit :
 	PYTHONPATH=../src/pylauncher:${PYTHONPATH} sbatch jobscript_generated
@@ -69,10 +62,13 @@ parallel randomaction :
 	&& wait=${WAIT} && wait=$${wait:=$${slurm}} \
 	&& echo "compile $@ with wait=$$wait" \
 	&& mpicc -o $@ $@.c -DWAIT=$${wait:=20}
-randomsleep :
+randomsleep : $$@.c
 	mpicc -g -O2 -o $@ $@.c 
+CUPROGRAMS = gpusleep
+gpusleep : $$@.cu
+	nvcc -g -O2 -o $@ $@.cu
 clean ::
-	@rm -f ${CPROGRAMS}
+	@rm -f ${CPROGRAMS} ${CUPROGRAMS}
 
 info ::
 	@echo 

@@ -3740,7 +3740,7 @@ def GPULauncher(commandfile,**kwargs):
     job = LauncherJob(
         hostpool=HostPool( hostlist=HostListByName(debug=debug),
             commandexecutor=SSHExecutor(workdir=workdir,debug=debug), 
-            self.numactl="gpu", debug=debug ),
+            numactl="gpu", debug=debug ),
         taskgenerator=TaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
             completion=lambda x:FileCompletion(taskid=x,
