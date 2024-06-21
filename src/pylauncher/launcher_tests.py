@@ -1663,3 +1663,10 @@ int main(int argc,char **argv) {
 #     runtime = time.time()-tstart; print(nsleep,runtime,flush=True)
 #     assert(runtime>2*nsleep)
 
+if __name__=="__main__":
+    testPEhostpools()
+    t = testPermanentSSHconnection()
+    t.setup(); t.testRemoteSSH()
+    pass
+
+## TestBreakRestart disabled
