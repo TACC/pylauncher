@@ -622,7 +622,7 @@ class Task():
             self.debug,prefix="Task")
         self.starttime = time.time()
         commandexecutor = self.pool.pool.commandexecutor
-        commandexecutor.execute(wrapped,pool=self.pool)
+        commandexecutor.execute(wrapped,pool=self.pool,id=self.taskid)
         self.has_started = True
         DebugTraceMsg("started %d" % self.taskid,self.debug,prefix="Task")
     def line_with_completion(self):
@@ -1590,6 +1590,29 @@ class SSHExecutor(Executor):
         self.session.send('\x03')
         self.session.close()
 
+class SubmitExecutor(Executor):
+    """Execute a commandline by wrapping it in a slurm script
+    """
+    def __init__(self,submitparams,**kwargs):
+        self.submitparams = submitparams
+        Executor.__init__(self,**kwargs)
+        DebugTraceMsg("Created Slurm Submit Executor",self.debug,prefix="exec")
+    def execute(self,command,**kwargs):
+        id = kwargs.pop("id","0")
+        scriptname = f"{self.workdir}/jobscript{id}"
+        with open(f"{scriptname}","w") as jobscript:
+            jobscript.write(
+f"""#!/bin/bash
+#SBATCH -o launcherjob.out
+#SBATCH -e launcherjob.out
+{command}
+""")
+        fullcommandline = f"sbatch {self.submitparams} {scriptname}"
+        DebugTraceMsg("subprocess execution of:\n<<%s>>" % fullcommandline,
+                      self.debug,prefix="exec")
+        p = subprocess.Popen(fullcommandline,shell=True,env=os.environ,
+                             stderr=subprocess.STDOUT)
+
 class MPIExecutor(Executor):
     """An Executor derive class for a generic mpirun
     
@@ -2106,7 +2129,47 @@ def RemoteLauncher(commandfile,hostlist,**kwargs):
     job = LauncherJob(
         hostpool=HostPool( 
             hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
-            commandexecutor=SSHExecutor(workdir=workdir,debug=debug), debug=debug ),
+            commandexecutor=SSHExecutor(workdir=workdir,debug=debug), 
+            workdir=workdir, debug=debug ),
+        taskgenerator=TaskGenerator( 
+            FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
+            completion=lambda x:FileCompletion(taskid=x,
+                                      stamproot="expire",stampdir=workdir),
+            debug=debug ),
+        debug=debug,**kwargs)
+    job.run()
+    print(job.final_report(),flush=True)
+
+def SubmitLauncher(commandfile,submitparams,**kwargs):
+    """A LauncherJob for a file of single or multi-thread commands, executed remotely.
+
+    The following values are specified for your convenience:
+
+    * commandexecutor : IbrunExecutor
+    * taskgenerator : based on the ``commandfile`` argument
+    * completion : based on a directory ``pylauncher_tmp`` with jobid environment variables attached
+
+    :param commandfile: name of file with commandlines (required)
+    :param nactive : maximum number of submissions to be active simultaneously
+    :param cores: number of cores (keyword, optional, default=4, see ``FileCommandlineGenerator`` for more explanation)
+    :param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory
+    :param debug: debug types string (optional, keyword)
+    """
+    jobid = "000"
+    debug = kwargs.pop("debug","")
+    nactive = kwargs.pop("nactive",1)
+    queue = kwargs.pop("queue","normal")
+    workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
+    ppn = kwargs.pop("ppn",4)
+    cores = kwargs.pop("cores",1)
+    job = LauncherJob(
+        hostpool=HostPool( 
+            hostlist=ListHostList([queue for a in range(nactive)],
+                                  ppn=ppn,debug=debug),
+            commandexecutor=SubmitExecutor(
+                submitparams,
+                workdir=workdir,debug=debug),
+            workdir=workdir, debug=debug ),
         taskgenerator=TaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
             completion=lambda x:FileCompletion(taskid=x,
@@ -2214,10 +2277,3 @@ def MICLauncher(commandfile,**kwargs):
 
 os.environ["PYLAUNCHER_ENABLED"] = "1"
 
-if __name__=="__main__":
-    testPEhostpools()
-    t = testPermanentSSHconnection()
-    t.setup(); t.testRemoteSSH()
-    pass
-
-## TestBreakRestart disabled
