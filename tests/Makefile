@@ -92,7 +92,7 @@ NCORES = ${SLURM_NPROCS}
 TIME = 20
 TMIN = 0
 COVERAGE = 4
-COMMAND = sleep
+COMMAND = ./randomsleep
 .PHONY : commandlines
 commandlines :
 	@if [ -z "${NCORES}" ] ; then echo "Please set NCORES variable" && exit 1 ; fi

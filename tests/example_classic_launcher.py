@@ -12,15 +12,14 @@
 ################################################################
 
 import os
-import pylauncher as launcher
+import pylauncher
 
 ##
 ## Emulate the classic launcher, using a one liner
 ##
 
-launcher.ClassicLauncher\
+pylauncher.ClassicLauncher\
     ("commandlines",
      # optional spec of output dir:
      # workdir=f"pylauncher_out{os.environ['SLURM_JOBID']}",
-     debug="ssh+host+exec+job")
-
+     debug="ssh+host+exec+task+job")

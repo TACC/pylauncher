@@ -511,23 +511,22 @@ class Completion():
 
     The base class doesn't do a lot: it immediately returns true on the 
     completion test.
+    
+    The kwargs arguments will probably be caught by derived classes.
     """
-    workdir = "."
-    def __init__(self,taskid=0):
-        self.taskid = taskid
-        self.stampdir = "."
-    def set_workdir(self,workdir):
-        self.workdir = workdir
-        if self.workdir[0]!="/":
-            self.workdir = os.getcwd()+"/"+self.workdir
-        # create stampdir. maybe this should be in the attach method?
-        if not os.path.isdir(self.workdir):
-            os.makedirs(self.workdir)
+    def __init__(self,**kwargs):
+        self.taskid = kwargs.pop("taskid",0)
+        self.workdir = kwargs.pop("workdir",".")
+        debugs = kwargs.pop("debug","")
+        self.debug = re.search("task",debugs)
     def attach(self,txt):
-        """Attach a completion to a command, giving a new command"""
+        """Attach a completion to a command, giving a new command.
+        Default is to return the line unaltered."""
         return txt
     def test(self):
         """Test whether the task has completed"""
+        DebugTraceMsg("default completion test is true",
+                      self.debug,prefix="Task")
         return True
 
 class FileCompletion(Completion):
@@ -536,34 +535,29 @@ class FileCompletion(Completion):
     The completion test then tests for the existence of that file.
 
     :param taskid: (keyword, required) this has to be unique. Unfortunately we can not test for that.
-    :param stampdir: (keyword, optional, default is self.stampdir, which is ".") directory where the stampfile is left
-    :param stamproot: (keyword, optional, default is "expire") root of the stampfile name
     """
-    stamproot = "expire"
-    stampdir = "."
     def __init__(self,**kwargs):
-        taskid = kwargs.pop("taskid",-1)
-        if taskid==-1:
-            raise LauncherException("Need an explicit task ID")
-        Completion.__init__(self,taskid)
-        self.set_workdir( kwargs.pop("stampdir",self.stampdir) )
-        self.stamproot = kwargs.pop("stamproot",self.stamproot)
-        if len(kwargs)>0:
-            raise LauncherException("Unprocessed FileCompletion args: %s" % str(kwargs))
+        Completion.__init__(self,**kwargs)
     def stampname(self):
         """Internal function that gives the name of the stamp file,
         including directory path"""
-        return "%s/%s%s" % (self.workdir,self.stamproot,str(self.taskid))
+        return "%s/%s%s" % (self.workdir,"expire",str(self.taskid))
     def attach(self,txt):
         """Append a 'touch' command to the txt argument"""
         os.system("mkdir -p %s" % self.workdir)
         if re.match('^[ \t]*$',txt):
-            return "touch %s" % self.stampname()
+            command_with_stamp = f"touch {self.stampname()}"
         else:
-            return "%s ; touch %s" % (txt,self.stampname())
+            command_with_stamp = f"( {txt} ) ; touch {self.stampname()}"
+        return command_with_stamp
     def test(self):
         """Test for the existence of the stamp file"""
-        return os.path.isfile(self.stampname())
+        stampfile = self.stampname()
+        stamptest = os.path.isfile(stampfile)
+        if stamptest:
+            DebugTraceMsg(f"Test for stamp file <<{stampfile}>> succeeded",
+                          self.debug,prefix="Task")
+        return stamptest
     def cleanup(self):
         os.system("rm -f %s" % self.stampname())
 
@@ -571,24 +565,24 @@ class Task():
     """A Task is an abstract object associated with a commandline
 
     :param command: (required) Commandline object; note that this contains the core count
-    :param completion: (keyword, optional) Completion object; if unspecified the trivial completion is used.
+    :param completionclass: (keyword, required) Completion class name
     :param taskid: (keyword) identifying number of this task; has to be unique in a job, also has to be equal to the taskid of the completion
+    :param linewrapper: (keyword, required)
     :param debug: (keyword, optional) string of debug keywords
     """
     def __init__(self,command,**kwargs):
         self.command = command["command"]
-        # make a default completion if needed
-        self.completion = kwargs.pop("completion",None)
-        self.taskid = kwargs.pop("taskid",0)
-        if self.completion is None:
-            self.completion = Completion(taskid=self.taskid)
-        if self.taskid!=self.completion.taskid:
-            raise LauncherException("Incompatible taskids")
+
+        debugs = kwargs.get("debug","")
+        self.debug = re.search("task",debugs)
+        self.workdir = kwargs.pop("workdir",None)
+
+        # instantiate a completion for this id.
+        self.taskid = kwargs.pop("taskid")
+        self.completion = kwargs.pop("completionclass")\
+                          (taskid=self.taskid,workdir=self.workdir)
+
         self.size = command["cores"]
-        self.debugs = kwargs.pop("debug","")
-        self.debug = re.search("task",self.debugs)
-        if len(kwargs)>0:
-            raise LauncherException("Unprocessed args: %s" % str(kwargs))
         self.has_started = False
         DebugTraceMsg("created task <<%s>>" % str(self),self.debug,prefix="Task")
         self.nodes = None
@@ -601,8 +595,8 @@ class Task():
         This sets ``self.startime`` to right before the execution begins. We do not keep track
         of the endtime, but instead set ``self.runningtime`` in the ``hasCompleted`` routine.
         """
-        self.pool = kwargs.pop("pool",None)
         self.starttick = kwargs.pop("starttick",0)
+        self.pool = kwargs.pop("pool",None)
         if self.pool is None:
             self.pool = LocalHostPool(nhosts=self.size,debug=self.debugs
                                       ).request_nodes(self.size)
@@ -616,22 +610,30 @@ class Task():
             raise LauncherException("Unprocessed Task.start_on_nodes args: %s" % str(kwargs))
         # wrap with stamp detector
         wrapped = self.line_with_completion()
+        # line = re.sub("PYL_ID",str(self.taskid),self.command)
+        # self.actual_command = line
+        # wrapped = self.completion.attach(line)
+
+        # and here we go
+        self.execute_on_pool(wrapped)
+    def execute_on_pool(self,line):
         DebugTraceMsg(
-            "starting task %d of size %d on <<%s>>\nin cwd=<<%s>>\ncmd=<<%s>>" % \
-                (self.taskid,self.size,str(self.pool),os.getcwd(),wrapped),
+            "starting task id=%d of size %d on <<%s>>\nin cwd=<<%s>>\ncmd=<<%s>>" % \
+                (self.taskid,self.size,str(self.pool),
+                 os.getcwd(),line),
             self.debug,prefix="Task")
         self.starttime = time.time()
         commandexecutor = self.pool.pool.commandexecutor
-        commandexecutor.execute(wrapped,pool=self.pool,id=self.taskid)
+        commandexecutor.execute(line,pool=self.pool,id=self.taskid)
         self.has_started = True
         DebugTraceMsg("started %d" % self.taskid,self.debug,prefix="Task")
+    def isRunning(self):
+        return self.has_started
     def line_with_completion(self):
         """Return the task's commandline with completion attached"""
         line = re.sub("PYL_ID",str(self.taskid),self.command)
         self.actual_command = line
         return self.completion.attach(line)
-    def isRunning(self):
-        return self.has_started
     def hasCompleted(self):
         """Execute the completion test of this Task"""
         completed = self.has_started and self.completion.test()
@@ -641,9 +643,25 @@ class Task():
                           self.debug,prefix="Task")
         return completed
     def __repr__(self):
-        s = "Task %d, commandline: [%s], pool size %d" \
-            % (self.taskid,self.command,self.size)
+        s = f"Task id={self.taskid}, cmd=<<{self.command}>>, pool size={self.size}"
         return s
+
+class WrappedTask(Task):
+    def __init__(self,command,**kwargs):
+        id = kwargs.get("taskid")
+        debugs = kwargs.get("debug","")
+        debug = re.search("task",debugs)
+        DebugTraceMsg(f"creating wrapped task id={id}",debug,prefix="Task")
+        # the kwargs include taskid
+        Task.__init__(self,command,completionclass=FileCompletion,**kwargs)
+class BareTask(Task):
+    def __init__(self,command,**kwargs):
+        id = kwargs.get("taskid")
+        debugs = kwargs.get("debug","")
+        debug = re.search("task",debugs)
+        DebugTraceMsg(f"creating bare task id={id}",debug,prefix="Task")
+        # the kwargs include taskid
+        Task.__init__(self,command,completionclass=Completion,**kwargs)
 
 class RandomSleepTask(Task):
     """Make a task that sleeps for a random amount of time.
@@ -653,22 +671,15 @@ class RandomSleepTask(Task):
     :param t: maximum running time (keyword, optional; default=10)
     :param tmin: minimum running time (keyword, optional; default=1)
     :param completion: Completion object (keyword, optional; if you leave this unspecified, the next two parameters become relevant
-    :param stampdir: name of the directory where to leave the stamp file (optional, default=current dir)
-    :param stamproot: filename stemp for the stamp file (optional, default="sleepexpire")
     """
-    stampdir = "."
-    stamproot = "sleepexpire"
     def __init__(self,**kwargs):
         taskid = kwargs.pop("taskid",-1)
         if taskid==-1:
             raise LauncherException("Need an explicit sleep task ID")
         t = kwargs.pop("t",10); tmin = kwargs.pop("tmin",1);
-        stamproot = kwargs.pop("stamproot",RandomSleepTask.stamproot)
-        stampdir = kwargs.pop("stampdir",RandomSleepTask.stampdir)
         completion = kwargs.pop("completion",None)
         if completion is None:
-            completion = FileCompletion\
-                (taskid=taskid,stamproot=stamproot,stampdir=stampdir)
+            completion = FileCompletion(taskid=taskid,workdir=workdir)
         command = SleepCommandGenerator(nmax=1,tmax=t,tmin=tmin).next()
         Task.__init__(self,Commandline(command),taskid=taskid,completion=completion,**kwargs)
         
@@ -882,12 +893,10 @@ class HostPool(HostPoolBase):
     """
     def __init__(self,**kwargs):
         workdir = kwargs.pop("workdir",None)
-        if workdir is None:
-            executor = LocalExecutor()
-        else:
-            executor = LocalExecutor(workdir=workdir)
         HostPoolBase.__init__\
-            (self,commandexecutor=kwargs.pop("commandexecutor",executor),
+            (self,
+             commandexecutor=kwargs.pop\
+                 ("commandexecutor",LocalExecutor(workdir=workdir)),
              debug=kwargs.pop("debug",""))
         hostlist = kwargs.pop("hostlist",None)
         if hostlist is not None and not isinstance(hostlist,(HostList)):
@@ -1217,15 +1226,17 @@ class TaskQueue():
             if requested_gap>max_gap:
                 continue
             locator = hostpool.request_nodes(requested_gap)
-            if locator is None:
-                DebugTraceMsg("could not find nodes for <%s>" % str(t),
+            if locator is not None:
+                DebugTraceMsg\
+                    (f"starting task <{str(t)}> on locator <{str(locator)}>",
+                     self.debug,prefix="Queue")
+            else:
+                DebugTraceMsg(f"could not find nodes for <{str(t)}>",
                               self.debug,prefix="Queue")
                 max_gap = requested_gap-1
                 continue
             if self.submitdelay>0:
                 time.sleep(self.submitdelay)
-            DebugTraceMsg("starting task <%s> on locator <%s>" % (str(t),str(locator)),
-                          self.debug,prefix="Queue")
             t.start_on_nodes(pool=locator,starttick=starttick)
             hostpool.occupyNodes(locator,t.taskid)
             self.queue.remove(t)
@@ -1307,6 +1318,7 @@ class TaskGenerator():
     You can iterate over an instance, or call the ``next`` method. The ``next`` method
     can accept an imposed taskcount number.
 
+    :param taskclass: (required keyword) something that derives from Task
     :param commandlinegenerator: either a list of unix commands, or a CommandlineGenerator object
     :param completion: (optional) a function of one variable (the task id) that returns Completion objects
     :param debug: (optional) string of requested debug modes
@@ -1320,10 +1332,17 @@ class TaskGenerator():
             self.commandlinegenerator = commandlines
         else:
             raise LauncherException("Invalid commandline generator object")
+
+        self.taskclass = kwargs.pop("taskclass")
+        ## completion can probably go: the completion is set by the 
+        ## specific taskclass
+        self.workdir = kwargs.pop("workdir",None)
+        self.completion = kwargs.pop\
+            ("completion",lambda x:Completion(taskid=x,workdir=self.workdir))
+
         self.taskcount = 0; self.paused = False
         self.debugs = kwargs.pop("debug","")
         self.debug = re.search("task",self.debugs)
-        self.completion = kwargs.pop("completion",lambda x:Completion(taskid=x))
         self.skip = kwargs.pop("skip",[])
         if len(kwargs)>0:
             raise LauncherException("Unprocessed TaskGenerator args: %s" % str(kwargs))
@@ -1353,10 +1372,20 @@ class TaskGenerator():
             if taskid in self.skip:
                 return self.next(imposedcount=imposedcount)
             else:
-                return Task(comm,taskid=taskid,debug=self.debugs,
-                            completion=self.completion(taskid),
-                            )
+                DebugTraceMsg(f"task generator next: id={taskid}",
+                              self.debug,prefix="Task")
+                return self.taskclass\
+                    (comm,taskid=taskid,debug=self.debugs,
+                     workdir = self.workdir,
+                    )
     def __iter__(self): return self
+
+class WrappedTaskGenerator(TaskGenerator):
+    def __init__(self,commandlines,**kwargs):
+        TaskGenerator.__init__(self,commandlines,taskclass=WrappedTask,**kwargs)
+class BareTaskGenerator(TaskGenerator):
+    def __init__(self,commandlines,**kwargs):
+        TaskGenerator.__init__(self,commandlines,taskclass=BareTask,**kwargs)
 
 def TaskGeneratorIterate( gen ):
     """In case you want to iterate over a TaskGenerator, use this generator routine"""
@@ -1562,8 +1591,6 @@ class SSHExecutor(Executor):
             hostname = pool.firsthost()
         else:
             raise LauncherException("Invalid pool <<%s>>" % str(pool))
-        if len(kwargs)>0:
-            raise LauncherException("Unprocessed SSHExecutor args: %s" % str(kwargs))
         if self.numactl is None:
             exec_prefix = ""
         elif self.numactl=="core":
@@ -1596,20 +1623,23 @@ class SubmitExecutor(Executor):
     def __init__(self,submitparams,**kwargs):
         self.submitparams = submitparams
         Executor.__init__(self,**kwargs)
-        DebugTraceMsg("Created Slurm Submit Executor",self.debug,prefix="exec")
+        DebugTraceMsg("Created Slurm Submit Executor",self.debug,prefix="Exec")
     def execute(self,command,**kwargs):
         id = kwargs.pop("id","0")
+        completion_function = lambda x:FileCompletion(taskid=x,workdir=self.workdir)
+        completion = completion_function(id)
+        command_and_stamp = completion.attach(command)
         scriptname = f"{self.workdir}/jobscript{id}"
-        with open(f"{scriptname}","w") as jobscript:
+        with open( scriptname , "w" ) as jobscript:
             jobscript.write(
 f"""#!/bin/bash
 #SBATCH -o launcherjob.out
 #SBATCH -e launcherjob.out
-{command}
+{command_and_stamp}
 """)
         fullcommandline = f"sbatch {self.submitparams} {scriptname}"
         DebugTraceMsg("subprocess execution of:\n<<%s>>" % fullcommandline,
-                      self.debug,prefix="exec")
+                      self.debug,prefix="Exec")
         p = subprocess.Popen(fullcommandline,shell=True,env=os.environ,
                              stderr=subprocess.STDOUT)
 
@@ -1786,7 +1816,7 @@ class LauncherJob():
         DebugTraceMsg("enqueueing new task <%s>" % str(task),
                       self.debug,prefix="Job")
         self.queue.enqueue(task)
-    def tick(self):
+    def tick(self,monitor):
         """This routine does a single time step in a launcher's life, and reports back
         to the user. Specifically:
 
@@ -1797,6 +1827,9 @@ class LauncherJob():
         * if the generator is finished and all jobs have finished, the message is ``finished``
 
         After invoking the task generator, a short sleep is inserted (see the ``delay`` parameter)
+
+        :param monitor : monitor routine to be invoked.
+
         """
         DebugTraceMsg("\ntick %d\nQueue:\n%s" % (self.tock,str(self.queue)),self.debug)
         self.tock += 1
@@ -1808,7 +1841,7 @@ class LauncherJob():
         self.handle_completed()
         self.handle_aborted()
         message = self.handle_enqueueing()
-        #if message in ["stalling","continuing"]:
+        monitor() # this can be NullMonitor
         time.sleep(self.delay)
 
         if re.search("host",self.debugs):
@@ -1874,8 +1907,9 @@ class LauncherJob():
         return message
     def post_process(self,taskid):
         DebugTraceMsg("Task %s expired" % str(taskid),self.debug,prefix="Job")
-    def run(self):
+    def run(self,**kwargs):
         """Invoke the launcher job, and call ``tick`` until all jobs are finished."""
+        monitor = kwargs.pop("monitor",NullMonitor)
         if re.search("host",self.debugs):
             self.hostpool.printhosts()
         self.starttime = time.time()
@@ -1888,19 +1922,9 @@ class LauncherJob():
             if self.maxruntime>0:
                 if elapsed>self.maxruntime:
                     break
-            res = self.tick()
-            ##
-            ## update the restart file
-            ## first create recursive directories if needed
-            ##
-            qdir = re.sub( r'[^/]+$','',self.queuestate)
-            os.makedirs(qdir,exist_ok=True)
-            state_f = open(self.queuestate,"w")        
-            state_f.write( self.queue.savestate() )
-            state_f.close()
-            # process the result
-            # if re.match("expired",res):
-            #     self.post_process( res.split(" ",1)[1] )
+            res = self.tick(monitor)
+            # update restart file
+            queuestate_update(self.queuestate,self.queue.savestate())
             if res=="finished":
                 break
         self.runningtime = time.time()-self.starttime
@@ -1924,6 +1948,20 @@ total running time: %6.2f
 """ % ( self.runningtime, self.queue.final_report(self.runningtime),
         self.hostpool.final_report() )
         return message
+def queuestate_update( queuestate,savestate ):
+    ## update the restart file
+    ## first create recursive directories if needed
+    qdir = re.sub( r'[^/]+$','',queuestate)
+    os.makedirs(qdir,exist_ok=True)
+    state_f = open(queuestate,"w")        
+    state_f.write( savestate )
+    state_f.close()
+def NullMonitor():
+    pass
+def SlurmSqueueMonitor():
+    squeuecommandline = f"squeue -u {os.environ['USER']}"
+    p = subprocess.Popen(squeuecommandline,shell=True,env=os.environ,
+                         stderr=subprocess.STDOUT)
 
 
 def ClassicLauncher(commandfile,*args,**kwargs):
@@ -1962,11 +2000,9 @@ def ClassicLauncher(commandfile,*args,**kwargs):
                  corespernode=corespernode,debug=debug),
             commandexecutor=commandexecutor,workdir=workdir,
             debug=debug ),
-        taskgenerator=TaskGenerator( 
+        taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            completion=lambda x:FileCompletion( taskid=x,
-                                    stamproot="expire",stampdir=workdir),
-            debug=debug ),
+            workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
     print(job.final_report(),flush=True)
@@ -1998,11 +2034,11 @@ def LocalLauncher(commandfile,nhosts,*args,**kwargs):
         generator = FileCommandlineGenerator(commandfile,cores=cores,debug=debug)
     job = LauncherJob(
         hostpool=LocalHostPool( nhosts=nhosts ),
-        taskgenerator=TaskGenerator( 
+        taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            completion=lambda x:FileCompletion( taskid=x,
-                                    stamproot="expire",stampdir=workdir),
-            debug=debug ),
+            completion=lambda x:FileCompletion\
+                ( taskid=x,workdir=workdir),
+            workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
     print(job.final_report(),flush=True)
@@ -2034,11 +2070,11 @@ def MPILauncher(commandfile,**kwargs):
     job = LauncherJob(
         hostpool=HostPool( hostlist=HostListByName(),
             commandexecutor=MPIExecutor(workdir=workdir,debug=debug,hfswitch=hfswitch), debug=debug ),
-        taskgenerator=TaskGenerator( 
+        taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            completion=lambda x:FileCompletion(taskid=x,
-                                      stamproot="expire",stampdir=workdir),
-            debug=debug ),
+            completion=lambda x:FileCompletion\
+                (taskid=x,workdir=workdir),
+            workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
     print(job.final_report(),flush=True)
@@ -2065,11 +2101,11 @@ def IbrunLauncher(commandfile,**kwargs):
     job = LauncherJob(
         hostpool=HostPool( hostlist=HostListByName(debug=debug),
             commandexecutor=IbrunExecutor(workdir=workdir,debug=debug), debug=debug ),
-        taskgenerator=TaskGenerator( 
+        taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            completion=lambda x:FileCompletion(taskid=x,
-                                      stamproot="expire",stampdir=workdir),
-            debug=debug ),
+            completion=lambda x:FileCompletion\
+                (taskid=x,workdir=workdir),
+            workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
     print(job.final_report(),flush=True)
@@ -2097,11 +2133,10 @@ def GPULauncher(commandfile,**kwargs):
         hostpool=HostPool( hostlist=HostListByName(debug=debug),
             commandexecutor=SSHExecutor(workdir=workdir,debug=debug), 
             numactl="gpu", debug=debug ),
-        taskgenerator=TaskGenerator( 
+        taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            completion=lambda x:FileCompletion(taskid=x,
-                                      stamproot="expire",stampdir=workdir),
-            debug=debug ),
+            completion=lambda x:FileCompletion(taskid=x,workdir=workdir),
+            workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
     print(job.final_report(),flush=True)
@@ -2131,11 +2166,10 @@ def RemoteLauncher(commandfile,hostlist,**kwargs):
             hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
             commandexecutor=SSHExecutor(workdir=workdir,debug=debug), 
             workdir=workdir, debug=debug ),
-        taskgenerator=TaskGenerator( 
+        taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            completion=lambda x:FileCompletion(taskid=x,
-                                      stamproot="expire",stampdir=workdir),
-            debug=debug ),
+            completion=lambda x:FileCompletion(taskid=x,workdir=workdir),
+            workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
     print(job.final_report(),flush=True)
@@ -2145,7 +2179,7 @@ def SubmitLauncher(commandfile,submitparams,**kwargs):
 
     The following values are specified for your convenience:
 
-    * commandexecutor : IbrunExecutor
+    * commandexecutor : SubmitExecutor
     * taskgenerator : based on the ``commandfile`` argument
     * completion : based on a directory ``pylauncher_tmp`` with jobid environment variables attached
 
@@ -2160,23 +2194,22 @@ def SubmitLauncher(commandfile,submitparams,**kwargs):
     nactive = kwargs.pop("nactive",1)
     queue = kwargs.pop("queue","normal")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
-    ppn = kwargs.pop("ppn",4)
     cores = kwargs.pop("cores",1)
+    if debug:
+        monitor = SlurmSqueueMonitor
+    else: monitor = NullMonitor
     job = LauncherJob(
         hostpool=HostPool( 
-            hostlist=ListHostList([queue for a in range(nactive)],
-                                  ppn=ppn,debug=debug),
+            hostlist=ListHostList(
+                [queue for a in range(nactive)], debug=debug),
             commandexecutor=SubmitExecutor(
-                submitparams,
-                workdir=workdir,debug=debug),
+                submitparams, workdir=workdir, debug=debug),
             workdir=workdir, debug=debug ),
-        taskgenerator=TaskGenerator( 
+        taskgenerator=BareTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            completion=lambda x:FileCompletion(taskid=x,
-                                      stamproot="expire",stampdir=workdir),
-            debug=debug ),
+            workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
-    job.run()
+    job.run(monitor=monitor)
     print(job.final_report(),flush=True)
 
 def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
@@ -2203,11 +2236,10 @@ def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
         hostpool=HostPool( 
             hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
             commandexecutor=SSHExecutor(workdir=workdir,debug=debug), debug=debug ),
-        taskgenerator=TaskGenerator( 
+        taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            completion=lambda x:FileCompletion(taskid=x,
-                                      stamproot="expire",stampdir=workdir),
-            debug=debug ),
+            completion=lambda x:FileCompletion(taskid=x,workdir=workdir),
+            workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
     print(job.final_report(),flush=True)
@@ -2238,11 +2270,10 @@ class DynamicLauncher(LauncherJob):
         cores = kwargs.pop("cores",1)
         LauncherJob.__init__(self,
             hostpool=hostpool,
-            taskgenerator=TaskGenerator( 
+            taskgenerator=WrappedTaskGenerator( 
                 DynamicCommandlineGenerator(commandfile,cores=cores,debug=debug),
-                completion=lambda x:FileCompletion( taskid=x,
-                                        stamproot="expire",stampdir=workdir),
-                debug=debug ),
+                completion=lambda x:FileCompletion( taskid=x,workdir=workdir),
+                workdir=workdir, debug=debug ),
             debug=debug,**kwargs)
     def append(self,commandline):
         """Append a Unix commandline to the generator"""
@@ -2266,11 +2297,10 @@ def MICLauncher(commandfile,**kwargs):
             commandexecutor=LocalExecutor(
                 prefix="/bin/sh ",workdir=workdir,debug=debug), 
                            debug=debug ),
-        taskgenerator=TaskGenerator( 
+        taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            completion=lambda x:FileCompletion( taskid=x,
-                                    stamproot="expire",stampdir=workdir),
-            debug=debug ),
+            completion=lambda x:FileCompletion( taskid=x,workdir=workdir),
+            workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
     print(job.final_report(),flush=True)
