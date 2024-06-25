@@ -529,8 +529,8 @@ class Completion():
                       self.debug,prefix="Task")
         return True
 
-class FileCompletion(Completion):
-    """FileCompletion is the most common type of completion. It appends
+class WrapCompletion(Completion):
+    """WrapCompletion is the most common type of completion. It appends
     to a command the creation of a zero size file with a unique name.
     The completion test then tests for the existence of that file.
 
@@ -555,7 +555,33 @@ class FileCompletion(Completion):
         stampfile = self.stampname()
         stamptest = os.path.isfile(stampfile)
         if stamptest:
-            DebugTraceMsg(f"Test for stamp file <<{stampfile}>> succeeded",
+            print(f"stamp file <<{stampfile}>> detected")
+            DebugTraceMsg(f"stamp file <<{stampfile}>> detected",
+                          self.debug,prefix="Task")
+        return stamptest
+    def cleanup(self):
+        os.system("rm -f %s" % self.stampname())
+
+class BareCompletion(Completion):
+    """BareCompletion does not wrap, so it uses the default attach method,
+    but tests on the stamp file anyway.
+    Presumably it gets created another way.
+
+    :param taskid: (keyword, required) this has to be unique. Unfortunately we can not test for that.
+    """
+    def __init__(self,**kwargs):
+        Completion.__init__(self,**kwargs)
+    def stampname(self):
+        """Internal function that gives the name of the stamp file,
+        including directory path"""
+        return "%s/%s%s" % (self.workdir,"expire",str(self.taskid))
+    def test(self):
+        """Test for the existence of the stamp file"""
+        stampfile = self.stampname()
+        stamptest = os.path.isfile(stampfile)
+        if stamptest:
+            print(f"stamp file <<{stampfile}>> detected")
+            DebugTraceMsg(f"stamp file <<{stampfile}>> detected",
                           self.debug,prefix="Task")
         return stamptest
     def cleanup(self):
@@ -638,6 +664,7 @@ class Task():
         """Execute the completion test of this Task"""
         completed = self.has_started and self.completion.test()
         if completed:
+            ## print(f"completion: {self.completion}")
             self.runningtime = time.time()-self.starttime
             DebugTraceMsg("completed %d in %5.3f" % (self.taskid,self.runningtime),
                           self.debug,prefix="Task")
@@ -653,7 +680,7 @@ class WrappedTask(Task):
         debug = re.search("task",debugs)
         DebugTraceMsg(f"creating wrapped task id={id}",debug,prefix="Task")
         # the kwargs include taskid
-        Task.__init__(self,command,completionclass=FileCompletion,**kwargs)
+        Task.__init__(self,command,completionclass=WrapCompletion,**kwargs)
 class BareTask(Task):
     def __init__(self,command,**kwargs):
         id = kwargs.get("taskid")
@@ -661,7 +688,7 @@ class BareTask(Task):
         debug = re.search("task",debugs)
         DebugTraceMsg(f"creating bare task id={id}",debug,prefix="Task")
         # the kwargs include taskid
-        Task.__init__(self,command,completionclass=Completion,**kwargs)
+        Task.__init__(self,command,completionclass=BareCompletion,**kwargs)
 
 class RandomSleepTask(Task):
     """Make a task that sleeps for a random amount of time.
@@ -1619,6 +1646,8 @@ class SSHExecutor(Executor):
 
 class SubmitExecutor(Executor):
     """Execute a commandline by wrapping it in a slurm script
+    Not elegant: we have to specify BareCompletion both here
+    and in the task generator.
     """
     def __init__(self,submitparams,**kwargs):
         self.submitparams = submitparams
@@ -1626,7 +1655,7 @@ class SubmitExecutor(Executor):
         DebugTraceMsg("Created Slurm Submit Executor",self.debug,prefix="Exec")
     def execute(self,command,**kwargs):
         id = kwargs.pop("id","0")
-        completion_function = lambda x:FileCompletion(taskid=x,workdir=self.workdir)
+        completion_function = lambda x:WrapCompletion(taskid=x,workdir=self.workdir)
         completion = completion_function(id)
         command_and_stamp = completion.attach(command)
         scriptname = f"{self.workdir}/jobscript{id}"
