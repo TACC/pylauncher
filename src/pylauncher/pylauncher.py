@@ -11,7 +11,7 @@
 ################################################################
 
 docstring = \
-"""pylauncher.py version 4.1
+"""pylauncher.py version 4.3
 
 A python based launcher utility for packaging sequential or
 low parallel jobs in one big parallel job
@@ -23,6 +23,8 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+4.3
+- slurm submit launcher
 4.2
 - queuestate through explicit option
 4.1
@@ -1513,7 +1515,7 @@ class Executor():
         if os.path.isfile(execfilename):
             raise LauncherException("exec file already exists <<%s>>" % execfilename)
         f = open(execfilename,"w")
-        f.write("#!/bin/bash\nhostname\n"+command+"\n")
+        f.write("#!/bin/bash\n"+command+"\n")
         f.close()
         os.chmod(execfilename,stat.S_IXUSR++stat.S_IXGRP+stat.S_IXOTH+\
                      stat.S_IWUSR++stat.S_IWGRP+stat.S_IWOTH+\

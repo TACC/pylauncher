@@ -3,5 +3,5 @@ info ::
 
 .PHONY: clean
 clean ::
-	/bin/rm -rf *~ *.pyc pylauncher_tmp* pylaunchertest.o* \
+	@/bin/rm -rf *~ *.pyc pylauncher_tmp* pylaunchertest.o* \
 	  queuestate
