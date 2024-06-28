@@ -2162,8 +2162,9 @@ def GPULauncher(commandfile,**kwargs):
     cores = kwargs.pop("cores",1)
     job = LauncherJob(
         hostpool=HostPool( hostlist=HostListByName(debug=debug),
-            commandexecutor=SSHExecutor(workdir=workdir,debug=debug), 
-            numactl="gpu", debug=debug ),
+            commandexecutor=SSHExecutor\
+                (numactl="gpu", workdir=workdir ,debug=debug),             
+            workdir=workdir, debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
             completion=lambda x:FileCompletion(taskid=x,workdir=workdir),

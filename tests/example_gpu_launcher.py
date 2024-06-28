@@ -12,13 +12,13 @@
 ################################################################
 
 import os
-import pylauncher as launcher
+import pylauncher
 
 ##
 ## Emulate the classic launcher, using a one liner
 ##
 
-launcher.GPULauncher\
+pylauncher.GPULauncher\
     ("gpucommandlines",
      # optional spec of output dir:
      # workdir=f"pylauncher_out{os.environ['SLURM_JOBID']}",

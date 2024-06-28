@@ -67,7 +67,7 @@ randomsleep : $$@.c
 CUPROGRAMS = gpusleep
 gpusleep : $$@.cu
 	nvcc -g -O2 -o $@ $@.cu
-clean ::
+totalclean ::
 	@rm -f ${CPROGRAMS} ${CUPROGRAMS}
 
 info ::
@@ -110,7 +110,7 @@ randomcommandlines :
 	@make --no-print-directory commandlines \
 	    COVERAGE=${COVERAGE} NCORES=${NCORES} \
 	    COMMAND="mkdir -p random/PYL_ID && cd random/PYL_ID && ../../randomaction PYL_ID > random.out"
-clean ::
+totalclean ::
 	@echo "clean random"
 	@rm -rf random
 
@@ -135,14 +135,16 @@ clean ::
 
 info ::
 	@echo 
-	@echo "make clean"
-
+	@echo "make clean totalclean"
+.PHONY: clean totalclean
 clean ::
 	@echo "clean simple files"
 	@/bin/rm -f *.pyc *~ *.o *.log \
 	      expire* sleepexpire* tmpdir* tasktest* dirtest queuestate* pytmp* \
 	      jobscript_generated
 	@echo "clean job output"
-	@/bin/rm -rf pylauncher*.{e,o}[0-9]* pylauncher_out*
+	@/bin/rm -rf pylauncher*.{e,o}[0-9]* pylauncher_out* None
 	@echo "clean test output"
 	@/bin/rm -rf pylaunchertest*
+totalclean :: clean
+

@@ -1,3 +1,4 @@
+// -*- c++ -*-
 /****************************************************************
  *
  * This example program is part of the pylauncher distribution
@@ -57,11 +58,12 @@ int main(int argc,char **argv) {
     nseconds = tmin + rand() % (tmax-tmin);
 
   printf("I am going to sleep for %d seconds\n",nseconds);
-  sleep(nseconds);
 //  helloWorldKernel();
   helloWorldKernel<<<1, 1>>>();
   // Wait for the GPU to finish executing the kernel
   cudaDeviceSynchronize();
+  sleep(nseconds);
+  printf(" .. done kernel and back\n");
 
   return 0;
 }
