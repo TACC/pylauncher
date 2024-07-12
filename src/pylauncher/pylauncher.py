@@ -24,7 +24,7 @@ chris.blanton@gatech.edu
 otoelog = """
 Change log
 4.3
-- slurm submit launcher
+- slurm submit launcher, jobid detection fixed
 4.2
 - queuestate through explicit option
 4.1
@@ -1115,11 +1115,12 @@ def JobId():
      ``HostName``): this should only return a number if we are actually in a job.
     """
     hostname = ClusterName()
-    if hostname=="ls4":
-        return os.environ["JOB_ID"]
-    elif hostname in ["ls5","ls6","maverick","stampede",] \
-            or re.match('stampede2',hostname) or re.match('stampede3',hostname):
+    if "SLURM_JOB_ID" in os.environ.keys():
+        # case SLURM
         return os.environ["SLURM_JOB_ID"]
+    elif "PBS_JOBID" in os.environ.keys():
+        # case PBS
+        return os.environ["PBS_JOBID"]
     elif hostname in ["pace"]:
         return os.environ["PBS_JOBID"]
     else:
