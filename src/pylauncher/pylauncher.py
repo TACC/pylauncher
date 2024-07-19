@@ -344,7 +344,7 @@ class FileCommandlineGenerator(CommandlineGenerator):
                 if re.match("barrier",line):
                     l = pylauncherBarrierString; c = 1
                 else:
-                    split = line.split(",",1)
+                    split = line.split("[0-9]+,",1)
                     if len(split)==1:
                         c = cores; l = split[0]
                     else:
