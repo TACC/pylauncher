@@ -10,8 +10,9 @@
 ####
 ################################################################
 
+pylauncher_version = "4.4"
 docstring = \
-"""pylauncher.py version 4.3
+f"""pylauncher.py version {pylauncher_version}
 
 A python based launcher utility for packaging sequential or
 low parallel jobs in one big parallel job
@@ -332,30 +333,35 @@ class FileCommandlineGenerator(CommandlineGenerator):
         file = open(filename); commandlist = []
         count = 0
         for line in file.readlines():
+            ## Parse the line from file.
             line = line.strip()
             if re.match('^ *#',line) or re.match('^ *$',line):
                 continue # skip blank and comment
+            ## Default dependencies
+            ## I don't even know what this means.
+            td = str(count)
+            ## Parse dependency
             if dependencies:
                 split = line.split(",",2)
                 if len(split)<3:
                     raise LauncherException("No task#/dependency found <<%s>>" % split)
                 c,td,l = split
-            else:
-                if re.match("barrier",line):
-                    l = pylauncherBarrierString; c = 1
+            elif re.match("barrier",line):
+                l = pylauncherBarrierString; c = 1
+            elif cores=="file":
+                ## each line has a core count
+                if re.match("[0-9]+,",line):
+                    split = line.split(",",1)
+                    c,l = split
                 else:
-                    split = line.split("[0-9]+,",1)
-                    if len(split)==1:
-                        c = cores; l = split[0]
-                    else:
-                        c,l = split
-                td = str(count)
-            if cores=="file":
-                if not re.match("[0-9]+",c):
                     raise LauncherException \
-                        ("First field <<%s>> is not a core count; line:\n<<%s>>" % (c,line) )
+                        (f"Can not parse line as having a core prefix: <<{line}>>")
             else:
+                ## default case: 
+                ## cores come from somewhere else
                 c = cores
+                ## line is line
+                l = line
             commandlist.append( Commandline(l,cores=c,dependencies=td) )
             count += 1
         CommandlineGenerator.__init__(self,list=commandlist,**kwargs)
@@ -1810,6 +1816,7 @@ class LauncherJob():
     :param maxruntime: (keyword, optional, default zero) if nonzero, maximum running time in seconds
     """
     def __init__(self,**kwargs):
+        print( f"Start launcherjob, launcher version: {pylauncher_version}" )
         self.debugs = kwargs.pop("debug","")
         self.debug = re.search("job",self.debugs)
         self.hostpool = kwargs.pop("hostpool",None)

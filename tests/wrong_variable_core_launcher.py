@@ -7,7 +7,10 @@
 #### Copyright Victor Eijkhout 2010-2024
 #### eijkhout@tacc.utexas.edu
 ####
-#### https://github.com/TACC/pylauncher
+#### This is example is wrong
+#### we have core commandlines, without indicating cores=file
+#### However, pylauncher can not detect that the corelines 
+#### are not valid commands.
 ####
 ################################################################
 
@@ -18,7 +21,6 @@ import pylauncher
 ##
 
 pylauncher.ClassicLauncher("corecommandlines",
-                           debug="job+task+host+exec+command",
-                           cores="file",
+                           debug="job+command",
                            )
 
