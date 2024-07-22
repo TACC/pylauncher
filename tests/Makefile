@@ -50,7 +50,7 @@ submit :
 
 example_shifted_ibrun_dependencies = parallel
 
-CPROGRAMS = parallel randomaction randomsleep
+CPROGRAMS = parallel randomaction randomsleep randomcomma
 info ::
 	@echo 
 	@echo "make PROGRAM"
@@ -62,7 +62,7 @@ parallel randomaction :
 	&& wait=${WAIT} && wait=$${wait:=$${slurm}} \
 	&& echo "compile $@ with wait=$$wait" \
 	&& mpicc -o $@ $@.c -DWAIT=$${wait:=20}
-randomsleep : $$@.c
+randomsleep randomcomma : $$@.c
 	mpicc -g -O2 -o $@ $@.c 
 CUPROGRAMS = gpusleep
 gpusleep : $$@.cu
