@@ -24,6 +24,8 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+4.4
+- bug fix for parsing a line with a core count
 4.3
 - slurm submit launcher, jobid detection fixed
 4.2
