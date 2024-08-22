@@ -10,7 +10,7 @@
 ####
 ################################################################
 
-pylauncher_version = "4.4"
+pylauncher_version = "4.5 UNRELEASED"
 docstring = \
 f"""pylauncher.py version {pylauncher_version}
 
@@ -24,6 +24,8 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+4.5
+- cores=node option
 4.4
 - bug fix for parsing a line with a core count
 4.3
@@ -350,6 +352,9 @@ class FileCommandlineGenerator(CommandlineGenerator):
                 c,td,l = split
             elif re.match("barrier",line):
                 l = pylauncherBarrierString; c = 1
+            elif cores=="node":
+                c = SLURMCoresPerNode()
+                l = line
             elif cores=="file":
                 ## each line has a core count
                 if re.match("[0-9]+,",line):
@@ -847,7 +852,7 @@ class HostPoolBase():
         return sorted(u)
     def request_nodes(self,request):
         """Request a number of nodes; this returns a HostLocator object"""
-        DebugTraceMsg("request %d nodes" % request,self.debug,prefix="Host")
+        DebugTraceMsg("request %d hosts" % request,self.debug,prefix="Host")
         start = 0; found = False    
         while not found:
             if start+request>len(self.nodes):
@@ -1017,6 +1022,11 @@ class SGEHostList(HostList):
                 for i in range(int(n)):
                     self.append(host,i)
 
+def SLURMCoresPerNode():
+    cores_per_node = os.environ["SLURM_TASKS_PER_NODE"]
+    cores_per_node = re.search(r'([0-9]+)',cores_per_node).groups()[0]
+    return int(cores_per_node)
+
 class SLURMHostList(HostList):
     def __init__(self,**kwargs):
         HostList.__init__(self,**kwargs)
@@ -1026,10 +1036,7 @@ class SLURMHostList(HostList):
         jobs_per_node = int(N/p) # requested cores per node
         try :
             # SLURM_JOB_CPUS_PER_NODE=56(x2)
-            cores_per_node = os.environ["SLURM_TASKS_PER_NODE"]
-            cores_per_node = re.search(r'([0-9]+)',cores_per_node).groups()[0]
-            cores_per_node = int(cores_per_node)
-            cores_per_node = kwargs.get("ncores",cores_per_node) # not elegant
+            cores_per_node = kwargs.get("ncores",SLURMCoresPerNode()) # not elegant
             print("Detecting %d cores per node" % cores_per_node,flush=True)
         except:
             print("Could not detect physical cores per node, setting to 1",flush=True)
@@ -1769,6 +1776,7 @@ class IbrunExecutor(Executor):
     def terminate(self):
         if self.popen_object is not None:
             self.popen_object.terminate()
+    ## no setup_on_node or release_from_node needed
 
 class MpiexecExecutor(Executor):
     """An Executor derived class using ordinary mpiexec.
@@ -1972,13 +1980,15 @@ class LauncherJob():
         self.finish()
     def finish(self):
         self.hostpool.release()
-    def final_report(self):
+    def final_report(self,type=None):
         """Return a string describing the total running time, as well as
         including the final report from the embedded ``HostPool`` and ``TaskQueue``
         objects."""
+        jobtype=""
+        if type : jobtype=f"jobtype: {type}"
         message = """
 ==========================
-Launcherjob run completed.
+Launcherjob run completed.%s
 
 total running time: %6.2f
 
@@ -1986,7 +1996,7 @@ total running time: %6.2f
 
 %s
 ==========================
-""" % ( self.runningtime, self.queue.final_report(self.runningtime),
+""" % ( jobtype,self.runningtime, self.queue.final_report(self.runningtime),
         self.hostpool.final_report() )
         return message
 def queuestate_update( queuestate,savestate ):
@@ -2036,9 +2046,9 @@ def ClassicLauncher(commandfile,*args,**kwargs):
     commandexecutor = SSHExecutor(workdir=workdir,numactl=numactl,debug=debug)
     job = LauncherJob(
         hostpool=HostPool(
-            hostlist=HostListByName\
-                (commandexecutor=commandexecutor,workdir=workdir,
-                 corespernode=corespernode,debug=debug),
+            hostlist=HostListByName(debug=debug),
+                # (commandexecutor=commandexecutor,workdir=workdir,
+                #  corespernode=corespernode,debug=debug),
             commandexecutor=commandexecutor,workdir=workdir,
             debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
@@ -2046,7 +2056,7 @@ def ClassicLauncher(commandfile,*args,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report(),flush=True)
+    print(job.final_report(type="ClassicLauncher"),flush=True)
 
 def LocalLauncher(commandfile,nhosts,*args,**kwargs):
     """A LauncherJob for a file of single or multi-threaded commands, running locally
@@ -2082,7 +2092,7 @@ def LocalLauncher(commandfile,nhosts,*args,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report(),flush=True)
+    print(job.final_report(type="LocalLauncher"),flush=True)
 
 def ResumeClassicLauncher(commandfile,**kwargs):
     ClassicLauncher(commandfile,resume=1,**kwargs)
@@ -2118,7 +2128,7 @@ def MPILauncher(commandfile,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report(),flush=True)
+    print(job.final_report(type="MPIlauncher"),flush=True)
 
 def IbrunLauncher(commandfile,**kwargs):
     """A LauncherJob for a file of small MPI jobs.
@@ -2139,9 +2149,17 @@ def IbrunLauncher(commandfile,**kwargs):
     debug = kwargs.pop("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     cores = kwargs.pop("cores",4)
+    numactl = kwargs.pop("numactl",None)
+    corespernode = kwargs.pop("corespernode",None)
+    resume = kwargs.pop("resume",None)
+    commandexecutor = IbrunExecutor(workdir=workdir,debug=debug),
     job = LauncherJob(
-        hostpool=HostPool( hostlist=HostListByName(debug=debug),
-            commandexecutor=IbrunExecutor(workdir=workdir,debug=debug), debug=debug ),
+        hostpool=HostPool( 
+            hostlist=HostListByName\
+                (commandexecutor=commandexecutor,workdir=workdir,
+                 corespernode=corespernode,debug=debug),
+            commandexecutor=commandexecutor,workdir=workdir,
+            debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
             completion=lambda x:FileCompletion\
@@ -2149,7 +2167,7 @@ def IbrunLauncher(commandfile,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report(),flush=True)
+    print(job.final_report(type="IbrunLauncher"),flush=True)
 
 def GPULauncher(commandfile,**kwargs):
     """A LauncherJob for a file of small MPI jobs.
@@ -2181,7 +2199,7 @@ def GPULauncher(commandfile,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report(),flush=True)
+    print(job.final_report(type="GPUlauncher"),flush=True)
 
 def RemoteLauncher(commandfile,hostlist,**kwargs):
     """A LauncherJob for a file of single or multi-thread commands, executed remotely.
@@ -2214,7 +2232,7 @@ def RemoteLauncher(commandfile,hostlist,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report(),flush=True)
+    print(job.final_report(type="RremoteLauncher"),flush=True)
 
 def SubmitLauncher(commandfile,submitparams,**kwargs):
     """A LauncherJob for a file of single or multi-thread commands, executed remotely.
@@ -2252,7 +2270,7 @@ def SubmitLauncher(commandfile,submitparams,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run(monitor=monitor)
-    print(job.final_report(),flush=True)
+    print(job.final_report(type="SubmitLauncher"),flush=True)
 
 def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
     """A LauncherJob for a file of small MPI jobs, executed remotely.
@@ -2284,7 +2302,7 @@ def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report(),flush=True)
+    print(job.final_report(type="RemoteIbrunLauncher"),flush=True)
 
 class DynamicLauncher(LauncherJob):
     """A LauncherJob derived class that is designed for dynamic adding of 
@@ -2345,7 +2363,6 @@ def MICLauncher(commandfile,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report(),flush=True)
+    print(job.final_report(type="MIClauncher"),flush=True)
 
 os.environ["PYLAUNCHER_ENABLED"] = "1"
-
