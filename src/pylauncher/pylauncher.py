@@ -2155,9 +2155,9 @@ def IbrunLauncher(commandfile,**kwargs):
     commandexecutor = IbrunExecutor(workdir=workdir,debug=debug),
     job = LauncherJob(
         hostpool=HostPool( 
-            hostlist=HostListByName\
-                (commandexecutor=commandexecutor,workdir=workdir,
-                 corespernode=corespernode,debug=debug),
+            hostlist=HostListByName(debug=debug),
+                # (commandexecutor=commandexecutor,workdir=workdir,
+                #  corespernode=corespernode,debug=debug),
             commandexecutor=commandexecutor,workdir=workdir,
             debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
