@@ -823,6 +823,10 @@ class HostPoolBase():
     def __init__(self,**kwargs):
         self.nodes = []
         self.commandexecutor = kwargs.pop("commandexecutor",None)
+        if not isinstance(self.commandexecutor,(Executor)):
+            raise LauncherException\
+                (f"""command executor is of strange type <<{type(self.commandexecutor)}>>:
+{self.commandexecutor}""")
         workdir = kwargs.pop("workdir",None)
         if self.commandexecutor is None:
             self.commandexecutor = LocalExecutor(workdir=workdir)
@@ -2161,12 +2165,10 @@ def IbrunLauncher(commandfile,**kwargs):
     numactl = kwargs.pop("numactl",None)
     corespernode = kwargs.pop("corespernode",None)
     resume = kwargs.pop("resume",None)
-    commandexecutor = IbrunExecutor(workdir=workdir,debug=debug),
+    commandexecutor = IbrunExecutor(workdir=workdir,debug=debug)
     job = LauncherJob(
         hostpool=HostPool( 
             hostlist=HostListByName(debug=debug),
-                # (commandexecutor=commandexecutor,workdir=workdir,
-                #  corespernode=corespernode,debug=debug),
             commandexecutor=commandexecutor,workdir=workdir,
             debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
