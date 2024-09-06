@@ -86,19 +86,28 @@ can be specified as kwarg to both Job and LauncherJob
 - Unique tmp directory
 """
 
+import sys
 import copy
 import glob
 import functools
 import math
 import os
-import paramiko
+try:
+    import paramiko
+except:
+    print("""
+Your python is missing the paramiko module.
+Please do: pip install paramiko
+on the commandline.
+This run will now quit.
+""")
+    sys.exit(0)
 import random
 import re
 import stat
 import shutil
 import stat
 import subprocess
-import sys
 import time
 import hostlist3 as hs
 
