@@ -44,7 +44,12 @@ script :
 	      EXECUTABLE=${EXECUTABLE} \
 	    ; fi \
 	 && if [ "$$( hostname )" = "staff.vista.tacc.utexas.edu" ] ; then \
-	      QUEUE=gg ; else QUEUE=${QUEUE} ; fi \
+	      QUEUE=gg \
+	    ; elif [ "$$( hostname )" = "staff.stampede3.tacc.utexas.edu" ] ; then \
+	      QUEUE=skx-dev \
+	    ; else \
+	      QUEUE=${QUEUE} \
+	    ; fi \
 	 && cat $${template} | sed -e "s/SSH/${SSH}/" -e "s/RUN/${RUN}/" \
 	        -e "s/EXECUTABLE/$${EXECUTABLE}/" -e "s/NODES/${NODES}/" \
 	        -e "s/NAME/${NAME}/" \
