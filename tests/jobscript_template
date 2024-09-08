@@ -10,7 +10,7 @@
 #SBATCH   -J pylaunchertestNAME
 #SBATCH   -o pylaunchertestNAME.o%j
 #SBATCH   -e pylaunchertestNAME.o%j
-#SBATCH   --ntasks-per-node CORESPERNODE
+#SBATCH   --ntasks-per-node 1
 #SBATCH   -N NODES
 #SBATCH   -t 0:40:00
 #SBATCH -A A-ccsc                  # replace by your own project
@@ -19,6 +19,8 @@ if [ -z "$TACC_PYTHON_DIR}" ] ; then
     echo "Please load python module outside job script"
     exit 1
 fi
+
+env | grep SLURM_
 
 ## for local testing:
 #export PYTHONPATH=..:${PYTHONPATH}

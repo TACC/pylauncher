@@ -25,7 +25,7 @@ chris.blanton@gatech.edu
 otoelog = """
 Change log
 4.5
-- cores=node option, ibrun launcher fix
+- cores=node option, ibrun launcher fix, core count handling fixed
 4.4
 - bug fix for parsing a line with a core count
 4.3
@@ -1035,29 +1035,37 @@ class SGEHostList(HostList):
                 for i in range(int(n)):
                     self.append(host,i)
 
-def SLURMCoresPerNode():
-    cores_per_node = os.environ["SLURM_TASKS_PER_NODE"]
-    cores_per_node = re.search(r'([0-9]+)',cores_per_node).groups()[0]
-    return int(cores_per_node)
+def SLURMNnodes():
+    return int(os.environ["SLURM_NNODES"])
+
+def SLURMCoresPerNode(**kwargs):
+    debugs = kwargs.pop("debug","")
+    debug = re.search("host",debugs)
+    try:
+        # SLURM_JOB_CPUS_PER_NODE=56(x2)
+        cores_per_node = os.environ["SLURM_CPUS_ON_NODE"]
+        DebugTraceMsg(f"Found cpus per node: <<{cores_per_node}>>" ,
+                      debug,prefix="Host")
+        cores_per_node = re.search(r'([0-9]+)',cores_per_node).groups()[0]
+        cores_per_node = int(cores_per_node)
+    except:
+        cores_per_node = int( os.environ["SLURM_NPROCS"] ) / SLURMNnodes()
+    DebugTraceMsg(f"Found cores per node: <<{cores_per_node}>>" ,
+                  debug,prefix="Host")
+    return cores_per_node
 
 class SLURMHostList(HostList):
     def __init__(self,**kwargs):
         HostList.__init__(self,**kwargs)
         hlist_str = os.environ["SLURM_NODELIST"]
-        p = int(os.environ["SLURM_NNODES"])
-        N = int(os.environ["SLURM_NPROCS"])
-        jobs_per_node = int(N/p) # requested cores per node
-        try :
-            # SLURM_JOB_CPUS_PER_NODE=56(x2)
-            cores_per_node = kwargs.get("ncores",SLURMCoresPerNode()) # not elegant
-            print("Detecting %d cores per node" % cores_per_node,flush=True)
-        except:
-            print("Could not detect physical cores per node, setting to 1",flush=True)
-            cores_per_node = 1
-        cpn_override = kwargs.get("corespernode",None)
-        if cpn_override:
+        p = SLURMNnodes()
+        cores_per_node = SLURMCoresPerNode(**kwargs)
+        print("Detecting %d cores per node" % cores_per_node,flush=True)
+        if cpn_override := kwargs.get("corespernode",None):
             cores_per_node = int( cpn_override )
             print( "Override of SLURM value: using %d cores per node" % cores_per_node ,flush=True)
+        N = p * cores_per_node
+        jobs_per_node = int(N/p) # requested cores per node
         cores_per_job = int( cores_per_node / jobs_per_node )
         hlist = hs.expand_hostlist(hlist_str)
         for h in hlist:
@@ -1500,7 +1508,7 @@ class Executor():
             self.workdir = workdir
             if self.workdir[0]!="/":
                 self.workdir = os.getcwd()+"/"+self.workdir
-            DebugTraceMsg("Using executor workdir <<%s>>" % self.workdir,
+            DebugTraceMsg(f"Using executor workdir <<{self.workdir}>>",
                           self.debug,prefix="Exec")
             if os.path.isdir(self.workdir):
                 print( f"Implementor warning: re-using workdir <<{self.workdir}>>" )
@@ -2060,8 +2068,6 @@ def ClassicLauncher(commandfile,*args,**kwargs):
     job = LauncherJob(
         hostpool=HostPool(
             hostlist=HostListByName(debug=debug),
-                # (commandexecutor=commandexecutor,workdir=workdir,
-                #  corespernode=corespernode,debug=debug),
             commandexecutor=commandexecutor,workdir=workdir,
             debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
@@ -2132,7 +2138,7 @@ def MPILauncher(commandfile,**kwargs):
     cores =  kwargs.pop("cores",4)
     hfswitch = kwargs.pop("hfswitch","-machinefile")
     job = LauncherJob(
-        hostpool=HostPool( hostlist=HostListByName(),
+        hostpool=HostPool( hostlist=HostListByName(debug=debug),
             commandexecutor=MPIExecutor(workdir=workdir,debug=debug,hfswitch=hfswitch), debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
