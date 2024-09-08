@@ -21,6 +21,7 @@ if [ -z "$TACC_PYTHON_DIR}" ] ; then
 fi
 
 env | grep SLURM_
+echo ${PYTHONPATH}
 
 ## for local testing:
 #export PYTHONPATH=..:${PYTHONPATH}

@@ -25,7 +25,7 @@ chris.blanton@gatech.edu
 otoelog = """
 Change log
 4.5
-- cores=node option, ibrun launcher fix, core count handling fixed
+- cores=node option, ibrun launcher fix, core count handling fixed, adding vista cluster
 4.4
 - bug fix for parsing a line with a core count
 4.3
@@ -278,11 +278,11 @@ class CommandlineGenerator():
                 raise LauncherException("Empty list requires nmax==0")
             self.nmax = len(self.list)
         else: self.nmax = nmax
-        debugs = kwargs.pop("debug","")
+        debugs = kwargs.get("debug","")
         self.debug = re.search("command",debugs)
-        if len(kwargs)>0:
-            raise LauncherException("Unprocessed CommandlineGenerator args: %s" \
-                                        % str(kwargs))
+        # if len(kwargs)>0:
+        #     raise LauncherException("Unprocessed CommandlineGenerator args: %s" \
+        #                                 % str(kwargs))
     def finish(self):
         """Tell the generator to stop after the commands list is depleted"""
         DebugTraceMsg("declaring the commandline generator to be finished",
@@ -503,13 +503,13 @@ def MakeRandomCommandFile(fn,ncommand,**kwargs):
     :param cores: (keyword, default=1) corecount, if this is 1 we put nothing in the file, larger values and \"file\" (for random) go into the file
     """
     cores = kwargs.pop("cores",1)
-    debug = kwargs.pop("debug",0)
+    debug = kwargs.get("debug",0)
     if debug==0:
         generator = kwargs.pop("generator",CountedCommandGenerator(nmax=ncommand,catch="/dev/null"))
     else:
         generator = kwargs.pop("generator",CountedCommandGenerator(nmax=ncommand))
-    if len(kwargs)>0:
-        raise LauncherException("Unprocessed args: %s" % str(kwargs))
+    # if len(kwargs)>0:
+    #     raise LauncherException("Unprocessed args: %s" % str(kwargs))
     commandlines = open(fn,"w")
     for i in range(ncommand):
         if i%5==0:
@@ -541,7 +541,7 @@ class Completion():
     def __init__(self,**kwargs):
         self.taskid = kwargs.pop("taskid",0)
         self.workdir = kwargs.pop("workdir",".")
-        debugs = kwargs.pop("debug","")
+        debugs = kwargs.get("debug","")
         self.debug = re.search("task",debugs)
     def attach(self,txt):
         """Attach a completion to a command, giving a new command.
@@ -656,8 +656,8 @@ class Task():
             self.pool = OneNodePool( self.pool,debug=self.debugs ).request_nodes(self.size)
         if not isinstance(self.pool,(HostLocator)):
             raise LauncherException("Invalid locator object")
-        if len(kwargs)>0:
-            raise LauncherException("Unprocessed Task.start_on_nodes args: %s" % str(kwargs))
+        # if len(kwargs)>0:
+        #     raise LauncherException("Unprocessed Task.start_on_nodes args: %s" % str(kwargs))
         # wrap with stamp detector
         wrapped = self.line_with_completion()
         # line = re.sub("PYL_ID",str(self.taskid),self.command)
@@ -832,10 +832,10 @@ class HostPoolBase():
             self.commandexecutor = LocalExecutor(workdir=workdir)
         elif workdir is not None:
             raise LauncherException("workdir arg is ignored with explicit executor")
-        self.debugs = kwargs.pop("debug","")
+        self.debugs = kwargs.get("debug","")
         self.debug = re.search("host",self.debugs)
-        if len(kwargs)>0:
-            raise LauncherException("Unprocessed HostPool args: %s" % str(kwargs))
+        # if len(kwargs)>0:
+        #     raise LauncherException("Unprocessed HostPool args: %s" % str(kwargs))
     def append_node(self,host="localhost",core=0,phys_core="0-0"):
         """Create a new item in this pool by specifying either a Node object
         or a hostname plus core number. This function is called in a loop when a
@@ -952,7 +952,7 @@ class HostPool(HostPoolBase):
             (self,
              commandexecutor=kwargs.pop\
                  ("commandexecutor",LocalExecutor(workdir=workdir)),
-             debug=kwargs.pop("debug",""))
+             debug=kwargs.get("debug",""))
         hostlist = kwargs.pop("hostlist",None)
         if hostlist is not None and not isinstance(hostlist,(HostList)):
             raise LauncherException("hostlist argument needs to be derived from HostList")
@@ -972,8 +972,8 @@ class HostPool(HostPoolBase):
                 self.append_node(host=localhost)
         else: raise LauncherException("HostPool creation needs n or list")
         #self.nhosts = nhosts
-        if len(kwargs)>0:
-            raise LauncherException("Unprocessed HostPool args: %s" % str(kwargs))
+        # if len(kwargs)>0:
+        #     raise LauncherException("Unprocessed HostPool args: %s" % str(kwargs))
         DebugTraceMsg("Created host pool from <<%s>>" % str(hostlist),self.debug,prefix="Host")
     def __del__(self):
         """The ``SSHExecutor`` class creates a permanent ssh connection, 
@@ -1039,7 +1039,7 @@ def SLURMNnodes():
     return int(os.environ["SLURM_NNODES"])
 
 def SLURMCoresPerNode(**kwargs):
-    debugs = kwargs.pop("debug","")
+    debugs = kwargs.get("debug","")
     debug = re.search("host",debugs)
     try:
         # SLURM_JOB_CPUS_PER_NODE=56(x2)
@@ -1060,7 +1060,7 @@ class SLURMHostList(HostList):
         hlist_str = os.environ["SLURM_NODELIST"]
         p = SLURMNnodes()
         cores_per_node = SLURMCoresPerNode(**kwargs)
-        print("Detecting %d cores per node" % cores_per_node,flush=True)
+        #print("Detecting %d cores per node" % cores_per_node,flush=True)
         if cpn_override := kwargs.get("corespernode",None):
             cores_per_node = int( cpn_override )
             print( "Override of SLURM value: using %d cores per node" % cores_per_node ,flush=True)
@@ -1177,30 +1177,20 @@ def HostListByName(**kwargs):
 
     We return a trivial hostlist otherwise.
     """
-    debugs = kwargs.pop("debug","")
+    debugs = kwargs.get("debug","")
     debug = re.search("host",debugs)
     cluster = ClusterName()
     if cluster=="ls4":
         hostlist = SGEHostList(tag=".ls4.tacc.utexas.edu",**kwargs)
     elif cluster=="ls5": # ls5 nodes don't have fully qualified hostname
         hostlist = SLURMHostList(tag="",**kwargs)
-    elif cluster=="ls6":
-        hostlist = SLURMHostList(tag=".ls6.tacc.utexas.edu",**kwargs)
-    elif cluster=="maverick":
-        hostlist = SLURMHostList(tag=".maverick.tacc.utexas.edu",**kwargs)
-    elif re.match('stampede2',cluster):
-        hostlist = SLURMHostList(tag=".stampede2.tacc.utexas.edu",**kwargs)
-    elif re.match('stampede3',cluster):
-        hostlist = SLURMHostList(tag=".stampede3.tacc.utexas.edu",**kwargs)
-    elif re.match("frontera",cluster):
-        hostlist = SLURMHostList(
-            tag=".frontera.tacc.utexas.edu",**kwargs)
-    elif cluster=="longhorn":
-        hostlist = SLURMHostList(tag=".longhorn.tacc.utexas.edu",**kwargs)
     elif cluster=="mic":
         hostlist = HostList( ["localhost" for i in range(60)] )
     elif cluster in ['pace']:
         return PBSHostList(**kwargs)
+    elif cluster in [ "frontera", "longhorn", "ls6", "maverick",
+                      "stampede2", "stampede3", "vista", ]:
+        hostlist = SLURMHostList(tag=f".{cluster}.tacc.utexas.edu",**kwargs)
     else:
         hostlist = HostList(hostlist=[HostName()])
     if debug:
@@ -1212,7 +1202,7 @@ class DefaultHostPool(HostPool):
     ``HostListByName`` function, and using the ``SSHExecutor`` function.
     """
     def __init__(self,**kwargs):
-        debugs = kwargs.pop("debug","")
+        debugs = kwargs.get("debug","")
         hostlist = kwargs.pop("hostlist",HostListByName(debug=debugs))
         commandexecutor = kwargs.pop("commandexecutor",None)
         if commandexecutor is None:
@@ -1234,7 +1224,7 @@ class LocalHostPool(HostPool):
     """
     def __init__(self,**kwargs):
         nhosts = kwargs.pop("nhosts",1)
-        self.debug = kwargs.pop("debug","")
+        self.debug = kwargs.get("debug","")
         self.workdir=kwargs.pop("workdir",MakeRandomDir())
         HostPool.__init__(
             self, nhosts=nhosts,workdir=self.workdir,
@@ -1267,10 +1257,10 @@ class TaskQueue():
         self.queue = []; self.running = []; self.completed = []; self.aborted = []
         self.maxsimul = 0; self.submitdelay = 0
         self.queuestate = kwargs.pop("queuestate","queuestate")
-        self.debugs = kwargs.pop("debug",False)
+        self.debugs = kwargs.get("debug",False)
         self.debug = re.search("queue",self.debugs)
-        if len(kwargs)>0:
-            raise LauncherException("Unprocessed TaskQueue args: %s" % str(kwargs))
+        # if len(kwargs)>0:
+        #     raise LauncherException("Unprocessed TaskQueue args: %s" % str(kwargs))
     def isEmpty(self):
         """Test whether the queue is empty and no tasks running"""
         return self.queue==[] and self.running==[]
@@ -1410,8 +1400,8 @@ class TaskGenerator():
         self.debugs = kwargs.pop("debug","")
         self.debug = re.search("task",self.debugs)
         self.skip = kwargs.pop("skip",[])
-        if len(kwargs)>0:
-            raise LauncherException("Unprocessed TaskGenerator args: %s" % str(kwargs))
+        # if len(kwargs)>0:
+        #     raise LauncherException("Unprocessed TaskGenerator args: %s" % str(kwargs))
     def next(self,imposedcount=None):
         """Deliver a Task object, or a special string:
 
@@ -1518,8 +1508,8 @@ class Executor():
                 os.mkdir(self.workdir)
         else:
             raise LauncherException("Executor needs explicit workdir")
-        if len(kwargs)>0:
-            raise LauncherException("Unprocessed Executor args: %s" % str(kwargs))
+        # if len(kwargs)>0:
+        #     raise LauncherException("Unprocessed Executor args: %s" % str(kwargs))
     def workdir_is_safe(self):
         """Test that the working directory is (in) a subdirectory of the cwd"""
         here = os.getcwd(); os.chdir(self.workdir); there = os.getcwd(); os.chdir(here)
@@ -1866,8 +1856,8 @@ class LauncherJob():
         self.taskmaxruntime = kwargs.pop("taskmaxruntime",0)
         self.completed = 0; self.aborted = 0; self.tock = 0; self.stalling = False
         self.gather_output = kwargs.pop("gather_output",None)
-        if len(kwargs)>0:
-            raise LauncherException("Unprocessed LauncherJob args: %s" % str(kwargs))
+        # if len(kwargs)>0:
+        #     raise LauncherException("Unprocessed LauncherJob args: %s" % str(kwargs))
     def finish_or_continue(self):
         # auxiliary routine, purely to make ``tick`` look shorter
         if self.queue.isEmpty():

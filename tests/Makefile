@@ -43,10 +43,12 @@ script :
 	    ; else \
 	      EXECUTABLE=${EXECUTABLE} \
 	    ; fi \
+	 && if [ "$$( hostname )" = "staff.vista.tacc.utexas.edu" ] ; then \
+	      QUEUE=gg ; else QUEUE=${QUEUE} ; fi \
 	 && cat $${template} | sed -e "s/SSH/${SSH}/" -e "s/RUN/${RUN}/" \
 	        -e "s/EXECUTABLE/$${EXECUTABLE}/" -e "s/NODES/${NODES}/" \
 	        -e "s/NAME/${NAME}/" \
-	        -e "s/CORESPERNODE/${CORESPERNODE}/" -e "s/QUEUE/${QUEUE}/" \
+	        -e "s/CORESPERNODE/${CORESPERNODE}/" -e "s/QUEUE/$${QUEUE}/" \
 	        -e "s/MINUTES/${MINUTES}/" \
 	        -e "/####/d" \
 	        > $${generated}
