@@ -10,7 +10,7 @@
 ####
 ################################################################
 
-pylauncher_version = "4.5"
+pylauncher_version = "4.6"
 docstring = \
 f"""pylauncher.py version {pylauncher_version}
 
@@ -24,8 +24,10 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+4.6
+- core count handling fixed
 4.5
-- cores=node option, ibrun launcher fix, core count handling fixed, adding vista cluster
+- cores=node option, ibrun launcher fix, adding vista cluster
 4.4
 - bug fix for parsing a line with a core count
 4.3
