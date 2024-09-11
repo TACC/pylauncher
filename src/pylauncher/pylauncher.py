@@ -10,7 +10,7 @@
 ####
 ################################################################
 
-pylauncher_version = "4.6"
+pylauncher_version = "4.4"
 docstring = \
 f"""pylauncher.py version {pylauncher_version}
 
@@ -24,6 +24,8 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+4.7 UNRELEASED
+- core count per node reduced for divisibility
 4.6
 - core count handling fixed
 4.5
@@ -960,22 +962,19 @@ class HostPool(HostPoolBase):
             raise LauncherException("hostlist argument needs to be derived from HostList")
         nhosts = kwargs.pop("nhosts",None)
         if hostlist is not None:
-            if self.debug:
-                print("Making hostpool on %s" % str(hostlist),flush=True)
+            # if self.debug:
+            #     print("Making hostpool on %s" % str(hostlist),flush=True)
             nhosts = len(hostlist)
             for h in hostlist:
                 self.append_node(host=h['host'],core = h['core'],phys_core=h['phys_core'])
         elif nhosts is not None:
-            if self.debug:
-                print("Making hostpool size %d on localhost" % nhosts,flush=True)
+            # if self.debug:
+            #     print("Making hostpool size %d on localhost" % nhosts,flush=True)
             localhost = HostName()
             hostlist = [ localhost for i in range(nhosts) ]
             for i in range(nhosts):
                 self.append_node(host=localhost)
         else: raise LauncherException("HostPool creation needs n or list")
-        #self.nhosts = nhosts
-        # if len(kwargs)>0:
-        #     raise LauncherException("Unprocessed HostPool args: %s" % str(kwargs))
         DebugTraceMsg("Created host pool from <<%s>>" % str(hostlist),self.debug,prefix="Host")
     def __del__(self):
         """The ``SSHExecutor`` class creates a permanent ssh connection, 
@@ -1052,20 +1051,32 @@ def SLURMCoresPerNode(**kwargs):
         cores_per_node = int(cores_per_node)
     except:
         cores_per_node = int( os.environ["SLURM_NPROCS"] ) / SLURMNnodes()
-    DebugTraceMsg(f"Found cores per node: <<{cores_per_node}>>" ,
+    DebugTraceMsg(f"Using cores per node: <<{cores_per_node}>>" ,
                   debug,prefix="Host")
     return cores_per_node
 
 class SLURMHostList(HostList):
     def __init__(self,**kwargs):
         HostList.__init__(self,**kwargs)
+        debugs = kwargs.get("debug","")
+        debug = re.search("host",debugs)
+        try:
+            cores = int(kwargs.get("cores"))
+        except:
+            cores = 1
         hlist_str = os.environ["SLURM_NODELIST"]
         p = SLURMNnodes()
         cores_per_node = SLURMCoresPerNode(**kwargs)
-        #print("Detecting %d cores per node" % cores_per_node,flush=True)
+        DebugTraceMsg(f"SLURM says {cores_per_node} cores per node",
+                      debug,prefix="Host")
         if cpn_override := kwargs.get("corespernode",None):
             cores_per_node = int( cpn_override )
-            print( "Override of SLURM value: using %d cores per node" % cores_per_node ,flush=True)
+            DebugTraceMsg( f" .. override of SLURM value: using {cores_per_node} cores per node",
+                           debug,prefix="Host")
+        if cores_per_node%cores!=0:
+            cores_per_node = cores_per_node - (cores_per_node%cores)
+            DebugTraceMsg(f" .. reduced core/node for divisibility to {cores_per_node}",
+                          debug,prefix="Host")
         N = p * cores_per_node
         jobs_per_node = int(N/p) # requested cores per node
         cores_per_job = int( cores_per_node / jobs_per_node )
@@ -1182,9 +1193,9 @@ def HostListByName(**kwargs):
     debugs = kwargs.get("debug","")
     debug = re.search("host",debugs)
     cluster = ClusterName()
-    if cluster=="ls4":
+    if cluster=="YourSGEcluster":
         hostlist = SGEHostList(tag=".ls4.tacc.utexas.edu",**kwargs)
-    elif cluster=="ls5": # ls5 nodes don't have fully qualified hostname
+    elif cluster=="YourCRAYcluster": # ls5 nodes don't have fully qualified hostname
         hostlist = SLURMHostList(tag="",**kwargs)
     elif cluster=="mic":
         hostlist = HostList( ["localhost" for i in range(60)] )
@@ -1195,8 +1206,8 @@ def HostListByName(**kwargs):
         hostlist = SLURMHostList(tag=f".{cluster}.tacc.utexas.edu",**kwargs)
     else:
         hostlist = HostList(hostlist=[HostName()])
-    if debug:
-        print("Hostlist on %s  of size %d: %s" % (cluster,len(hostlist),str(hostlist)),flush=True)
+    DebugTraceMsg(f"Hostlist on {cluster}  of size {len(hostlist)}",
+                  debug,prefix="Host")
     return hostlist
         
 class DefaultHostPool(HostPool):
@@ -1205,7 +1216,7 @@ class DefaultHostPool(HostPool):
     """
     def __init__(self,**kwargs):
         debugs = kwargs.get("debug","")
-        hostlist = kwargs.pop("hostlist",HostListByName(debug=debugs))
+        hostlist = kwargs.pop("hostlist",HostListByName(cores=cores,debug=debugs))
         commandexecutor = kwargs.pop("commandexecutor",None)
         if commandexecutor is None:
             if ClusterName() is not None:
@@ -1488,7 +1499,7 @@ class Executor():
     execstring = "exec"
     outstring = "out"
     def __init__(self,**kwargs):
-        self.debugs = kwargs.pop("debug","")
+        self.debugs = kwargs.get("debug","")
         self.debug = re.search("exec",self.debugs)
         self.catch_output = kwargs.pop("catch_output",True)
         if self.catch_output:
@@ -1609,18 +1620,18 @@ class SSHExecutor(Executor):
     """
     def __init__(self,**kwargs):
         self.node_client_dict = {}
-        self.debugs = kwargs.pop("debug","")
-        Executor.__init__(self,debug=self.debugs,**kwargs)
-        self.debug = self.debug or re.search("ssh",self.debugs)
+        Executor.__init__(self,**kwargs)
+        self.debug_ssh = re.search("ssh",self.debugs)
         DebugTraceMsg("Created SSH Executor",self.debug,prefix="Exec")
     def setup_on_node(self,node):
         host = node.hostname
-        DebugTraceMsg( f"Set up connection to {host}",self.debug,prefix="SSH")
+        DebugTraceMsg( f"Set up connection to {host}",self.debug_ssh,prefix="SSH")
         if host in self.node_client_dict:
             node.ssh_client = self.node_client_dict[host]
             node.ssh_client_unique = False
         else:
-            DebugTraceMsg( f"making ssh client to host: {host}",self.debug,prefix="SSH")
+            DebugTraceMsg( f"making ssh client to host: {host}",
+                           self.debug_ssh,prefix="SSH")
             try : 
                 node.ssh_client = ssh_client(host,debug=self.debug)
             except: ## VLE is this an exception class? socket.gaierror as e:
@@ -2059,7 +2070,8 @@ def ClassicLauncher(commandfile,*args,**kwargs):
     commandexecutor = SSHExecutor(workdir=workdir,numactl=numactl,debug=debug)
     job = LauncherJob(
         hostpool=HostPool(
-            hostlist=HostListByName(debug=debug),
+            hostlist=HostListByName(cores=cores,debug=debug),
+            cores=cores,
             commandexecutor=commandexecutor,workdir=workdir,
             debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
@@ -2130,7 +2142,7 @@ def MPILauncher(commandfile,**kwargs):
     cores =  kwargs.pop("cores",4)
     hfswitch = kwargs.pop("hfswitch","-machinefile")
     job = LauncherJob(
-        hostpool=HostPool( hostlist=HostListByName(debug=debug),
+        hostpool=HostPool( hostlist=HostListByName(cores=cores,debug=debug),
             commandexecutor=MPIExecutor(workdir=workdir,debug=debug,hfswitch=hfswitch), debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
@@ -2166,7 +2178,7 @@ def IbrunLauncher(commandfile,**kwargs):
     commandexecutor = IbrunExecutor(workdir=workdir,debug=debug)
     job = LauncherJob(
         hostpool=HostPool( 
-            hostlist=HostListByName(debug=debug),
+            hostlist=HostListByName(cores=cores,debug=debug),
             commandexecutor=commandexecutor,workdir=workdir,
             debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
@@ -2198,7 +2210,7 @@ def GPULauncher(commandfile,**kwargs):
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     cores = kwargs.pop("cores",1)
     job = LauncherJob(
-        hostpool=HostPool( hostlist=HostListByName(debug=debug),
+        hostpool=HostPool( hostlist=HostListByName(cores=cores,debug=debug),
             commandexecutor=SSHExecutor\
                 (numactl="gpu", workdir=workdir ,debug=debug),             
             workdir=workdir, debug=debug ),
@@ -2332,7 +2344,7 @@ class DynamicLauncher(LauncherJob):
         jobid = kwargs.pop("jobid",JobId())
         debug = kwargs.pop("debug","")
         hostpool = kwargs.pop("hostpool",
-            HostPool( hostlist=HostListByName(debug=debug),
+            HostPool( hostlist=HostListByName(cores=cores,debug=debug),
                       commandexecutor=SSHExecutor(workdir=workdir,debug=debug), 
                       debug=debug ))
         workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
@@ -2362,7 +2374,7 @@ def MICLauncher(commandfile,**kwargs):
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     cores = kwargs.pop("cores",1)
     job = LauncherJob(
-        hostpool=HostPool( hostlist=HostListByName(debug=debug),
+        hostpool=HostPool( hostlist=HostListByName(cores=cores,debug=debug),
             commandexecutor=LocalExecutor(
                 prefix="/bin/sh ",workdir=workdir,debug=debug), 
                            debug=debug ),
