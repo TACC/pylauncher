@@ -22,4 +22,4 @@ pylauncher.ClassicLauncher\
     ("commandlines",
      # optional spec of output dir:
      # workdir=f"pylauncher_out{os.environ['SLURM_JOBID']}",
-     debug="ssh+host+exec+task+job")
+     debug="host+exec+task+job")

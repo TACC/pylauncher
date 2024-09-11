@@ -18,6 +18,6 @@ import pylauncher as launcher
 ##
 
 launcher.ClassicLauncher("commandlines",
-                            cores=12,
+                            cores=15,
                             debug="job+host+exec",
                             )
