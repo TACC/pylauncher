@@ -26,6 +26,8 @@ otoelog = """
 Change log
 4.7 UNRELEASED
 - core count per node reduced for divisibility
+- introduce PYL_MPIEXEC for mpi runs
+- add success files
 4.6
 - core count handling fixed
 4.5
@@ -284,9 +286,6 @@ class CommandlineGenerator():
         else: self.nmax = nmax
         debugs = kwargs.get("debug","")
         self.debug = re.search("command",debugs)
-        # if len(kwargs)>0:
-        #     raise LauncherException("Unprocessed CommandlineGenerator args: %s" \
-        #                                 % str(kwargs))
     def finish(self):
         """Tell the generator to stop after the commands list is depleted"""
         DebugTraceMsg("declaring the commandline generator to be finished",
@@ -570,20 +569,25 @@ class WrapCompletion(Completion):
         """Internal function that gives the name of the stamp file,
         including directory path"""
         return "%s/%s%s" % (self.workdir,"expire",str(self.taskid))
+    def successname(self):
+        """Internal function that gives the name of the success file,
+        including directory path"""
+        return "%s/%s%s" % (self.workdir,"success",str(self.taskid))
     def attach(self,txt):
         """Append a 'touch' command to the txt argument"""
         os.system("mkdir -p %s" % self.workdir)
         if re.match('^[ \t]*$',txt):
+            # when is txt empty?
             command_with_stamp = f"touch {self.stampname()}"
         else:
-            command_with_stamp = f"( {txt} ) ; touch {self.stampname()}"
+            command_with_stamp = \
+                f"( {txt} ) && touch {self.successname()} ; touch {self.stampname()}"
         return command_with_stamp
     def test(self):
         """Test for the existence of the stamp file"""
         stampfile = self.stampname()
         stamptest = os.path.isfile(stampfile)
         if stamptest:
-            print(f"stamp file <<{stampfile}>> detected")
             DebugTraceMsg(f"stamp file <<{stampfile}>> detected",
                           self.debug,prefix="Task")
         return stamptest
@@ -608,7 +612,6 @@ class BareCompletion(Completion):
         stampfile = self.stampname()
         stamptest = os.path.isfile(stampfile)
         if stamptest:
-            print(f"stamp file <<{stampfile}>> detected")
             DebugTraceMsg(f"stamp file <<{stampfile}>> detected",
                           self.debug,prefix="Task")
         return stamptest
@@ -643,42 +646,36 @@ class Task():
     def start_on_nodes(self,**kwargs):
         """Start the task.
 
-        :param pool: HostLocator object (keyword, required) : this describes the nodes on which to start the task
+        :param locator: HostLocator object (keyword, required) : this describes the nodes on which to start the task
         :param commandexecutor: (keyword, optional) prefixer routine, by default the commandexecutor of the pool is used
 
         This sets ``self.startime`` to right before the execution begins. We do not keep track
         of the endtime, but instead set ``self.runningtime`` in the ``hasCompleted`` routine.
         """
         self.starttick = kwargs.pop("starttick",0)
-        self.pool = kwargs.pop("pool",None)
-        if self.pool is None:
-            self.pool = LocalHostPool(nhosts=self.size,debug=self.debugs
+        self.locator = kwargs.pop("locator",None)
+        if self.locator is None:
+            self.locator = LocalHostPool(nhosts=self.size,debug=self.debugs
                                       ).request_nodes(self.size)
-        elif isinstance(self.pool,(Node)):
+        elif isinstance(self.locator,(Node)):
             if self.size>1:
                 raise LauncherException("Can not start size=%d on sing Node" % self.size)
-            self.pool = OneNodePool( self.pool,debug=self.debugs ).request_nodes(self.size)
-        if not isinstance(self.pool,(HostLocator)):
+            self.locator = OneNodePool( self.locator,debug=self.debugs ).request_nodes(self.size)
+        if not isinstance(self.locator,(HostLocator)):
             raise LauncherException("Invalid locator object")
-        # if len(kwargs)>0:
-        #     raise LauncherException("Unprocessed Task.start_on_nodes args: %s" % str(kwargs))
-        # wrap with stamp detector
-        wrapped = self.line_with_completion()
-        # line = re.sub("PYL_ID",str(self.taskid),self.command)
-        # self.actual_command = line
-        # wrapped = self.completion.attach(line)
+        wrapped,exec_prefix = self.line_with_completion()
 
         # and here we go
-        self.execute_on_pool(wrapped)
-    def execute_on_pool(self,line):
+        self.execute_on_pool(wrapped,prefix=exec_prefix)
+    def execute_on_pool(self,line,prefix=""): ## task method
         DebugTraceMsg(
-            "starting task id=%d of size %d on <<%s>>\nin cwd=<<%s>>\ncmd=<<%s>>" % \
-                (self.taskid,self.size,str(self.pool),
-                 os.getcwd(),line),
+            f"""starting task id={self.taskid} of size {self.size} on <<{str(self.locator)}>>
+in cwd=<<{os.getcwd()}>>
+prefix=<<{prefix}>>, cmd=<<{line}>>""",
             self.debug,prefix="Task")
         self.starttime = time.time()
-        commandexecutor = self.pool.pool.commandexecutor
-        commandexecutor.execute(line,pool=self.pool,id=self.taskid)
+        commandexecutor = self.locator.pool.commandexecutor
+        commandexecutor.execute(line,pool=self.locator,id=self.taskid,prefix=prefix)
         self.has_started = True
         DebugTraceMsg("started %d" % self.taskid,self.debug,prefix="Task")
     def isRunning(self):
@@ -686,13 +683,20 @@ class Task():
     def line_with_completion(self):
         """Return the task's commandline with completion attached"""
         line = re.sub("PYL_ID",str(self.taskid),self.command)
+        # ibrun needs to know about the full cores
+        ncores = int( os.environ["SLURM_CPUS_ON_NODE"] )
+        exec_prefix = \
+         f"TACC_TASKS_PER_NODE={ncores} ibrun -o {self.locator.offset} -n {self.locator.extent}"
+        if re.search("PYL_MPIEXEC",line):
+            line = re.sub("PYL_MPIEXEC",exec_prefix,line)
+            exec_prefix=""
+
         self.actual_command = line
-        return self.completion.attach(line)
+        return self.completion.attach(line),exec_prefix
     def hasCompleted(self):
         """Execute the completion test of this Task"""
         completed = self.has_started and self.completion.test()
         if completed:
-            ## print(f"completion: {self.completion}")
             self.runningtime = time.time()-self.starttime
             DebugTraceMsg("completed %d in %5.3f" % (self.taskid,self.runningtime),
                           self.debug,prefix="Task")
@@ -1306,7 +1310,7 @@ class TaskQueue():
                 continue
             if self.submitdelay>0:
                 time.sleep(self.submitdelay)
-            t.start_on_nodes(pool=locator,starttick=starttick)
+            t.start_on_nodes(locator=locator,starttick=starttick)
             hostpool.occupyNodes(locator,t.taskid)
             self.queue.remove(t)
             self.running.append(t)
@@ -1423,9 +1427,6 @@ class TaskGenerator():
         """
         comm = self.commandlinegenerator.next()
         command = comm["command"]
-            # DebugTraceMsg("commandline generator ran out",
-            #               self.debug,prefix="Task")
-            # command = "stop"
         if command in ["stall","stop"]:
             # the dynamic commandline generator is running dry
             return command
@@ -1504,6 +1505,9 @@ class Executor():
         self.catch_output = kwargs.pop("catch_output",True)
         if self.catch_output:
             self.append_output = kwargs.pop("append_output",None)
+        else: self.append_output = None
+        DebugTraceMsg(f"Executor catching out: {self.catch_output}, append: {self.append_output}",
+                      self.debug,prefix="Exec")
         self.count = 0
         self.numactl = kwargs.pop("numactl",None)
         if workdir := kwargs.pop("workdir",None):
@@ -1511,7 +1515,7 @@ class Executor():
             self.workdir = workdir
             if self.workdir[0]!="/":
                 self.workdir = os.getcwd()+"/"+self.workdir
-            DebugTraceMsg(f"Using executor workdir <<{self.workdir}>>",
+            DebugTraceMsg(f"Executor using workdir <<{self.workdir}>>",
                           self.debug,prefix="Exec")
             if os.path.isdir(self.workdir):
                 print( f"Implementor warning: re-using workdir <<{self.workdir}>>" )
@@ -1537,12 +1541,11 @@ class Executor():
     def end_execution(self):
         return
     def smallfilenames(self):
-        execfilename = "%s/%s%d" % (self.workdir,self.execstring,self.count)
+        execfilename = f"{self.workdir}/{self.execstring}{self.count}"
+        execoutname  = f"{self.workdir}/{self.outstring}{self.count}"
         if self.catch_output:
             if self.append_output is not None:
                 execoutname = self.append_output
-            else: 
-                execoutname =  "%s/%s%d" % (self.workdir,self.outstring,self.count)
         else:
             execoutname = ""
         self.count += 1
@@ -1642,7 +1645,8 @@ class SSHExecutor(Executor):
         if node.ssh_client_unique:
             node.ssh_client.close()
     def execute(self,usercommand,**kwargs):
-        """Execute a commandline in the background on the ssh_client object
+        """SSHExecutor.excute: 
+        Execute a commandline in the background on the ssh_client object
         in this Executor object.
 
         * usercommand gets the environment prefixed to it
@@ -1729,10 +1733,12 @@ class MPIExecutor(Executor):
         Executor.__init__(self,catch_output=False,**kwargs)
         self.popen_object = None
     def execute(self,command,**kwargs):
-        '''Because we do not have all the work that ibrun does on TACC systems, we will have 
+        """MPIExecutor.execute:
+        Because we do not have all the work that ibrun does on TACC systems, we will have 
         handle more parts.
         We need to define a hostfile for the correct subset of the nodes,
-        '''
+        """
+
         # find where to execute
         pool = kwargs.pop("pool",None)
         if pool is None:
@@ -1774,25 +1780,27 @@ class IbrunExecutor(Executor):
         catch_output = kwargs.pop("catch_output","foo")
         if catch_output!="foo":
             raise LauncherException("IbrunExecutor does not take catch_output parameter")
-        Executor.__init__(self,catch_output=False,**kwargs)
+        Executor.__init__(self,**kwargs) # ,catch_output=False ## Why?
         self.popen_object = None
     def execute(self,command,**kwargs):
-        """Much like ``SSHExecutor.execute()``, except that it prefixes
-        with ``ibrun -n -o``
+        """Much like ``SSHExecutor.execute()``, except that it has an exec_prefix
+        like ``ibrun -n -o``
+        This is either passed in if the command is bare
+          bar args => ibrun -n -o bar args
+        or has already been applied in the command:
+          cd foo && ibrun -n -o bar args
         """
-        pool = kwargs.pop("pool",None)
-        if pool is None:
-            raise LauncherException("SSHExecutor needs explicit HostPool")
+        exec_prefix = kwargs.pop("prefix",None)
         wrapped_command = self.wrap(command)
+        if exec_prefix is None:
+            full_commandline = f"{wrapped_command}" # note: absolute path
+        else:
+            full_commandline = f"{exec_prefix} {wrapped_command}"
+
         stdout = kwargs.pop("stdout",subprocess.PIPE)
-        full_commandline \
-            = [ "ibrun","-o",str(pool.offset),"-n",str(pool.extent),
-                wrapped_command ] # not: "&"
-        full_commandline \
-            =  "ibrun -o %d -n %d %s" % \
-               (pool.offset,pool.extent,wrapped_command)
-        DebugTraceMsg("executed commandline: <<%s>>" % str(full_commandline),
-                      self.debug,prefix="Exec")
+        DebugTraceMsg\
+            ( f"IbrunExecutor subprocess execute: <<{full_commandline}>>",
+              self.debug,prefix="Exec")
         p = subprocess.Popen(full_commandline,
                              shell=True,
                              stdout=stdout)
@@ -1823,9 +1831,6 @@ class MpiexecExecutor(Executor):
             raise LauncherException("SSHExecutor needs explicit HostPool")
         wrapped_command = self.wrap(command)
         stdout = kwargs.pop("stdout",subprocess.PIPE)
-        # full_commandline \
-        #     =  "ibrun -o %d -n %d %s" % \
-        #        (pool.offset,pool.extent,wrapped_command)
         full_commandline \
             =  "mpiexec -n %d %s" % \
                (pool.extent,wrapped_command)
@@ -2056,6 +2061,7 @@ def ClassicLauncher(commandfile,*args,**kwargs):
     :param workdir: (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory
     :param debug: debug types string (optional, keyword)
     """
+    print( f"Pylauncher v{pylauncher_version} job, type=ClassicLauncher starting" )
     jobid = JobId()
     debug = kwargs.pop("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
@@ -2097,6 +2103,7 @@ def LocalLauncher(commandfile,nhosts,*args,**kwargs):
     :param workdir: (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory
     :param debug: debug types string (optional, keyword)
     """
+    print( f"Pylauncher v{pylauncher_version} job, type=LocalLauncher starting" )
     jobid = JobId()
     debug = kwargs.pop("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
@@ -2136,6 +2143,7 @@ def MPILauncher(commandfile,**kwargs):
     :param debug: debug types string (optional, keyword)
     :param hfswitch: Switch used to determine the hostifle switch used with your MPI distribution. Default is -machinefile (optional,keyword)
     '''
+    print( f"Pylauncher v{pylauncher_version} job, type=MPILauncher starting" )
     jobid = JobId()
     debug = kwargs.pop("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
@@ -2168,6 +2176,7 @@ def IbrunLauncher(commandfile,**kwargs):
     :param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory
     :param debug: debug types string (optional, keyword)
     """
+    print( f"Pylauncher v{pylauncher_version} job, type=IbrunLauncher starting" )
     jobid = JobId()
     debug = kwargs.pop("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
@@ -2205,6 +2214,7 @@ def GPULauncher(commandfile,**kwargs):
     :param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory
     :param debug: debug types string (optional, keyword)
     """
+    print( f"Pylauncher v{pylauncher_version} job, type=GPULauncher starting" )
     jobid = JobId()
     debug = kwargs.pop("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
@@ -2237,6 +2247,7 @@ def RemoteLauncher(commandfile,hostlist,**kwargs):
     :param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory
     :param debug: debug types string (optional, keyword)
     """
+    print( f"Pylauncher v{pylauncher_version} job, type=RemoteLauncher starting" )
     jobid = "000"
     debug = kwargs.pop("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )

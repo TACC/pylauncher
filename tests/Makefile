@@ -157,6 +157,6 @@ clean ::
 	@echo "clean job output"
 	@/bin/rm -rf pylauncher*.{e,o}[0-9]* pylauncher_out* None
 	@echo "clean test output"
-	@/bin/rm -rf pylaunchertest*
+	@/bin/rm -rf pylaunchertest* pyl_out*
 totalclean :: clean
 
