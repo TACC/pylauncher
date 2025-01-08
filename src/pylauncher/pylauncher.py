@@ -3,14 +3,14 @@
 #### This file is part of the `pylauncher' package
 #### for parametric job launching
 ####
-#### Copyright Victor Eijkhout 2010-2024
+#### Copyright Victor Eijkhout 2010-2025
 #### eijkhout@tacc.utexas.edu
 ####
 #### https://github.com/TACC/pylauncher
 ####
 ################################################################
 
-pylauncher_version = "4.4"
+pylauncher_version = "4.7"
 docstring = \
 f"""pylauncher.py version {pylauncher_version}
 
@@ -28,6 +28,7 @@ Change log
 - core count per node reduced for divisibility
 - introduce PYL_MPIEXEC for mpi runs
 - add success files
+- remove the node type handling. did we need it?
 4.6
 - core count handling fixed
 4.5
@@ -1131,8 +1132,8 @@ def ClusterName():
     # name detection based on environment variables
     if "TACC_SYSTEM" in os.environ:
         system = os.environ["TACC_SYSTEM"]
-        if "TACC_NODE_TYPE" in os.environ:
-            system += "-" + os.environ["TACC_NODE_TYPE"]
+        # if "TACC_NODE_TYPE" in os.environ:
+        #     system += "-" + os.environ["TACC_NODE_TYPE"]
         return system
 
     # name detection by splitting TACC hostname
