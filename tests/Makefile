@@ -56,7 +56,8 @@ script :
 	        -e "s/CORESPERNODE/${CORESPERNODE}/" -e "s/QUEUE/$${QUEUE}/" \
 	        -e "s/MINUTES/${MINUTES}/" \
 	        -e "/####/d" \
-	        > $${generated}
+	        > $${generated} \
+	 && echo " .. file: <<$${generated}>>"
 submit :
 	PYTHONPATH=../src/pylauncher:${PYTHONPATH} sbatch jobscript_generated
 
