@@ -10,7 +10,7 @@
 ####
 ################################################################
 
-pylauncher_version = "4.7"
+pylauncher_version = "4.8"
 docstring = \
 f"""pylauncher.py version {pylauncher_version}
 
@@ -24,7 +24,9 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
-4.7 UNRELEASED
+4.8
+- DynamicLauncher
+4.7 
 - core count per node reduced for divisibility
 - introduce PYL_MPIEXEC for mpi runs
 - add success files
@@ -287,38 +289,41 @@ class CommandlineGenerator():
         else: self.nmax = nmax
         debugs = kwargs.get("debug","")
         self.debug = re.search("command",debugs)
+        self._exhausted = True # basic generators are a priori finished
     def finish(self):
         """Tell the generator to stop after the commands list is depleted"""
         DebugTraceMsg("declaring the commandline generator to be finished",
-                      self.debug,prefix="Cmd")
-        self.nmax = self.njobs+len(self.list)
+                      self.debug,prefix="Cmd ")
+        # self.nmax = self.njobs+len(self.list)
+        self._exhausted = True
     def abort(self):
         """Stop the generator, even if there are still elements in the commands list.
         Where is this called?"""
         DebugTraceMsg("gettingthe commandline generator to abort",
-                      self.debug,prefix="Cmd")
+                      self.debug,prefix="Cmd ")
         self.stopped = True
     def next(self):
         """Produce the next Commandline object, or return an object telling that the
         generator is stalling or has stopped"""
-        if self.stopped:
-            DebugTraceMsg("stopping the commandline generator",
-                          self.debug,prefix="Cmd")
-            return Commandline("stop")
-            #raise StopIteration
-        elif ( len(self.list)==0 and self.nmax!=0 ) or \
-                ( self.nmax>0 and self.njobs==self.nmax ):
-            DebugTraceMsg("time to stop commandline generator",
-                          self.debug,prefix="Cmd")
-            return Commandline("stop")
-            #raise StopIteration
-        elif len(self.list)>0:
+        if self.stopping() or self.stalling():
+            raise LauncherException( "Should not call next when stopping or stalling" )
+        if len(self.list)>0:
             j = self.list[0]; self.list = self.list[1:]
-            DebugTraceMsg("Popping command off list <<%s>>" % str(j),
-                          self.debug,prefix="Cmd")
+            DebugTraceMsg( f"Popping command off list <<{str(j)}>>",
+                           self.debug,prefix="Cmd ")
             self.njobs += 1; return j
         else:
-            return Commandline("stall")
+            raise LauncherException( f"Impossible case <<{str(self)}>>" )
+    def exhausted(self):
+        return self._exhausted and len(self.list)==0
+    def stopping(self):
+        return self.stopped \
+            or ( ( len(self.list)==0 and self.nmax!=0 ) or \
+                 ( self.nmax>0 and self.njobs==self.nmax ) ) 
+    def stalling(self):
+        # not any of the "next" cases
+        return not ( self.stopping() ) \
+            and not ( len(self.list)>0 )
     def __iter__(self): return self
     def __len__(self): return len(self.list)
 
@@ -435,19 +440,24 @@ class DynamicCommandlineGenerator(CommandlineGenerator):
     The 'nmax=0' parameter value makes the generator keep expecting new stuff.
     """
     def __init__(self,**kwargs):
-        nmax = kwargs.pop("nmax",None)
-        if nmax is not None:
+        try: ## catch incorrect case of nmax specified
+            nmax = kwargs.pop("nmax")
             raise LauncherException("Dynamic launcher can not have nmax specification")
+        except: pass
         CommandlineGenerator.__init__(self,nmax=0,**kwargs)
+        self._exhausted = False # this one needs to be finished explicitly
         self.n_append = 0
     def append(self,command):
         """Append a unix command to the internal structure of the generator"""
+        if self._exhausted:
+            raise LauncherException("Should not append commands after declaring finished")
         if not isinstance(command,(Commandline)):
             raise LauncherException("append argument needs to be Commandline object")
         DebugTraceMsg("appending to command list <<%s>>" % str(command),
                       self.debug,prefix="Cmd")
         command_no = self.ncommands
         self.list.append(command); self.ncommands += 1
+        # do we ever use this return?
         return command_no
 
 class DirectoryCommandlineGenerator(DynamicCommandlineGenerator):
@@ -678,7 +688,7 @@ prefix=<<{prefix}>>, cmd=<<{line}>>""",
         commandexecutor = self.locator.pool.commandexecutor
         commandexecutor.execute(line,pool=self.locator,id=self.taskid,prefix=prefix)
         self.has_started = True
-        DebugTraceMsg("started %d" % self.taskid,self.debug,prefix="Task")
+        DebugTraceMsg( f"started taskid={self.taskid}",self.debug,prefix="Task" )
     def isRunning(self):
         return self.has_started
     def line_with_completion(self):
@@ -699,8 +709,8 @@ prefix=<<{prefix}>>, cmd=<<{line}>>""",
         completed = self.has_started and self.completion.test()
         if completed:
             self.runningtime = time.time()-self.starttime
-            DebugTraceMsg("completed %d in %5.3f" % (self.taskid,self.runningtime),
-                          self.debug,prefix="Task")
+            DebugTraceMsg( f"completed taskid={self.taskid} in {self.runningtime:5.3f}",
+                           self.debug,prefix="Task")
         return completed
     def __repr__(self):
         s = f"Task id={self.taskid}, cmd=<<{self.command}>>, pool size={self.size}"
@@ -916,12 +926,12 @@ class HostPoolBase():
                                     % str(taskid))
     def release(self):
         """If the executor opens ssh connections, we want to close them cleanly."""
+        DebugTraceMsg("release HostpoolBase",self.debug,prefix="Host")
         self.commandexecutor.terminate()
     def final_report(self):
         """Return a string that reports how many tasks were run on each node."""
         counts = [ n.tasks_on_this_node for n in self ]
-        message = """
-Host pool of size %d.
+        message = """Host pool of size %d.
 
 Number of tasks executed per node:
 max: %d
@@ -967,14 +977,10 @@ class HostPool(HostPoolBase):
             raise LauncherException("hostlist argument needs to be derived from HostList")
         nhosts = kwargs.pop("nhosts",None)
         if hostlist is not None:
-            # if self.debug:
-            #     print("Making hostpool on %s" % str(hostlist),flush=True)
             nhosts = len(hostlist)
             for h in hostlist:
                 self.append_node(host=h['host'],core = h['core'],phys_core=h['phys_core'])
         elif nhosts is not None:
-            # if self.debug:
-            #     print("Making hostpool size %d on localhost" % nhosts,flush=True)
             localhost = HostName()
             hostlist = [ localhost for i in range(nhosts) ]
             for i in range(nhosts):
@@ -984,7 +990,7 @@ class HostPool(HostPoolBase):
     def __del__(self):
         """The ``SSHExecutor`` class creates a permanent ssh connection, 
         which we try to release by this mechanism."""
-        DebugTraceMsg("Releasing nodes",self.debug,prefix="Host")
+        #DebugTraceMsg("Delete hostpool, releasing all executors",self.debug,prefix="Host")
         for node in self:
             self.commandexecutor.release_from_node(node)
 
@@ -1277,8 +1283,9 @@ class TaskQueue():
         self.queuestate = kwargs.pop("queuestate","queuestate")
         self.debugs = kwargs.get("debug",False)
         self.debug = re.search("queue",self.debugs)
-        # if len(kwargs)>0:
-        #     raise LauncherException("Unprocessed TaskQueue args: %s" % str(kwargs))
+        self._didran = False
+    def finished(self):
+        return self._didran and len(self.queue)==0
     def isEmpty(self):
         """Test whether the queue is empty and no tasks running"""
         return self.queue==[] and self.running==[]
@@ -1286,6 +1293,7 @@ class TaskQueue():
         """Add a task to the queue"""
         DebugTraceMsg("enqueueing <%s>" % str(task),self.debug,prefix="Queue")
         self.queue.append(task)
+        self._didran = True
     def startQueued(self,hostpool,**kwargs):
         """for all queued, try to find nodes to run it on;
         the hostpool argument is a HostPool object"""
@@ -1415,40 +1423,47 @@ class TaskGenerator():
             ("completion",lambda x:Completion(taskid=x,workdir=self.workdir))
 
         self.taskcount = 0; self.paused = False
-        self.debugs = kwargs.pop("debug","")
+        self.debugs = kwargs.get("debug","")
         self.debug = re.search("task",self.debugs)
         self.skip = kwargs.pop("skip",[])
-        # if len(kwargs)>0:
-        #     raise LauncherException("Unprocessed TaskGenerator args: %s" % str(kwargs))
+    def append(self,cmdline):
+        """Append a Unix commandline to the task generator by 
+        appending it to the commandline generator"""
+        self.commandlinegenerator.append(cmdline)
+    def finish(self):
+        """Delegate this function to the commandline generator"""
+        self.commandlinegenerator.finish()
+    def stalling(self):
+        """Delegate this function to the commandline generator"""
+        return self.commandlinegenerator.stalling()
+    def stopping(self):
+        """Delegate this function to the commandline generator"""
+        return self.commandlinegenerator.stopping()
+    def exhausted(self):
+        return self.commandlinegenerator.exhausted()
     def next(self,imposedcount=None):
         """Deliver a Task object, or a special string:
 
         * "stall" : the commandline generator will give more, all in good time
         * "stop" : we are totally done
         """
+        if self.stalling() or self.stopping():
+            raise LauncherException( "This case should not happen" )
         comm = self.commandlinegenerator.next()
-        command = comm["command"]
-        if command in ["stall","stop"]:
-            # the dynamic commandline generator is running dry
-            return command
-        elif command==pylauncherBarrierString:
-            # this is not working yet
-            return command
+        if imposedcount is not None:
+            taskid = imposedcount
         else:
-            if imposedcount is not None:
-                taskid = imposedcount
-            else:
-                taskid = self.taskcount
-            self.taskcount += 1
-            if taskid in self.skip:
-                return self.next(imposedcount=imposedcount)
-            else:
-                DebugTraceMsg(f"task generator next: id={taskid}",
-                              self.debug,prefix="Task")
-                return self.taskclass\
-                    (comm,taskid=taskid,debug=self.debugs,
-                     workdir = self.workdir,
-                    )
+            taskid = self.taskcount
+        self.taskcount += 1
+        if taskid in self.skip:
+            return self.next(imposedcount=imposedcount)
+        else:
+            DebugTraceMsg(f"task generator next: id={taskid}",
+                          self.debug,prefix="Task")
+            return self.taskclass\
+                (comm,taskid=taskid,debug=self.debugs,
+                 workdir = self.workdir,
+                )
     def __iter__(self): return self
 
 class WrappedTaskGenerator(TaskGenerator):
@@ -1579,6 +1594,7 @@ class Executor():
     def execute(self,command,**kwargs):
         raise LauncherException("Should not call default execute")
     def terminate(self):
+        DebugTraceMsg("base executor terminate",self.debug,prefix="Exec")
         return
 
 class LocalExecutor(Executor):
@@ -1688,6 +1704,7 @@ class SSHExecutor(Executor):
             time.sleep(3)
             ssh.exec_command("( %s ) &" % wrapped_line)
     def end_execution(self):
+        DebugTraceMsg("SSH executor end session",self.debug,prefix="Exec")
         self.session.send('\x03')
         self.session.close()
 
@@ -1765,6 +1782,7 @@ class MPIExecutor(Executor):
         p = subprocess.Popen(full_commandline,shell=True,stdout=stdout)
         self.popen_object = p
     def terminate(self):
+        DebugTraceMsg("MPI executor terminate",self.debug,prefix="Exec")
         if self.popen_object is not None:
             self.popen_object.terminate()
 
@@ -1807,6 +1825,7 @@ class IbrunExecutor(Executor):
                              stdout=stdout)
         self.popen_object = p
     def terminate(self):
+        DebugTraceMsg("Ibrun executor terminate",self.debug,prefix="Exec")
         if self.popen_object is not None:
             self.popen_object.terminate()
     ## no setup_on_node or release_from_node needed
@@ -1842,6 +1861,7 @@ class MpiexecExecutor(Executor):
                              stdout=stdout)
         self.popen_object = p
     def terminate(self):
+        DebugTraceMsg("Ibrun executor terminate",self.debug,prefix="Exec")
         if self.popen_object is not None:
             self.popen_object.terminate()
 
@@ -1857,45 +1877,46 @@ class LauncherJob():
     """
     def __init__(self,**kwargs):
         print( f"Start launcherjob, launcher version: {pylauncher_version}" )
-        self.debugs = kwargs.pop("debug","")
+        self.debugs = kwargs.get("debug","")
         self.debug = re.search("job",self.debugs)
-        self.hostpool = kwargs.pop("hostpool",None)
-        if self.hostpool is None:
+        try:
+            self.hostpool = kwargs.pop("hostpool")
+        except:
             raise LauncherException("Need a host pool")
         self.workdir = kwargs.pop("workdir",".")
         self.queuestate = self.workdir+"/"+kwargs.pop("queuestate","queuestate")
         DebugTraceMsg("Host pool: <<%s>>" % str(self.hostpool),
-                      re.search("host",self.debugs),"Job")
-        self.taskgenerator = kwargs.pop("taskgenerator",None)
-        if self.taskgenerator is None:
+                      re.search("host",self.debugs),"Job ")
+        try:
+            self.taskgenerator = kwargs.pop("taskgenerator")
+        except:
             raise LauncherException("Need a task generator")
         self.delay = kwargs.pop("delay",.5)
         self.queue = TaskQueue(debug=self.debugs)
         self.maxruntime = kwargs.pop("maxruntime",0)
         self.taskmaxruntime = kwargs.pop("taskmaxruntime",0)
-        self.completed = 0; self.aborted = 0; self.tock = 0; self.stalling = False
+        # count tasks started/ended (note: completed includes aborted)
+        self.enqueued = 0; self.completed = 0; self.aborted = 0; self.tock = 0
+        self.started = False
         self.gather_output = kwargs.pop("gather_output",None)
-        # if len(kwargs)>0:
-        #     raise LauncherException("Unprocessed LauncherJob args: %s" % str(kwargs))
     def finish_or_continue(self):
         # auxiliary routine, purely to make ``tick`` look shorter
         if self.queue.isEmpty():
             if self.completed==0:
                 raise LauncherException("Done before we started....")
-            DebugTraceMsg("Generator and tasks finished",self.debug,prefix="Job")
+            DebugTraceMsg("Generator and tasks finished",self.debug,prefix="Job ")
             message = "finished"
         else:
-            DebugTraceMsg("Generator finished; tasks still running",self.debug,prefix="Job")
+            DebugTraceMsg("Generator finished; tasks still running",self.debug,prefix="Job ")
             message = "continuing"
         return message
     def enqueue_task(self,task):
         # auxiliary routine, purely to make ``tick`` look shorter
         if not isinstance(task,(Task)):
-            raise LauncherException("Not a task: %s" % str(task))
-        DebugTraceMsg("enqueueing new task <%s>" % str(task),
-                      self.debug,prefix="Job")
+            raise LauncherException( f"Not a task: <<{str(task)}>> is <<{type(task)}>>" )
+        DebugTraceMsg( f"enqueueing new task <<{str(task)}>>",self.debug,prefix="Job ")
         self.queue.enqueue(task)
-    def tick(self,monitor):
+    def tick(self,**kwargs):
         """This routine does a single time step in a launcher's life, and reports back
         to the user. Specifically:
 
@@ -1910,23 +1931,21 @@ class LauncherJob():
         :param monitor : monitor routine to be invoked.
 
         """
+        monitor = kwargs.get("monitor",NullMonitor)
         DebugTraceMsg("\ntick %d\nQueue:\n%s" % (self.tock,str(self.queue)),self.debug)
         self.tock += 1
 
-        if not self.stalling:
-            # should this line go inside the handle_enqueing?
+        if not self.queue.finished(): #taskgenerator.stalling():
             self.queue.startQueued(self.hostpool,starttick=self.tock)
-        message = None
         self.handle_completed()
         self.handle_aborted()
-        message = self.handle_enqueueing()
+        self.handle_enqueueing()
+        self.started = True
         monitor() # this can be NullMonitor
         time.sleep(self.delay)
 
         if re.search("host",self.debugs):
             DebugTraceMsg(str(self.hostpool))
-        DebugTraceMsg("status=%s" % message,self.debug,prefix="Job")
-        return message
     def handle_completed(self):
         message = None
         completed_task = self.queue.find_recently_completed()
@@ -1934,7 +1953,7 @@ class LauncherJob():
             self.queue.running.remove(completed_task)
             self.queue.completed.append(completed_task)
             completeID = completed_task.taskid
-            DebugTraceMsg("completed: %d" % completeID,self.debug,prefix="Job")
+            DebugTraceMsg("completed: %d" % completeID,self.debug,prefix="Job ")
             self.completed += 1
             self.hostpool.releaseNodesByTask(completeID)
             message = "expired %s" % str(completeID)
@@ -1947,45 +1966,23 @@ class LauncherJob():
             self.queue.running.remove(aborted_task)
             self.queue.aborted.append(aborted_task)
             completeID = aborted_task.taskid
-            DebugTraceMsg("aborted: %d" % completeID,self.debug,prefix="Job")
+            DebugTraceMsg("aborted: %d" % completeID,self.debug,prefix="Job ")
             self.aborted += 1
             self.hostpool.releaseNodesByTask(completeID)
             message = "truncated %s" % str(completeID)
         return message
     def handle_enqueueing(self):
-        message = None
-        barriertasks = [ t.completion for t in self.queue.running ]
-        ntogo = len(barriertasks)
-        if self.stalling:
-            if ntogo==0: 
-                self.stalling = False
-                DebugTraceMsg("barrier resolved".format(ntogo),
-                              self.debug,prefix="Job")
-                message = "continuing"
-            else:
-                DebugTraceMsg("still in barrier: {} tasks to go".format(ntogo),
-                              self.debug,prefix="Job")
-                message = "stalling"
+        if self.taskgenerator.stalling():
+            DebugTraceMsg("stalling",self.debug,prefix="Job ")
+        elif self.taskgenerator.stopping():
+            DebugTraceMsg("rolling till completion",self.debug,prefix="Job ")
         else:
             task = self.taskgenerator.next()
-            if task==pylauncherBarrierString:
-                self.stalling = True
-                DebugTraceMsg("barrier encountered; {} tasks to go".format(ntogo),
-                              self.debug,prefix="Job")
-                message = "stalling"
-            elif task=="stall":
-                message = "stalling"
-                DebugTraceMsg("stalling",self.debug,prefix="Job")
-            elif task=="stop":
-                message = self.finish_or_continue()
-                DebugTraceMsg("rolling till completion",self.debug,prefix="Job")
-            else:
-                self.enqueue_task(task)
-                message = "enqueueing"
-            # except: message = self.finish_or_continue()
-        return message
+            self.enqueue_task(task)
+            self.enqueued += 1
+            DebugTraceMsg("enqueue task <<{task}>>",self.debug,prefix="Job ")
     def post_process(self,taskid):
-        DebugTraceMsg("Task %s expired" % str(taskid),self.debug,prefix="Job")
+        DebugTraceMsg("Task %s expired" % str(taskid),self.debug,prefix="Job ")
     def run(self,**kwargs):
         """Invoke the launcher job, and call ``tick`` until all jobs are finished."""
         monitor = kwargs.pop("monitor",NullMonitor)
@@ -1994,40 +1991,45 @@ class LauncherJob():
         self.starttime = time.time()
         while True:
             elapsed = time.time()-self.starttime
-            runtime = "Time: %d" % int(elapsed)
+            runtime = f"Time: {elapsed} (sec)"
             if self.maxruntime>0:
-                runtime += " (out of %d)" % int(self.maxruntime)
-            DebugTraceMsg(runtime,self.debug,prefix="Job")
+                runtime += f" (out of {self.maxruntime})"
+            DebugTraceMsg(runtime,self.debug,prefix="Job ")
             if self.maxruntime>0:
                 if elapsed>self.maxruntime:
                     break
-            res = self.tick(monitor)
+            self.tick(monitor=monitor)
             # update restart file
             queuestate_update(self.queuestate,self.queue.savestate())
-            if res=="finished":
+            if self.finished():
+                DebugTraceMsg("all enqueued tasks are now completed",self.debug,prefix="Job ")
                 break
         self.runningtime = time.time()-self.starttime
-        self.finish()
-    def finish(self):
         self.hostpool.release()
-    def final_report(self,type=None):
+    def finish(self):
+        self.taskgenerator.finish()
+    def finished(self):
+        """Condition for breaking down the iteration mechanism"""
+        return self.taskgenerator.exhausted() and self.queue.isEmpty()
+    def final_report(self):
         """Return a string describing the total running time, as well as
         including the final report from the embedded ``HostPool`` and ``TaskQueue``
         objects."""
-        jobtype=""
-        if type : jobtype=f"jobtype: {type}"
+        jobtype=f"Launcher type: {self.__class__.__name__}"
         message = """
 ==========================
-Launcherjob run completed.%s
+Launcher run completed.
+%s
 
 total running time: %6.2f
 
 %s
-
 %s
 ==========================
-""" % ( jobtype,self.runningtime, self.queue.final_report(self.runningtime),
-        self.hostpool.final_report() )
+""" % ( jobtype,self.runningtime,
+        self.queue.final_report(self.runningtime),# ends with newline
+        self.hostpool.final_report(), # ends with newline
+       )
         return message
 def queuestate_update( queuestate,savestate ):
     ## update the restart file
@@ -2064,11 +2066,11 @@ def ClassicLauncher(commandfile,*args,**kwargs):
     """
     print( f"Pylauncher v{pylauncher_version} job, type=ClassicLauncher starting" )
     jobid = JobId()
-    debug = kwargs.pop("debug","")
+    debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
-    cores = kwargs.pop("cores",1)
-    corespernode = kwargs.pop("corespernode",None)
-    numactl = kwargs.pop("numactl",None)
+    cores = kwargs.get("cores",1)
+    corespernode = kwargs.get("corespernode",None)
+    numactl = kwargs.get("numactl",None)
     resume = kwargs.pop("resume",None)
     if resume is not None and not (resume=="0" or resume=="no"):
         generator = StateFileCommandlineGenerator(commandfile,cores=cores,debug=debug)
@@ -2086,7 +2088,7 @@ def ClassicLauncher(commandfile,*args,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report(type="ClassicLauncher"),flush=True)
+    print(job.final_report(),flush=True)
 
 def LocalLauncher(commandfile,nhosts,*args,**kwargs):
     """A LauncherJob for a file of single or multi-threaded commands, running locally
@@ -2106,7 +2108,7 @@ def LocalLauncher(commandfile,nhosts,*args,**kwargs):
     """
     print( f"Pylauncher v{pylauncher_version} job, type=LocalLauncher starting" )
     jobid = JobId()
-    debug = kwargs.pop("debug","")
+    debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     cores = kwargs.pop("cores",1)
     resume = kwargs.pop("resume",None)
@@ -2123,7 +2125,7 @@ def LocalLauncher(commandfile,nhosts,*args,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report(type="LocalLauncher"),flush=True)
+    print(job.final_report(),flush=True)
 
 def ResumeClassicLauncher(commandfile,**kwargs):
     ClassicLauncher(commandfile,resume=1,**kwargs)
@@ -2146,7 +2148,7 @@ def MPILauncher(commandfile,**kwargs):
     '''
     print( f"Pylauncher v{pylauncher_version} job, type=MPILauncher starting" )
     jobid = JobId()
-    debug = kwargs.pop("debug","")
+    debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     cores =  kwargs.pop("cores",4)
     hfswitch = kwargs.pop("hfswitch","-machinefile")
@@ -2160,7 +2162,7 @@ def MPILauncher(commandfile,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report(type="MPIlauncher"),flush=True)
+    print(job.final_report(),flush=True)
 
 def IbrunLauncher(commandfile,**kwargs):
     """A LauncherJob for a file of small MPI jobs.
@@ -2179,7 +2181,7 @@ def IbrunLauncher(commandfile,**kwargs):
     """
     print( f"Pylauncher v{pylauncher_version} job, type=IbrunLauncher starting" )
     jobid = JobId()
-    debug = kwargs.pop("debug","")
+    debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     cores = kwargs.pop("cores",4)
     numactl = kwargs.pop("numactl",None)
@@ -2198,7 +2200,7 @@ def IbrunLauncher(commandfile,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report(type="IbrunLauncher"),flush=True)
+    print(job.final_report(),flush=True)
 
 def GPULauncher(commandfile,**kwargs):
     """A LauncherJob for a file of small MPI jobs.
@@ -2217,7 +2219,7 @@ def GPULauncher(commandfile,**kwargs):
     """
     print( f"Pylauncher v{pylauncher_version} job, type=GPULauncher starting" )
     jobid = JobId()
-    debug = kwargs.pop("debug","")
+    debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     cores = kwargs.pop("cores",1)
     job = LauncherJob(
@@ -2231,7 +2233,7 @@ def GPULauncher(commandfile,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report(type="GPUlauncher"),flush=True)
+    print(job.final_report(),flush=True)
 
 def RemoteLauncher(commandfile,hostlist,**kwargs):
     """A LauncherJob for a file of single or multi-thread commands, executed remotely.
@@ -2250,7 +2252,7 @@ def RemoteLauncher(commandfile,hostlist,**kwargs):
     """
     print( f"Pylauncher v{pylauncher_version} job, type=RemoteLauncher starting" )
     jobid = "000"
-    debug = kwargs.pop("debug","")
+    debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     ppn = kwargs.pop("ppn",4)
     cores = kwargs.pop("cores",1)
@@ -2265,7 +2267,7 @@ def RemoteLauncher(commandfile,hostlist,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report(type="RremoteLauncher"),flush=True)
+    print(job.final_report("),flush=True)
 
 def SubmitLauncher(commandfile,submitparams,**kwargs):
     """A LauncherJob for a file of single or multi-thread commands, executed remotely.
@@ -2283,7 +2285,7 @@ def SubmitLauncher(commandfile,submitparams,**kwargs):
     :param debug: debug types string (optional, keyword)
     """
     jobid = "000"
-    debug = kwargs.pop("debug","")
+    debug = kwargs.get("debug","")
     nactive = kwargs.pop("nactive",1)
     queue = kwargs.pop("queue","normal")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
@@ -2303,7 +2305,41 @@ def SubmitLauncher(commandfile,submitparams,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run(monitor=monitor)
-    print(job.final_report(type="SubmitLauncher"),flush=True)
+    print(job.final_report(),flush=True)
+
+def DynamicLauncher( *args,**kwargs ):
+    """A LauncherJob for a file of single or multi-threaded commands.
+
+    The following values are specified for your convenience:
+
+    * hostpool : based on HostListByName
+    * commandexecutor : SSHExecutor
+    * completion : based on a directory ``pylauncher_tmp`` with jobid environment variables attached
+
+    :param commandfile: name of file with commandlines (required)
+    :param resume: if 1,yes interpret the commandfile as a queuestate file
+    :param cores: number of cores per commandline (keyword, optional, default=1)
+    :param corespernode: mostly for weird KNL core numbering
+    :param workdir: (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory
+    :param debug: debug types string (optional, keyword)
+    """
+    print( f"Pylauncher v{pylauncher_version} job, type=DynamicLauncher starting" )
+    jobid = JobId()
+    debug = kwargs.get("debug","")
+    workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
+    cores = kwargs.pop("cores",1)
+    corespernode = kwargs.pop("corespernode",None)
+    resume = kwargs.pop("resume",None)
+    commandexecutor = SSHExecutor(workdir=workdir,**kwargs)
+    return DynamicLauncherJob(
+        hostpool=HostPool(
+            hostlist=HostListByName(cores=cores,debug=debug),
+            cores=cores,
+            commandexecutor=commandexecutor,workdir=workdir,
+            debug=debug ),
+        **kwargs)
+    # job.run()
+    # print(job.final_report(),flush=True)
 
 def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
     """A LauncherJob for a file of small MPI jobs, executed remotely.
@@ -2321,7 +2357,7 @@ def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
     :param debug: debug types string (optional, keyword)
     """
     jobid = 000
-    debug = kwargs.pop("debug","")
+    debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     ppn = kwargs.pop("ppn",4)
     cores = kwargs.pop("cores",4)
@@ -2335,42 +2371,35 @@ def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report(type="RemoteIbrunLauncher"),flush=True)
+    print(job.final_report(),flush=True)
 
-class DynamicLauncher(LauncherJob):
+class DynamicLauncherJob(LauncherJob):
     """A LauncherJob derived class that is designed for dynamic adding of 
     commands. This should make it easier to integrate
     in environments that expect to "submit" jobs one at a time.
 
     This has two extra methods:
     * append(commandline) : add commandline to the internal queueu
+    * finish() : there will be no more commandlines, spin until everything executed
     * none_waiting() : check that all commands are either running or finished
 
     Optional parameters have a default value that makes it behave like
     the ClassicLauncher.
 
-    :param hostpool: (optional) by default based on HostListByName())
-    :
     """
     def __init__(self,**kwargs):
-        jobid = kwargs.pop("jobid",JobId())
-        debug = kwargs.pop("debug","")
-        hostpool = kwargs.pop("hostpool",
-            HostPool( hostlist=HostListByName(cores=cores,debug=debug),
-                      commandexecutor=SSHExecutor(workdir=workdir,debug=debug), 
-                      debug=debug ))
-        workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
-        cores = kwargs.pop("cores",1)
-        LauncherJob.__init__(self,
-            hostpool=hostpool,
-            taskgenerator=WrappedTaskGenerator( 
-                DynamicCommandlineGenerator(commandfile,cores=cores,debug=debug),
-                completion=lambda x:FileCompletion( taskid=x,workdir=workdir),
-                workdir=workdir, debug=debug ),
-            debug=debug,**kwargs)
+        debug = kwargs.get("debug","")
+        LauncherJob.__init__(
+            self,
+            taskgenerator=WrappedTaskGenerator(
+                DynamicCommandlineGenerator( **kwargs ), **kwargs,
+            ),
+            **kwargs)
     def append(self,commandline):
         """Append a Unix commandline to the generator"""
         self.taskgenerator.append( Commandline(commandline) )
+    def finish(self):
+        self.taskgenerator.finish()
     def none_waiting(self):
         return len(self.queue.queue)==0
 
@@ -2382,7 +2411,7 @@ def MICLauncher(commandfile,**kwargs):
     Treatment of the MIC cores is handled in the ``HostListByName``.
     """
     jobid = JobId()
-    debug = kwargs.pop("debug","")
+    debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     cores = kwargs.pop("cores",1)
     job = LauncherJob(
@@ -2396,6 +2425,6 @@ def MICLauncher(commandfile,**kwargs):
             workdir=workdir, debug=debug ),
         debug=debug,**kwargs)
     job.run()
-    print(job.final_report(type="MIClauncher"),flush=True)
+    print(job.final_report(),flush=True)
 
 os.environ["PYLAUNCHER_ENABLED"] = "1"

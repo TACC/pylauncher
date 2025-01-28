@@ -1,7 +1,7 @@
 ################################################################
 ####
 #### Makefile for the pylauncher examples
-#### pylauncher is copyright Victor Eijkhout 2010-2024
+#### pylauncher is copyright Victor Eijkhout 2010-2025
 ####
 ################################################################
 
@@ -56,7 +56,8 @@ script :
 	        -e "s/CORESPERNODE/${CORESPERNODE}/" -e "s/QUEUE/$${QUEUE}/" \
 	        -e "s/MINUTES/${MINUTES}/" \
 	        -e "/####/d" \
-	        > $${generated} \
+	        > "$${generated}" \
+	 && chmod +x "$${generated}" \
 	 && echo " .. file: <<$${generated}>>"
 submit :
 	PYTHONPATH=../src/pylauncher:${PYTHONPATH} sbatch jobscript_generated
