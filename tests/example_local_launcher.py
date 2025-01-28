@@ -4,7 +4,7 @@
 #### This file is part of the `pylauncher' package
 #### for parametric job launching
 ####
-#### Copyright Victor Eijkhout 2010-2022
+#### Copyright Victor Eijkhout 2010-2025
 #### eijkhout@tacc.utexas.edu
 ####
 #### https://github.com/TACC/pylauncher
@@ -20,5 +20,9 @@ from pylauncher import pylauncher as launcher
 ##
 
 ncores = 24
-launcher.LocalLauncher("commandlines",ncores,debug="job") # debug="job+host+task")
+launcher.LocalLauncher(
+    "commandlines",
+     # optional spec of output dir:
+     workdir=f"pylauncher_tmp_{example}_{ os.environ['SLURM_JOBID'] }",
+    ncores,debug="job") # debug="job+host+task")
 

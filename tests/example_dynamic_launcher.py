@@ -18,7 +18,7 @@ import pylauncher
 
 # set debug mode
 debug="host+job+command+exec"
-debug=""
+#debug=""
 
 #
 # create dynamic launcher job
@@ -64,5 +64,4 @@ job.hostpool.release()
 #
 # final statistics
 #
-job.runningtime = time.time()-job.starttime
 print(job.final_report())
