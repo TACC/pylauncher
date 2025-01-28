@@ -17,6 +17,7 @@ import pylauncher
 ## Emulate the classic launcher, using a one liner
 ##
 
+example = "VariableCoreLauncher"
 pylauncher.ClassicLauncher(
     "corecommandlines",
      # optional spec of output dir:

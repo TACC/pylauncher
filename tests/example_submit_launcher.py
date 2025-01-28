@@ -12,13 +12,14 @@
 ################################################################
 
 import os
-import pylauncher as launcher
+import pylauncher
 
 ##
 ## Emulate the classic launcher, using a one liner
 ##
 
-launcher.SubmitLauncher\
+example = "SubmitLauncher"
+pylauncher.SubmitLauncher\
     ("commandlines",
      "-A A-ccsc -N 1 -n 1 -p small -t 0:5:0", # slurm arguments
      nactive=2, # two jobs simultaneously

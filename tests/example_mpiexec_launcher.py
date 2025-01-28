@@ -20,6 +20,7 @@ import pylauncher
 ## spawn a bunch of MPI parallel jobs, with a core count
 ## that is constant, specified here.
 ##
+example = "IbrunLauncher"
 pylauncher.IbrunLauncher\
     ("parallelexeclines",cores=3,
      # optional spec of output dir:

@@ -11,14 +11,15 @@
 ####
 ################################################################
 
-from pylauncher import pylauncher as launcher
+import pylauncher
 
 ##
 ## Launcher multi-core jobs, but with large core counts.
 ## this will leave many processor cores unused.
 ##
 
-launcher.ClassicLauncher(
+example = "BigCoreLauncher"
+pylauncher.ClassicLauncher(
     "bigcorecommandlines",
      workdir=f"pylauncher_tmp_{example}_{ os.environ['SLURM_JOBID'] }",
     debug="job+task+host",

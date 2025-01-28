@@ -11,13 +11,14 @@
 ####
 ################################################################
 
-from pylauncher import pylauncher as launcher
+import pylauncher
 
 ##
 ## Classic launcher with a per-task timeout
 ##
 
-launcher.ClassicLauncher(
+example = "TruncateLauncher"
+pylauncher.ClassicLauncher(
     "commandlines",
      # optional spec of output dir:
      workdir=f"pylauncher_tmp_{example}_{ os.environ['SLURM_JOBID'] }",

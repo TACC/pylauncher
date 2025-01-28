@@ -18,6 +18,7 @@ import pylauncher
 ## Emulate the classic launcher, using a one liner
 ##
 
+example = "ClassicLauncher"
 pylauncher.ClassicLauncher\
     ("commandlines",
      # optional spec of output dir:

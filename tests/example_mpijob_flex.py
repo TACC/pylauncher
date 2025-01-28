@@ -11,11 +11,12 @@
 ####
 ################################################################
 
-from pylauncher import pylauncher as launcher
+from pylauncher
 
 ##
 ## spawn a bunch of MPI parallel jobs, with a core count
 ## that is specified in the file
 ##
-launcher.IbrunLauncher("parallellinescores",cores="file",
+example = "IbrunLauncher"
+pylauncher.IbrunLauncher("parallellinescores",cores="file",
                          debug="job+host+task+exec")

@@ -11,13 +11,14 @@
 ####
 ################################################################
 
-import pylauncher as launcher
+import pylauncher
 
 ##
 ## Emulate the classic launcher, using a one liner
 ##
 
-launcher.ClassicLauncher(
+example = "CommaLauncher"
+pylauncher.ClassicLauncher(
     "commalines",
     # optional spec of output dir:
     workdir=f"pylauncher_tmp_{example}_{ os.environ['SLURM_JOBID'] }",

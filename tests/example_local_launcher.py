@@ -11,7 +11,7 @@
 ####
 ################################################################
 
-from pylauncher import pylauncher as launcher
+from pylauncher
 
 ##
 ## Execute locally
@@ -20,7 +20,8 @@ from pylauncher import pylauncher as launcher
 ##
 
 ncores = 24
-launcher.LocalLauncher(
+example = "LocalLauncher"
+pylauncher.LocalLauncher(
     "commandlines",
      # optional spec of output dir:
      workdir=f"pylauncher_tmp_{example}_{ os.environ['SLURM_JOBID'] }",

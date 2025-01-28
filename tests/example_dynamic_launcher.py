@@ -23,7 +23,9 @@ debug="host+job+command+exec"
 #
 # create dynamic launcher job
 #
-job = pylauncher.DynamicLauncher( debug=debug,cores=12 )
+job = pylauncher.DynamicLauncher(
+     workdir=f"pylauncher_tmp_dynamic_{ os.environ['SLURM_JOBID'] }",
+    debug=debug,cores=12 )
 
 #
 # command generation and execution loop

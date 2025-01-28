@@ -18,6 +18,7 @@ import pylauncher
 ## Emulate the classic launcher, using a one liner
 ##
 
+example = "GPULauncher"
 pylauncher.GPULauncher\
     ("gpucommandlines",
      # optional spec of output dir:
