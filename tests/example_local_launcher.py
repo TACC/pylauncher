@@ -11,7 +11,8 @@
 ####
 ################################################################
 
-from pylauncher
+import os
+import pylauncher
 
 ##
 ## Execute locally

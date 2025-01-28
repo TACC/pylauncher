@@ -4,14 +4,15 @@
 #### This file is part of the `pylauncher' package
 #### for parametric job launching
 ####
-#### Copyright Victor Eijkhout 2010-2022
+#### Copyright Victor Eijkhout 2010-2025
 #### eijkhout@tacc.utexas.edu
 ####
 #### https://github.com/TACC/pylauncher
 ####
 ################################################################
 
-from pylauncher
+import os
+import pylauncher
 
 ##
 ## spawn a bunch of MPI parallel jobs, with a core count
