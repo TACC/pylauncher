@@ -279,6 +279,7 @@ class CommandlineGenerator():
     :param nax: (keyword, default None) see above for explanation
     """
     def __init__(self,**kwargs):
+        self.cores = kwargs.get("cores",1)
         self.list = [ e for e in kwargs.pop("list",[]) ]
         self.ncommands = len(self.list); self.njobs = 0; self.stopped = False
         nmax = kwargs.pop("nmax",None)
@@ -333,8 +334,8 @@ class ListCommandlineGenerator(CommandlineGenerator):
     * cores is 1 by default, other constants allowed.
     """
     def __init__(self,**kwargs):
-        cores = kwargs.pop("cores",1)
-        commandlist = [ Commandline(l,cores=cores) for l in kwargs.pop("list",[]) ]
+        self.cores = kwargs.pop("cores",1)
+        commandlist = [ Commandline(l,cores=self.cores) for l in kwargs.pop("list",[]) ]
         CommandlineGenerator.__init__(self,list=commandlist,**kwargs)
 
 class FileCommandlineGenerator(CommandlineGenerator):
@@ -435,7 +436,7 @@ class StateFileCommandlineGenerator(CommandlineGenerator):
 class DynamicCommandlineGenerator(CommandlineGenerator):
     """A CommandlineGenerator with an extra method:
 
-    ``append``: add a Commandline object to the list
+    ``append``: add a Commandline object to the list, from a specified Unix command
 
     The 'nmax=0' parameter value makes the generator keep expecting new stuff.
     """
@@ -447,16 +448,15 @@ class DynamicCommandlineGenerator(CommandlineGenerator):
         CommandlineGenerator.__init__(self,nmax=0,**kwargs)
         self._exhausted = False # this one needs to be finished explicitly
         self.n_append = 0
-    def append(self,command):
+    def append(self,commandline):
         """Append a unix command to the internal structure of the generator"""
         if self._exhausted:
             raise LauncherException("Should not append commands after declaring finished")
-        if not isinstance(command,(Commandline)):
-            raise LauncherException("append argument needs to be Commandline object")
-        DebugTraceMsg("appending to command list <<%s>>" % str(command),
-                      self.debug,prefix="Cmd")
+        commandobj = Commandline(commandline,cores=self.cores)
+        DebugTraceMsg("appending to command list <<%s>>" % str(commandobj),
+                      self.debug,prefix="Cmd ")
         command_no = self.ncommands
-        self.list.append(command); self.ncommands += 1
+        self.list.append( commandobj ); self.ncommands += 1
         # do we ever use this return?
         return command_no
 
@@ -664,6 +664,7 @@ class Task():
         of the endtime, but instead set ``self.runningtime`` in the ``hasCompleted`` routine.
         """
         self.starttick = kwargs.pop("starttick",0)
+        self.starttime = time.time()
         self.locator = kwargs.pop("locator",None)
         if self.locator is None:
             self.locator = LocalHostPool(nhosts=self.size,debug=self.debugs
@@ -707,8 +708,8 @@ prefix=<<{prefix}>>, cmd=<<{line}>>""",
     def hasCompleted(self):
         """Execute the completion test of this Task"""
         completed = self.has_started and self.completion.test()
+        self.runningtime = time.time()-self.starttime
         if completed:
-            self.runningtime = time.time()-self.starttime
             DebugTraceMsg( f"completed taskid={self.taskid} in {self.runningtime:5.3f}",
                            self.debug,prefix="Task")
         return completed
@@ -718,12 +719,9 @@ prefix=<<{prefix}>>, cmd=<<{line}>>""",
 
 class WrappedTask(Task):
     def __init__(self,command,**kwargs):
-        id = kwargs.get("taskid")
-        debugs = kwargs.get("debug","")
-        debug = re.search("task",debugs)
-        DebugTraceMsg(f"creating wrapped task id={id}",debug,prefix="Task")
-        # the kwargs include taskid
+        # the command includes core count
         Task.__init__(self,command,completionclass=WrapCompletion,**kwargs)
+        DebugTraceMsg(f"created wrapped task id={self.taskid}",self.debug,prefix="Task")
 class BareTask(Task):
     def __init__(self,command,**kwargs):
         id = kwargs.get("taskid")
@@ -884,7 +882,7 @@ class HostPoolBase():
         return sorted(u)
     def request_nodes(self,request):
         """Request a number of nodes; this returns a HostLocator object"""
-        DebugTraceMsg("request %d hosts" % request,self.debug,prefix="Host")
+        DebugTraceMsg("request %d locus/loci" % request,self.debug,prefix="Host")
         start = 0; found = False    
         while not found:
             if start+request>len(self.nodes):
@@ -1879,14 +1877,9 @@ class LauncherJob():
         print( f"Start launcherjob, launcher version: {pylauncher_version}" )
         self.debugs = kwargs.get("debug","")
         self.debug = re.search("job",self.debugs)
-        try:
-            self.hostpool = kwargs.pop("hostpool")
-        except:
-            raise LauncherException("Need a host pool")
+        self.hostpool = self.compulsory_hostpool( **kwargs )
         self.workdir = kwargs.pop("workdir",".")
         self.queuestate = self.workdir+"/"+kwargs.pop("queuestate","queuestate")
-        DebugTraceMsg("Host pool: <<%s>>" % str(self.hostpool),
-                      re.search("host",self.debugs),"Job ")
         try:
             self.taskgenerator = kwargs.pop("taskgenerator")
         except:
@@ -1899,6 +1892,17 @@ class LauncherJob():
         self.enqueued = 0; self.completed = 0; self.aborted = 0; self.tock = 0
         self.started = False
         self.gather_output = kwargs.pop("gather_output",None)
+    def compulsory_hostpool(self,**kwargs):
+        try:
+            hostpool = kwargs.pop("hostpool")
+            hostdebug = re.search("host",self.debugs)
+            DebugTraceMsg("Host pool: <<%s>>" % str(hostpool),
+                          hostdebug,"Job ")
+            if cores:=kwargs.get("cores"):
+                DebugTraceMsg( f" .. core spec: <<{cores}>>",hostdebug,"Job ")
+        except:
+            raise LauncherException("Need a host pool")
+        return hostpool
     def finish_or_continue(self):
         # auxiliary routine, purely to make ``tick`` look shorter
         if self.queue.isEmpty():
@@ -1934,6 +1938,7 @@ class LauncherJob():
         monitor = kwargs.get("monitor",NullMonitor)
         DebugTraceMsg("\ntick %d\nQueue:\n%s" % (self.tock,str(self.queue)),self.debug)
         self.tock += 1
+        self.runningtime = time.time()-self.starttime # needs to come before `handle' stuff
 
         if not self.queue.finished(): #taskgenerator.stalling():
             self.queue.startQueued(self.hostpool,starttick=self.tock)
@@ -1980,15 +1985,15 @@ class LauncherJob():
             task = self.taskgenerator.next()
             self.enqueue_task(task)
             self.enqueued += 1
-            DebugTraceMsg("enqueue task <<{task}>>",self.debug,prefix="Job ")
+            DebugTraceMsg( f"enqueue task <<{task}>>",self.debug,prefix="Job " )
     def post_process(self,taskid):
-        DebugTraceMsg("Task %s expired" % str(taskid),self.debug,prefix="Job ")
+        DebugTraceMsg( f"Task {taskid} expired",self.debug,prefix="Job " )
     def run(self,**kwargs):
         """Invoke the launcher job, and call ``tick`` until all jobs are finished."""
         monitor = kwargs.pop("monitor",NullMonitor)
         if re.search("host",self.debugs):
             self.hostpool.printhosts()
-        self.starttime = time.time()
+        self.starttime = time.time() # self.runningtime is maintained in the `tick' call
         while True:
             elapsed = time.time()-self.starttime
             runtime = f"Time: {elapsed} (sec)"
@@ -2004,7 +2009,6 @@ class LauncherJob():
             if self.finished():
                 DebugTraceMsg("all enqueued tasks are now completed",self.debug,prefix="Job ")
                 break
-        self.runningtime = time.time()-self.starttime
         self.hostpool.release()
     def finish(self):
         self.taskgenerator.finish()
@@ -2084,9 +2088,9 @@ def ClassicLauncher(commandfile,*args,**kwargs):
             commandexecutor=commandexecutor,workdir=workdir,
             debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
-            FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            workdir=workdir, debug=debug ),
-        debug=debug,**kwargs)
+            FileCommandlineGenerator(commandfile, **kwargs),
+            workdir=workdir, **kwargs ),
+        **kwargs)
     job.run()
     print(job.final_report(),flush=True)
 
@@ -2123,7 +2127,7 @@ def LocalLauncher(commandfile,nhosts,*args,**kwargs):
             completion=lambda x:FileCompletion\
                 ( taskid=x,workdir=workdir),
             workdir=workdir, debug=debug ),
-        debug=debug,**kwargs)
+        **kwargs)
     job.run()
     print(job.final_report(),flush=True)
 
@@ -2160,7 +2164,7 @@ def MPILauncher(commandfile,**kwargs):
             completion=lambda x:FileCompletion\
                 (taskid=x,workdir=workdir),
             workdir=workdir, debug=debug ),
-        debug=debug,**kwargs)
+        **kwargs)
     job.run()
     print(job.final_report(),flush=True)
 
@@ -2198,7 +2202,7 @@ def IbrunLauncher(commandfile,**kwargs):
             completion=lambda x:FileCompletion\
                 (taskid=x,workdir=workdir),
             workdir=workdir, debug=debug ),
-        debug=debug,**kwargs)
+        **kwargs)
     job.run()
     print(job.final_report(),flush=True)
 
@@ -2231,7 +2235,7 @@ def GPULauncher(commandfile,**kwargs):
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
             completion=lambda x:FileCompletion(taskid=x,workdir=workdir),
             workdir=workdir, debug=debug ),
-        debug=debug,**kwargs)
+        **kwargs)
     job.run()
     print(job.final_report(),flush=True)
 
@@ -2265,9 +2269,9 @@ def RemoteLauncher(commandfile,hostlist,**kwargs):
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
             completion=lambda x:FileCompletion(taskid=x,workdir=workdir),
             workdir=workdir, debug=debug ),
-        debug=debug,**kwargs)
+        **kwargs)
     job.run()
-    print(job.final_report("),flush=True)
+    print(job.final_report(),flush=True)
 
 def SubmitLauncher(commandfile,submitparams,**kwargs):
     """A LauncherJob for a file of single or multi-thread commands, executed remotely.
@@ -2303,7 +2307,7 @@ def SubmitLauncher(commandfile,submitparams,**kwargs):
         taskgenerator=BareTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
             workdir=workdir, debug=debug ),
-        debug=debug,**kwargs)
+        **kwargs)
     job.run(monitor=monitor)
     print(job.final_report(),flush=True)
 
@@ -2326,10 +2330,9 @@ def DynamicLauncher( *args,**kwargs ):
     print( f"Pylauncher v{pylauncher_version} job, type=DynamicLauncher starting" )
     jobid = JobId()
     debug = kwargs.get("debug","")
+    cores = kwargs.get("cores",1)
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
-    cores = kwargs.pop("cores",1)
-    corespernode = kwargs.pop("corespernode",None)
-    resume = kwargs.pop("resume",None)
+    corespernode = kwargs.get("corespernode",None)
     commandexecutor = SSHExecutor(workdir=workdir,**kwargs)
     return DynamicLauncherJob(
         hostpool=HostPool(
@@ -2337,9 +2340,8 @@ def DynamicLauncher( *args,**kwargs ):
             cores=cores,
             commandexecutor=commandexecutor,workdir=workdir,
             debug=debug ),
+        workdir=workdir, # pass to TaskGenerator
         **kwargs)
-    # job.run()
-    # print(job.final_report(),flush=True)
 
 def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
     """A LauncherJob for a file of small MPI jobs, executed remotely.
@@ -2369,19 +2371,16 @@ def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
             completion=lambda x:FileCompletion(taskid=x,workdir=workdir),
             workdir=workdir, debug=debug ),
-        debug=debug,**kwargs)
+        **kwargs)
     job.run()
     print(job.final_report(),flush=True)
 
 class DynamicLauncherJob(LauncherJob):
-    """A LauncherJob derived class that is designed for dynamic adding of 
-    commands. This should make it easier to integrate
-    in environments that expect to "submit" jobs one at a time.
+    """A LauncherJob derived class that is designed for dynamic adding of commands.
 
     This has two extra methods:
     * append(commandline) : add commandline to the internal queueu
     * finish() : there will be no more commandlines, spin until everything executed
-    * none_waiting() : check that all commands are either running or finished
 
     Optional parameters have a default value that makes it behave like
     the ClassicLauncher.
@@ -2392,16 +2391,15 @@ class DynamicLauncherJob(LauncherJob):
         LauncherJob.__init__(
             self,
             taskgenerator=WrappedTaskGenerator(
-                DynamicCommandlineGenerator( **kwargs ), **kwargs,
+                DynamicCommandlineGenerator( **kwargs ),
+                **kwargs,
             ),
             **kwargs)
     def append(self,commandline):
         """Append a Unix commandline to the generator"""
-        self.taskgenerator.append( Commandline(commandline) )
+        self.taskgenerator.append( commandline )
     def finish(self):
         self.taskgenerator.finish()
-    def none_waiting(self):
-        return len(self.queue.queue)==0
 
 def MICLauncher(commandfile,**kwargs):
     """A LauncherJob for execution entirely on an Intel Xeon Phi.
@@ -2423,7 +2421,7 @@ def MICLauncher(commandfile,**kwargs):
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
             completion=lambda x:FileCompletion( taskid=x,workdir=workdir),
             workdir=workdir, debug=debug ),
-        debug=debug,**kwargs)
+        **kwargs)
     job.run()
     print(job.final_report(),flush=True)
 
