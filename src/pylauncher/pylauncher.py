@@ -695,6 +695,7 @@ prefix=<<{prefix}>>, cmd=<<{line}>>""",
     def line_with_completion(self):
         """Return the task's commandline with completion attached"""
         line = re.sub("PYL_ID",str(self.taskid),self.command)
+        line = re.sub("PYLTID",str(self.taskid),line)
         # ibrun needs to know about the full cores
         ncores = int( os.environ["SLURM_CPUS_ON_NODE"] )
         exec_prefix = \
