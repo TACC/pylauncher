@@ -20,7 +20,7 @@ import pylauncher
 
 example = "GPULauncher"
 pylauncher.GPULauncher\
-    ("gpucommandlines",
+    ("gpucommandlines",cores=8,
      # optional spec of output dir:
      workdir=f"pylauncher_tmp_{example}_{ os.environ['SLURM_JOBID'] }",
      debug="ssh+host+exec+job")
