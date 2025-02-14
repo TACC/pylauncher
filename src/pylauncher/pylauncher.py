@@ -25,7 +25,8 @@ chris.blanton@gatech.edu
 otoelog = """
 Change log
 4.8
-- DynamicLauncher
+- DynamicLauncher,
+- python version detection
 4.7 
 - core count per node reduced for divisibility
 - introduce PYL_MPIEXEC for mpi runs
@@ -2426,4 +2427,8 @@ def MICLauncher(commandfile,**kwargs):
     job.run()
     print(job.final_report(),flush=True)
 
-os.environ["PYLAUNCHER_ENABLED"] = "1"
+if __name__ == "__main__":
+    print(sys.version_info)
+    if sys.version_info<(3,8,0):
+        raise LauncherException("Pylauncher requires at least Python 3.8")
+    os.environ["PYLAUNCHER_ENABLED"] = "1"
