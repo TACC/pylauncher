@@ -18,6 +18,7 @@ SSH =
 RUN = python3
 NODES = 3
 CORESPERNODE = 16
+GPUSPERNODE =
 MINUTES = 20
 QUEUE = development
 info ::
@@ -26,6 +27,7 @@ info ::
 	@echo "    [EXECUTABLE=... (default: ${EXECUTABLE})]"
 	@echo "    [NODES=... (default: ${NODES})]"
 	@echo "    [CORESPERNODE=... (default: ${CORESPERNODE})]"
+	@echo "    [GPUSPERNODE=... ]" 
 	@echo "    [QUEUE=... (default: ${QUEUE})]"
 	@echo "  this submits a jobscript (see jobscr.hostname) to the queue"
 	@echo "  available programs:"
@@ -53,14 +55,32 @@ script :
 	 && cat $${template} | sed -e "s/SSH/${SSH}/" -e "s/RUN/${RUN}/" \
 	        -e "s/EXECUTABLE/$${EXECUTABLE}/" -e "s/NODES/${NODES}/" \
 	        -e "s/NAME/${NAME}/" \
-	        -e "s/CORESPERNODE/${CORESPERNODE}/" -e "s/QUEUE/$${QUEUE}/" \
+	        -e "s/QUEUE/$${QUEUE}/" \
 	        -e "s/MINUTES/${MINUTES}/" \
+	        -e $$( if [ ! -z "${GPUSPERNODE}" ] ; then \
+	                   echo "s/=GPUSPERNODE/=${GPUSPERNODE}/" \
+	               ; else \
+	                   echo "/GPUSPERNODE/d" \
+	               ; fi ) \
 	        -e "/####/d" \
 	        > "$${generated}" \
 	 && chmod +x "$${generated}" \
 	 && echo " .. file: <<$${generated}>>"
 submit :
 	PYTHONPATH=../src/pylauncher:${PYTHONPATH} sbatch jobscript_generated
+info ::
+	@echo "make gpusubmit : to known GPU queue"
+gpusubmit :
+	@make --no-print-directory script submit \
+	  QUEUE=$$( case $$( hostname | cut -d '.' -f 2 ) in \
+	                ( frontera ) echo rtx ;; \
+	                ( ls6 ) echo gpu-a100 ;; \
+	                ( * ) echo no_gpu_queue_known ;; esac ) \
+	  GPUSPERNODE=$$( case $$( hostname | cut -d '.' -f 2 ) in \
+	                ( frontera ) echo 2 ;; \
+	                ( ls6 ) echo 3 ;; \
+	                ( * ) echo no_gpu_count_known ;; esac ) \
+	  EXECUTABLE=example_gpu_launcher NODES=2 MINUTES=${MINUTES}
 
 example_shifted_ibrun_dependencies = parallel
 
