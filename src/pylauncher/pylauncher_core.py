@@ -856,6 +856,7 @@ class HostPoolBase():
     """
     def __init__(self,**kwargs) -> None :
         self.nodes : list[Node] = []
+        self.occupancies : list[float] = []
         self.commandexecutor = kwargs.pop("commandexecutor",None)
         if not isinstance(self.commandexecutor,(Executor)):
             raise LauncherException\
@@ -883,6 +884,14 @@ class HostPoolBase():
         self.commandexecutor.setup_on_node(node)
     def __len__(self) -> int :
         return len(self.nodes)
+    def occupancy(self) -> int  :
+        return sum( [ 1 for n in self.nodes if not n.isfree() ] )
+    def record_occupancy(self) -> None :
+        self.occupancies.append( self.occupancy() )
+    def max_occupancy(self) -> int :
+        return max( self.occupancies )
+    def average_occupancy(self) -> float :
+        return sum( self.occupancies )/len( self.occupancies )
     def __getitem__(self,i) -> Node :
         return self.nodes[i]
     def hosts(self,pool) -> list[Node] :
@@ -949,12 +958,12 @@ class HostPoolBase():
     def final_report(self) -> str:
         """Return a string that reports how many tasks were run on each node."""
         counts = [ n.tasks_on_this_node for n in self ]
-        message = """Host pool of size %d.
+        message = f"""Host pool of size {len(self)}.
 
-Number of tasks executed per node:
-max: %d
-avg: %d
-""" % ( len(self),max(counts),sum(counts)/len(counts) )
+Number of tasks executed:
+max: {self.max_occupancy()}
+avg: {self.average_occupancy()}
+""" ## % ( len(self),max(counts),sum(counts)/len(counts) )
         return message
     def printhosts(self) -> str :
         hostlist = ""
@@ -1969,6 +1978,7 @@ class LauncherJob():
         self.handle_completed()
         self.handle_aborted()
         self.handle_enqueueing()
+        self.hostpool.record_occupancy()
         self.started = True
 
         # graphic display....
