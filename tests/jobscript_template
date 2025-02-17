@@ -25,5 +25,5 @@ echo ${PYTHONPATH}
 export GPUSPERNODE=GPUSPERNODE
 
 ## for local testing:
-#export PYTHONPATH=..:${PYTHONPATH}
+## export PYTHONPATH=..:${PYTHONPATH}
 SSH RUN EXECUTABLE.py

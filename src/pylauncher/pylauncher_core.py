@@ -10,7 +10,7 @@
 ####
 ################################################################
 
-pylauncher_version = "5.0rc1"
+pylauncher_version = "5.0rc2"
 docstring = \
 f"""pylauncher.py version {pylauncher_version}
 
@@ -27,6 +27,7 @@ Change log
 5.0
 - use typing module
 - rewrite all node handling
+- package use __init__.py 
 4.8
 - DynamicLauncher
 4.7 
