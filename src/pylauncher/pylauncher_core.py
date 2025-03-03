@@ -10,7 +10,7 @@
 ####
 ################################################################
 
-pylauncher_version = "5.0rc2"
+pylauncher_version = "5.0"
 docstring = \
 f"""pylauncher.py version {pylauncher_version}
 

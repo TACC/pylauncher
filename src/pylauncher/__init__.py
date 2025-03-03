@@ -15,6 +15,7 @@ import sys
 if sys.version_info<(3,9,0):
     raise LauncherException("PyLauncher requires at least Python 3.9")
 from pylauncher.pylauncher_core import \
+    pylauncher_version,\
     ClassicLauncher,\
     LocalLauncher,\
     ResumeClassicLauncher,\
