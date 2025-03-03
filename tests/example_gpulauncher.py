@@ -19,8 +19,13 @@ import pylauncher
 ##
 
 example = "GPULauncher"
+try :
+    gpuspernode=os.environ['GPUSPERNODE']
+except:
+    gpuspernode=1
+
 pylauncher.GPULauncher\
-    ("gpucommandlines",cores=8,
+    ("gpucommandlines",gpuspernode=gpuspernode,
      # optional spec of output dir:
      workdir=f"pylauncher_tmp_{example}_{ os.environ['SLURM_JOBID'] }",
      debug="ssh+host+exec+job")

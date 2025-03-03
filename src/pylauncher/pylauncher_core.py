@@ -10,7 +10,7 @@
 ####
 ################################################################
 
-pylauncher_version = "4.8"
+pylauncher_version = "5.0"
 docstring = \
 f"""pylauncher.py version {pylauncher_version}
 
@@ -24,6 +24,10 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+5.0
+- use typing module
+- rewrite all node handling
+- package use __init__.py 
 4.8
 - DynamicLauncher,
 - python version detection
@@ -119,11 +123,16 @@ import shutil
 import stat
 import subprocess
 import time
+import typing
+from typing import Any
+from typing import Optional
+from typing import TypedDict
+## 3.10 from typing import TypeAlias
 import hostlist3 as hs
 
 class LauncherException(Exception):
     """A very basic exception mechanism"""
-    def __init__(self,str):
+    def __init__(self,str) -> None :
         print(str,flush=True)
         self.str = str
     def __str__(self):
@@ -153,11 +162,11 @@ def CloseDebugtracefile():
     close(debugtracefile)
 
 randomid = 10
-def RandomID():
+def RandomID() -> int:
     global randomid
     randomid += 7
     return randomid
-def RandomDir():
+def RandomDir() -> str:
     return "./pylauncher_tmpdir%d" % RandomID()
 def NoRandomDir():
     dirname = RandomDir()
@@ -197,7 +206,7 @@ class CountedCommandGenerator():
     :param command: (keyword, default==``echo``) the command that will do the counting; sometimes it's a good idea to replace this with ``/bin/true``
     :param catch: (keyword, default None) file where to catch output
     """
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         self.__commandcount__ = 0
         self.nmax = kwargs.pop("nmax",-1)
         self.command = kwargs.pop("command","echo")
@@ -224,7 +233,7 @@ class SleepCommandGenerator(CountedCommandGenerator):
     :param tmin: (keyword, default 1) minimum sleep time
     :param barrier: (keyword, default 0) if >0, insert a barrier statement every that many lines
     """
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         self.tmax = kwargs.pop("tmax",5)
         self.tmin = kwargs.pop("tmin",1)
         self.barrier = kwargs.pop("barrier",0)
@@ -254,7 +263,7 @@ class Commandline():
     * cores : an integer core count
     * dependencies : dependency stuff.
     """
-    def __init__(self,command,**kwargs):
+    def __init__(self,command,**kwargs) -> None :
         self.data = {'command':command}
         self.data["cores"] = int( kwargs.pop("cores",1) )
         self.data["dependencies"] = kwargs.pop("dependencies",None)
@@ -279,8 +288,11 @@ class CommandlineGenerator():
     :param list: (keyword, default [] ) initial list of Commandline objects
     :param nax: (keyword, default None) see above for explanation
     """
-    def __init__(self,**kwargs):
-        self.cores = kwargs.get("cores",1)
+    def __init__(self,**kwargs) -> None :
+        try :
+            kwargs.pop("cores")
+            raise LauncherException( "Commandline generator should not have cores option" )
+        except: pass
         self.list = [ e for e in kwargs.pop("list",[]) ]
         self.ncommands = len(self.list); self.njobs = 0; self.stopped = False
         nmax = kwargs.pop("nmax",None)
@@ -331,19 +343,15 @@ class CommandlineGenerator():
 
 class ListCommandlineGenerator(CommandlineGenerator):
     """A generator from an explicit list of commandlines.
-
-    * cores is 1 by default, other constants allowed.
     """
-    def __init__(self,**kwargs):
-        self.cores = kwargs.pop("cores",1)
-        commandlist = [ Commandline(l,cores=self.cores) for l in kwargs.pop("list",[]) ]
+    def __init__(self,**kwargs) -> None :
+        commandlist = [ Commandline(l,cores=1) for l in kwargs.pop("list",[]) ]
         CommandlineGenerator.__init__(self,list=commandlist,**kwargs)
 
 class FileCommandlineGenerator(CommandlineGenerator):
     """A generator for commandline files:
     blank lines and lines starting with the comment character '#' are ignored
 
-    * cores is 1 by default, other constants allowed.
     * cores=='file' means the file has << count,command >> lines
     * if the file has core counts, but you don't specify the 'file' value, they are ignored.
 
@@ -351,7 +359,7 @@ class FileCommandlineGenerator(CommandlineGenerator):
     :param cores: (keyword, default 1) core count to be used for all commands
     :param dependencies: (keyword, default False) are there task dependencies?
     """
-    def __init__(self,filename,**kwargs):
+    def __init__(self,filename,**kwargs) -> None :
         cores = kwargs.pop("cores",1)
         dependencies = kwargs.pop("dependencies",False)
         file = open(filename); commandlist = []
@@ -370,8 +378,9 @@ class FileCommandlineGenerator(CommandlineGenerator):
                 if len(split)<3:
                     raise LauncherException("No task#/dependency found <<%s>>" % split)
                 c,td,l = split
-            elif re.match("barrier",line):
-                l = pylauncherBarrierString; c = 1
+            # elif re.match("barrier",line):
+            #     l = pylauncherBarrierString
+            #     c = "1"
             elif cores=="node":
                 c = SLURMCoresPerNode()
                 l = line
@@ -398,7 +407,7 @@ class StateFileCommandlineGenerator(CommandlineGenerator):
     Otherwise this has all the code of the FileCommandlineGenerator.
     Ugly.
     """
-    def __init__(self,filename,**kwargs):
+    def __init__(self,filename,**kwargs) -> None :
         cores = kwargs.pop("cores",1)
         dependencies = kwargs.pop("dependencies",False)
         file = open(filename); commandlist = []
@@ -441,7 +450,7 @@ class DynamicCommandlineGenerator(CommandlineGenerator):
 
     The 'nmax=0' parameter value makes the generator keep expecting new stuff.
     """
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         try: ## catch incorrect case of nmax specified
             nmax = kwargs.pop("nmax")
             raise LauncherException("Dynamic launcher can not have nmax specification")
@@ -468,7 +477,7 @@ class DirectoryCommandlineGenerator(DynamicCommandlineGenerator):
     :param commandfile_root: (string, required) only files that start with this, followed by a dash, are inspected for commands. A file can contain more than one command.
     :param cores: (keyword, optional, default 1) core count for the commandlines.
     """
-    def __init__(self,command_directory,commandfile_root,**kwargs):
+    def __init__(self,command_directory,commandfile_root,**kwargs) -> None :
         self.command_directory = command_directory
         self.commandfile_root = commandfile_root
         self.finish_name = commandfile_root+"-finished"
@@ -553,7 +562,7 @@ class Completion():
     
     The kwargs arguments will probably be caught by derived classes.
     """
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         self.taskid = kwargs.pop("taskid",0)
         self.workdir = kwargs.pop("workdir",".")
         debugs = kwargs.get("debug","")
@@ -575,7 +584,7 @@ class WrapCompletion(Completion):
 
     :param taskid: (keyword, required) this has to be unique. Unfortunately we can not test for that.
     """
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         Completion.__init__(self,**kwargs)
     def stampname(self):
         """Internal function that gives the name of the stamp file,
@@ -613,7 +622,7 @@ class BareCompletion(Completion):
 
     :param taskid: (keyword, required) this has to be unique. Unfortunately we can not test for that.
     """
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         Completion.__init__(self,**kwargs)
     def stampname(self):
         """Internal function that gives the name of the stamp file,
@@ -639,11 +648,11 @@ class Task():
     :param linewrapper: (keyword, required)
     :param debug: (keyword, optional) string of debug keywords
     """
-    def __init__(self,command,**kwargs):
+    def __init__(self,command,**kwargs) -> None :
         self.command = command["command"]
 
-        debugs = kwargs.get("debug","")
-        self.debug = re.search("task",debugs)
+        self.debugs = kwargs.get("debug","")
+        self.debug = re.search("task",self.debugs)
         self.workdir = kwargs.pop("workdir",None)
 
         # instantiate a completion for this id.
@@ -655,32 +664,32 @@ class Task():
         self.has_started = False
         DebugTraceMsg("created task <<%s>>" % str(self),self.debug,prefix="Task")
         self.nodes = None
-    def start_on_nodes(self,**kwargs):
+    def start_on_nodes(self,**kwargs) -> None :
         """Start the task.
 
         :param locator: HostLocator object (keyword, required) : this describes the nodes on which to start the task
-        :param commandexecutor: (keyword, optional) prefixer routine, by default the commandexecutor of the pool is used
 
         This sets ``self.startime`` to right before the execution begins. We do not keep track
         of the endtime, but instead set ``self.runningtime`` in the ``hasCompleted`` routine.
         """
         self.starttick = kwargs.pop("starttick",0)
         self.starttime = time.time()
-        self.locator = kwargs.pop("locator",None)
-        if self.locator is None:
-            self.locator = LocalHostPool(nhosts=self.size,debug=self.debugs
-                                      ).request_nodes(self.size)
-        elif isinstance(self.locator,(Node)):
-            if self.size>1:
-                raise LauncherException("Can not start size=%d on sing Node" % self.size)
-            self.locator = OneNodePool( self.locator,debug=self.debugs ).request_nodes(self.size)
-        if not isinstance(self.locator,(HostLocator)):
-            raise LauncherException("Invalid locator object")
+        try: 
+            self.locator : Optional[HostLocator] = kwargs.pop("locator")
+        except:
+            self.locator = \
+                LocalHostPool(nhosts=self.size,debug=self.debugs).request_nodes(self.size)
+        # elif isinstance(self.locator,(Node)):
+        #     if self.size>1:
+        #         raise LauncherException("Can not start size=%d on sing Node" % self.size)
+        #     self.locator = OneNodePool( self.locator,debug=self.debugs ).request_nodes(self.size)
+
         wrapped,exec_prefix = self.line_with_completion()
 
         # and here we go
         self.execute_on_pool(wrapped,prefix=exec_prefix)
-    def execute_on_pool(self,line,prefix=""): ## task method
+    def execute_on_pool(self,line,prefix=""):
+        """ Task.execute """
         DebugTraceMsg(
             f"""starting task id={self.taskid} of size {self.size} on <<{str(self.locator)}>>
 in cwd=<<{os.getcwd()}>>
@@ -688,7 +697,7 @@ prefix=<<{prefix}>>, cmd=<<{line}>>""",
             self.debug,prefix="Task")
         self.starttime = time.time()
         commandexecutor = self.locator.pool.commandexecutor
-        commandexecutor.execute(line,pool=self.locator,id=self.taskid,prefix=prefix)
+        commandexecutor.execute(line,self.locator,id=self.taskid,prefix=prefix)
         self.has_started = True
         DebugTraceMsg( f"started taskid={self.taskid}",self.debug,prefix="Task" )
     def isRunning(self):
@@ -720,12 +729,12 @@ prefix=<<{prefix}>>, cmd=<<{line}>>""",
         return s
 
 class WrappedTask(Task):
-    def __init__(self,command,**kwargs):
+    def __init__(self,command,**kwargs) -> None :
         # the command includes core count
         Task.__init__(self,command,completionclass=WrapCompletion,**kwargs)
         DebugTraceMsg(f"created wrapped task id={self.taskid}",self.debug,prefix="Task")
 class BareTask(Task):
-    def __init__(self,command,**kwargs):
+    def __init__(self,command,**kwargs) -> None :
         id = kwargs.get("taskid")
         debugs = kwargs.get("debug","")
         debug = re.search("task",debugs)
@@ -742,52 +751,62 @@ class RandomSleepTask(Task):
     :param tmin: minimum running time (keyword, optional; default=1)
     :param completion: Completion object (keyword, optional; if you leave this unspecified, the next two parameters become relevant
     """
-    def __init__(self,**kwargs):
-        taskid = kwargs.pop("taskid",-1)
-        if taskid==-1:
+    def __init__(self,**kwargs) -> None :
+        if ( taskid := int(kwargs.pop("taskid",-1)) )<0:
             raise LauncherException("Need an explicit sleep task ID")
         t = kwargs.pop("t",10); tmin = kwargs.pop("tmin",1);
         completion = kwargs.pop("completion",None)
         if completion is None:
-            completion = FileCompletion(taskid=taskid,workdir=workdir)
+            completion = FileCompletion(taskid=taskid,workdir="./pylauncher_sleep_tmp")
         command = SleepCommandGenerator(nmax=1,tmax=t,tmin=tmin).next()
         Task.__init__(self,Commandline(command),taskid=taskid,completion=completion,**kwargs)
         
 #
 # different ways of starting up a job
-def launcherqsubber(task,line,hosts,poolsize):
+def launcherqsubber(task,line,hosts,poolsize) -> str :
     command = "qsub %s" % line
     return command
 
+# HostDict = dict[str,int,int,str] # TypeAlias
+class HostDict(TypedDict):
+    host : str
+    hostnum : int
+    task_loc : int
+    phys_core : str
 class Node():
     """A abstract object for a slot to execute a job. Most of the time
     this will correspond to a core.
 
     A node can have a task associated with it or be free."""
-    def __init__(self,host=None,core=None,nodeid=-1,phys_core="0-0"):
-        self.hostname = host; self.core = core; self.phys_core = phys_core
-        self.nodeid = nodeid; 
+    def __init__(self,host_dict : HostDict,nodeid : int ) -> None :
+        # self.hostname = host; self.core = core; self.phys_core = phys_core
+        self.host_dict : HostDict = host_dict
+        self.nodeid : int = nodeid; 
         # two initializations before the first ``release`` call:
-        self.free = None; self.tasks_on_this_node = -1
-        self.release()
-    def occupyWithTask(self,taskid):
+        self.free :bool = True
+        self.tasks_on_this_node : int = -1
+        self.taskid : int = -1
+        # HACK self.release()
+    def occupyWithTask(self,taskid) -> None :
         """Occupy a node with a taskid"""
         self.free = False; self.taskid = taskid
-    def release(self):
+    def release(self) -> None :
         """Make a node unoccupied"""
         if self.free is not None and self.free:
             raise LauncherException("Attempting to release a free node")
         self.free = True; self.taskid = -1
         self.tasks_on_this_node += 1
-    def isfree(self):
+    def isfree(self) -> bool :
         """Test whether a node is occupied"""
         return self.free
-    def nodestring(self):
+    def nodestring(self) -> str :
         if self.free: return "X"
         else:         return str( self.taskid )
     def __str__(self):
-        return "h:%s, c:%s, id:%s, p:%s" % \
-            (self.hostname,str(self.core),str(self.nodeid),str(self.phys_core))
+        #node_values = [ node.host_dict[k] for k in node.host_dict ]
+        return f"{self.host_dict}, id={self.nodeid}"
+        #  "h:%s, c:%s, id:%s, p:%s" % \
+        # (self.hostname,str(self.core),str(self.nodeid),str(self.phys_core))
 
 class HostLocator():
     """A description of a subset from a HostPool. A locator
@@ -802,29 +821,26 @@ class HostLocator():
     :param offset: location of the first node in the pool
 
     """
-    def __init__(self,pool=None,extent=None,offset=None):
-        if extent is None or offset is None:
-            raise LauncherException("Please specify extent and offset")
-        self.pool=pool; self.offset=offset; self.extent=extent
-    def __getitem__(self,key):
+    def __init__(self,**kwargs): ##pool=None,extent=None,offset=None) -> None :
+        self.pool   = kwargs.get("pool")
+        self.extent = kwargs.get("extent")
+        self.offset = kwargs.get("offset")
+    def __getitem__(self,key) -> Node:
         index = self.offset+key
         if key>=self.extent:
-            raise LauncherException("Index %d out of range for pool" % index)
-        node = self.pool[index]
-        if not isinstance(node,(Node)):
-            raise LauncherException("Strange node type: <<%s>> @ %d" % (str(node),key) )
+            raise LauncherException( f"Index {index} out of range for pool" )
+        node : Node = self.pool[index]
         return node
-    def firsthost(self):
-        node = self[0]#.pool[self.offset]
-        return node.hostname
-    def first_range(self):
+    def firsthost(self) -> str:
+        node : Node = self[0]
+        return node.host_dict['host']
+    def first_range(self) -> str :
         node = self[0]
-        return node.phys_core
-    def __len__(self):
+        return node.host_dict['phys_core']
+    def __len__(self) -> int :
         return self.extent
-    def __str__(self):
-        return "Locator: size=%d offset=%d <<%s>>" % \
-            (self.extent,self.offset,str([ str(self[i]) for i in range(self.extent) ]))
+    def __str__(self) -> str:
+        return f"Locator: size={self.extent} offset={self.offset} <<{[ str(self[i]) for i in range(self.extent) ]}>>"
 
 def HostName():
     """This just returns the hostname. See also ``ClusterName``."""
@@ -839,8 +855,9 @@ class HostPoolBase():
     :param workdir: (keyword, optional) the workdir for the command executor
     :param debug: (keyword, optional) a string of debug types; if this contains 'host', anything derived from ``HostPoolBase`` will do a debug trace
     """
-    def __init__(self,**kwargs):
-        self.nodes = []
+    def __init__(self,**kwargs) -> None :
+        self.nodes : list[Node] = []
+        self.occupancies : list[float] = []
         self.commandexecutor = kwargs.pop("commandexecutor",None)
         if not isinstance(self.commandexecutor,(Executor)):
             raise LauncherException\
@@ -853,23 +870,32 @@ class HostPoolBase():
             raise LauncherException("workdir arg is ignored with explicit executor")
         self.debugs = kwargs.get("debug","")
         self.debug = re.search("host",self.debugs)
-        # if len(kwargs)>0:
-        #     raise LauncherException("Unprocessed HostPool args: %s" % str(kwargs))
-    def append_node(self,host="localhost",core=0,phys_core="0-0"):
+    def append_node(self,host_dict : HostDict) -> None:
         """Create a new item in this pool by specifying either a Node object
         or a hostname plus core number. This function is called in a loop when a
         ``HostPool`` is created from a ``HostList`` object."""
-        if isinstance(host,(Node)):
-            node = host
-        else:
-            node = Node(host,core,nodeid=len(self.nodes),phys_core=phys_core)
+
+        # host      = host_dict['host']
+        # core      = host_dict['hostnum']
+        # phys_core = host_dict['phys_core']
+
+        node : Node = Node(host_dict,nodeid=len(self.nodes))
+        ## host,core,nodeid=len(self.nodes),phys_core=phys_core)
         self.nodes.append( node )
         self.commandexecutor.setup_on_node(node)
-    def __len__(self):
+    def __len__(self) -> int :
         return len(self.nodes)
-    def __getitem__(self,i):
+    def occupancy(self) -> int  :
+        return sum( [ 1 for n in self.nodes if not n.isfree() ] )
+    def record_occupancy(self) -> None :
+        self.occupancies.append( self.occupancy() )
+    def max_occupancy(self) -> int :
+        return max( self.occupancies )
+    def average_occupancy(self) -> float :
+        return sum( self.occupancies )/len( self.occupancies )
+    def __getitem__(self,i) -> Node :
         return self.nodes[i]
-    def hosts(self,pool):
+    def hosts(self,pool) -> list[Node] :
         return [ self[i] for i in pool ]
     def unique_hostnames(self,pool=None):
         """Return a list of unique hostnames. In general each hostname appears
@@ -882,19 +908,20 @@ class HostPoolBase():
             if not name in u:
                 u.append(name)
         return sorted(u)
-    def request_nodes(self,request):
+    def request_nodes(self,request) -> Optional[HostLocator] :
         """Request a number of nodes; this returns a HostLocator object"""
         DebugTraceMsg("request %d locus/loci" % request,self.debug,prefix="Host")
         start = 0; found = False    
         while not found:
             if start+request>len(self.nodes):
                 return None
+            # check that all loci for the next `request' number are free 
             for i in range(start,start+request):
                 found = self[i].isfree()
                 if not found:
                     start = i+1; break
         if found:
-            locator = HostLocator(pool=self,offset=start,extent=request)
+            locator : HostLocator = HostLocator(pool=self,offset=start,extent=request)
             DebugTraceMsg("returning <<%s>>" % str(locator),self.debug,prefix="Host")
             return locator
         else: 
@@ -917,44 +944,45 @@ class HostPoolBase():
         done = False
         for n in self.nodes:
             if n.taskid==taskid:
-                DebugTraceMsg("releasing %s, core %s"
-                              % (str(n.hostname),str(n.core)),
+                DebugTraceMsg( f"releasing node {n}",
                               self.debug,prefix="Host")
                 n.release(); done = True
         if not done:
             raise LauncherException("Could not find nodes associated with id %s"
                                     % str(taskid))
-    def release(self):
+    def release(self) -> None :
         """If the executor opens ssh connections, we want to close them cleanly."""
         DebugTraceMsg("release HostpoolBase",self.debug,prefix="Host")
         self.commandexecutor.terminate()
-    def final_report(self):
+    def display(self) -> str :
+        return ' '.join( [ str(n.taskid) for n in self.nodes ] )
+    def final_report(self) -> str:
         """Return a string that reports how many tasks were run on each node."""
         counts = [ n.tasks_on_this_node for n in self ]
-        message = """Host pool of size %d.
+        message = f"""Host pool of size {len(self)}.
 
-Number of tasks executed per node:
-max: %d
-avg: %d
-""" % ( len(self),max(counts),sum(counts)/len(counts) )
+Number of tasks executed:
+max: {self.max_occupancy()}
+avg: {self.average_occupancy()}
+""" ## % ( len(self),max(counts),sum(counts)/len(counts) )
         return message
-    def printhosts(self):
+    def printhosts(self) -> str :
         hostlist = ""
         for i,n in enumerate(self.nodes):
             hostlist += "%d : %s\n" % (i,str(n))
         return hostlist.strip()
-    def __repr__(self):
+    def __repr__(self) -> str :
         hostlist = str ( [ "%d:%s" % ( i,n.nodestring() ) for i,n in enumerate(self.nodes) ] )
         return hostlist
 
-class OneNodePool(HostPoolBase):
-    """This class is mostly for testing: it allows for a node to function
-    as a host pool so that one can start a task on it."""
-    def __init__(self,node,**kwargs):
-        HostPoolBase.__init__(self,**kwargs)
-        if not isinstance(node,(Node)):
-            raise LauncherException("Invalid node type <<%s>>" % node)
-        self.append_node(node)
+# class OneNodePool(HostPoolBase):
+#     """This class is mostly for testing: it allows for a node to function
+#     as a host pool so that one can start a task on it."""
+#     def __init__(self,node,**kwargs):
+#         HostPoolBase.__init__(self,**kwargs)
+#         if not isinstance(node,(Node)):
+#             raise LauncherException("Invalid node type <<%s>>" % node)
+#         self.append_node(node)
 
 class HostPool(HostPoolBase):
     """A structure to manage a bunch of Node objects.
@@ -965,28 +993,25 @@ class HostPool(HostPoolBase):
     :param hostlist: HostList object; this takes preference over the previous option
     :param commandexecutor: (optional) a prefixer routine, by default LocalExecutor
     """
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         workdir = kwargs.pop("workdir",None)
         HostPoolBase.__init__\
             (self,
              commandexecutor=kwargs.pop\
                  ("commandexecutor",LocalExecutor(workdir=workdir)),
              debug=kwargs.get("debug",""))
-        hostlist = kwargs.pop("hostlist",None)
-        if hostlist is not None and not isinstance(hostlist,(HostList)):
-            raise LauncherException("hostlist argument needs to be derived from HostList")
-        nhosts = kwargs.pop("nhosts",None)
-        if hostlist is not None:
-            nhosts = len(hostlist)
-            for h in hostlist:
-                self.append_node(host=h['host'],core = h['core'],phys_core=h['phys_core'])
-        elif nhosts is not None:
+        if ( nhosts := int( kwargs.pop("nhosts",0) ) ) > 0:
             localhost = HostName()
             hostlist = [ localhost for i in range(nhosts) ]
             for i in range(nhosts):
-                self.append_node(host=localhost)
-        else: raise LauncherException("HostPool creation needs n or list")
-        DebugTraceMsg("Created host pool from <<%s>>" % str(hostlist),self.debug,prefix="Host")
+                self.append_node( {'host':localhost} )
+        else:
+            try :
+                hostlist = kwargs.pop("hostlist")
+                for h in hostlist:
+                    self.append_node(h) #(host=h['host'],core = h['core'],phys_core=h['phys_core'])
+            except: raise LauncherException("HostPool creation needs n or list")
+        DebugTraceMsg( f"Created host pool from <<{hostlist}>>" ,self.debug,prefix="Host")
     def __del__(self):
         """The ``SSHExecutor`` class creates a permanent ssh connection, 
         which we try to release by this mechanism."""
@@ -1005,27 +1030,30 @@ class HostList():
 
     This is an iteratable object; it yields the host/core dictionary objects.
     """
-    def __init__(self,hostlist=[],tag="",**kwargs):
+    def __init__(self,hostlist=[],tag="",**kwargs) -> None :
         self.debug = re.search("host", kwargs.get("debug","") )
-        self.hostlist = []; self.tag = tag; self.uniquehosts = []
+        self.hostlist : list[HostDict] = []
+        self.tag : str = tag
+        self.uniquehosts : list[str] = []
         for h in hostlist:
             self.append(h)
-    def append(self,h,c=0,p="0-0"):
+    def append(self,host_dict : HostDict):
         """
+        Append one host to a list.
+
         Arguments:
 
-        * h : hostname
-        * c (optional, default zero) : core number
-        * p (optional, default zero) : physical core range
+        * host_dict : information where the host is
         """
-        if not re.search(self.tag,h):
-            h = h+self.tag
-        if h not in self.uniquehosts:
-            self.uniquehosts.append(h)
-        #if self.debug:
-        DebugTraceMsg("Adding location <<{}>>:{} (phys core {})".format(h,c,p),
-                      self.debug,prefix="Host")
-        self.hostlist.append( { 'host':h, 'core':c, 'phys_core':p } )
+        nodename : str = host_dict["host"]
+        if not re.search(self.tag,nodename):
+            nodename = nodename+self.tag
+        if nodename not in self.uniquehosts:
+            self.uniquehosts.append(nodename)
+        host_dict["host"] = nodename
+        DebugTraceMsg( f"Adding location <<{host_dict}>>:",
+                       self.debug,prefix="Host" )
+        self.hostlist.append( host_dict )
     def __len__(self):
         return len(self.hostlist)
     def __iter__(self):
@@ -1038,64 +1066,74 @@ class HostList():
 #### Customizable section
 ####
 class SGEHostList(HostList):
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         HostList.__init__(self,**kwargs)
-        hostfile = os.environ["PE_HOSTFILE"]
-        with open(hostfile,"r") as hostfile:
+        hostfilename : str = str( os.environ["PE_HOSTFILE"] )
+        with open(hostfilename,"r") as hostfile:
             for h in hostfile:
-                line = h.strip(); line = line.split(); host = line[0]; n = line[1]
+                line = h.strip(); line = line.split()
+                n = line[1]
+                host_dict : HostDict = {
+                    'host':line[0], 'hostnum':0,
+                    'task_loc':0, 'phys_core':"" }
                 for i in range(int(n)):
-                    self.append(host,i)
+                    host_dict['hostnum'] = i
+                    self.append(host_dict)
 
-def SLURMNnodes():
+def SLURMNnodes() -> int :
     return int(os.environ["SLURM_NNODES"])
 
-def SLURMCoresPerNode(**kwargs):
+def SLURMCoresPerNode(**kwargs) -> int :
     debugs = kwargs.get("debug","")
     debug = re.search("host",debugs)
     try:
         # SLURM_JOB_CPUS_PER_NODE=56(x2)
-        cores_per_node = os.environ["SLURM_CPUS_ON_NODE"]
-        DebugTraceMsg(f"Found cpus per node: <<{cores_per_node}>>" ,
+        slurm_cores_per_node : str = os.environ["SLURM_CPUS_ON_NODE"]
+        DebugTraceMsg(f"Found cpus per node: <<{slurm_cores_per_node}>>" ,
                       debug,prefix="Host")
-        cores_per_node = re.search(r'([0-9]+)',cores_per_node).groups()[0]
-        cores_per_node = int(cores_per_node)
+        cores_per_node : int = int( re.search(r'([0-9]+)',slurm_cores_per_node).groups()[0] )
     except:
-        cores_per_node = int( os.environ["SLURM_NPROCS"] ) / SLURMNnodes()
+        cores_per_node = int( os.environ["SLURM_NPROCS"] ) // SLURMNnodes()
     DebugTraceMsg(f"Using cores per node: <<{cores_per_node}>>" ,
                   debug,prefix="Host")
     return cores_per_node
 
 class SLURMHostList(HostList):
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         HostList.__init__(self,**kwargs)
         debugs = kwargs.get("debug","")
         debug = re.search("host",debugs)
-        try:
-            cores = int(kwargs.get("cores"))
-        except:
-            cores = 1
-        hlist_str = os.environ["SLURM_NODELIST"]
-        p = SLURMNnodes()
+        #
+        # determine node capability
+        #
         cores_per_node = SLURMCoresPerNode(**kwargs)
-        DebugTraceMsg(f"SLURM says {cores_per_node} cores per node",
-                      debug,prefix="Host")
         if cpn_override := kwargs.get("corespernode",None):
             cores_per_node = int( cpn_override )
             DebugTraceMsg( f" .. override of SLURM value: using {cores_per_node} cores per node",
                            debug,prefix="Host")
-        if cores_per_node%cores!=0:
-            cores_per_node = cores_per_node - (cores_per_node%cores)
-            DebugTraceMsg(f" .. reduced core/node for divisibility to {cores_per_node}",
+        #
+        # tasks/node & cores/task
+        #
+        cores_per_task = int(kwargs.get("cores",1))
+        if cores_per_node%cores_per_task!=0:
+            cores_per_node = cores_per_node - (cores_per_node%cores_per_task)
+            DebugTraceMsg(f" .. reduced cores-per-node for divisibility to {cores_per_node}",
                           debug,prefix="Host")
-        N = p * cores_per_node
-        jobs_per_node = int(N/p) # requested cores per node
-        cores_per_job = int( cores_per_node / jobs_per_node )
+        tasks_per_node = int( kwargs.get("gpuspernode",cores_per_node//cores_per_task) )
+        cores_per_task = int( cores_per_node / tasks_per_node )
+        DebugTraceMsg( f"Ultimately using {tasks_per_node} tasks per node, and {cores_per_task} cores per task",
+                       debug,prefix="Host" )
+
+        hlist_str = os.environ["SLURM_NODELIST"]
         hlist = hs.expand_hostlist(hlist_str)
-        for h in hlist:
-            for i in range(jobs_per_node):
-                job_core = "%d-%d" % ( i * cores_per_job, (i+1) * cores_per_job-1 )
-                self.append(h,i,job_core)
+        for inode,nodename in enumerate(hlist):
+            for itask in range(tasks_per_node):
+                task_cores = "%d-%d" % ( itask * cores_per_task, (itask+1) * cores_per_task-1 )
+                host_dict : HostDict = {
+                    'host':nodename,'hostnum':inode,
+                    'task_loc':itask,'phys_core':task_cores }
+                self.append(host_dict)
+
 # SLURM_TASKS_PER_NODE=48
 # SLURM_NPROCS=48
 # SLURM_TACC_CORES=48
@@ -1103,16 +1141,19 @@ class SLURMHostList(HostList):
 # SLURM_JOB_CPUS_PER_NODE=96
 
 class PBSHostList(HostList):
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         HostList.__init__(self,**kwargs)
-        hostfile = os.environ["PBS_NODEFILE"]
-        with open(hostfile,'r') as hostfile:
+        hostfilename : str = str( os.environ["PBS_NODEFILE"] )
+        with open(hostfilename,'r') as hostfile:
             myhostlist = hostfile.readlines()
             #for host in myhostlist:
             #    self.append(host.rstrip(),1)
             for i in range(len(myhostlist)):
                 myhostlist[i] = myhostlist[i].rstrip()
-                self.append(myhostlist[i],1)
+                host_dict : HostDict = {
+                    'host' : myhostlist[i], 'hostnum':1,
+                    'task_loc':0, 'phys_core':"" }
+                self.append(host_dict)
 
 class ListHostList(HostList):
     """A HostList class constructed from an explicit list of hosts.
@@ -1124,7 +1165,7 @@ class ListHostList(HostList):
     :param ppn : processes per node, typically number of cores on a node
 
     """
-    def __init__(self,hostlist,**kwargs):
+    def __init__(self,hostlist,**kwargs) -> None :
         HostList.__init__(self)
         ppn = kwargs.get("ppn",1)
         for h in hostlist:
@@ -1186,7 +1227,7 @@ def JobId():
     else:
         return None
 
-def HostListByName(**kwargs):
+def HostListByName(**kwargs) -> HostList:
     """Give a proper hostlist. Currently this work for the following hosts:
 
     * ``ls5``: Lonestar5 at TACC, using SLURM
@@ -1205,7 +1246,7 @@ def HostListByName(**kwargs):
     debug = re.search("host",debugs)
     cluster = ClusterName()
     if cluster=="YourSGEcluster":
-        hostlist = SGEHostList(tag=".ls4.tacc.utexas.edu",**kwargs)
+        hostlist : HostList = SGEHostList(tag=".ls4.tacc.utexas.edu",**kwargs)
     elif cluster=="YourCRAYcluster": # ls5 nodes don't have fully qualified hostname
         hostlist = SLURMHostList(tag="",**kwargs)
     elif cluster=="mic":
@@ -1225,9 +1266,9 @@ class DefaultHostPool(HostPool):
     """A HostPool object based on the hosts obtained from the
     ``HostListByName`` function, and using the ``SSHExecutor`` function.
     """
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         debugs = kwargs.get("debug","")
-        hostlist = kwargs.pop("hostlist",HostListByName(cores=cores,debug=debugs))
+        hostlist = kwargs.pop("hostlist",HostListByName(cores=1,debug=debugs))
         commandexecutor = kwargs.pop("commandexecutor",None)
         if commandexecutor is None:
             if ClusterName() is not None:
@@ -1246,7 +1287,7 @@ class LocalHostPool(HostPool):
     :param nhosts: (keyword, optional, default=1) number of times the localhost should be listed
     :param workdir: (keyword, optional) workdir for the commandexecutor
     """
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         nhosts = kwargs.pop("nhosts",1)
         self.debug = kwargs.get("debug","")
         self.workdir=kwargs.pop("workdir",MakeRandomDir())
@@ -1277,8 +1318,11 @@ def CompactIntList(intlist):
 class TaskQueue():
     """Object that does the maintains a list of Task objects.
     This is internally created inside a ``LauncherJob`` object."""
-    def __init__(self,**kwargs):
-        self.queue = []; self.running = []; self.completed = []; self.aborted = []
+    def __init__(self,**kwargs) -> None :
+        self.queue     : list[Task] = []
+        self.running   : list[Task] = []
+        self.completed : list[Task] = []
+        self.aborted   : list[Task] = []
         self.maxsimul = 0; self.submitdelay = 0
         self.queuestate = kwargs.pop("queuestate","queuestate")
         self.debugs = kwargs.get("debug",False)
@@ -1289,12 +1333,12 @@ class TaskQueue():
     def isEmpty(self):
         """Test whether the queue is empty and no tasks running"""
         return self.queue==[] and self.running==[]
-    def enqueue(self,task):
+    def enqueue(self,task : Task ) -> None :
         """Add a task to the queue"""
         DebugTraceMsg("enqueueing <%s>" % str(task),self.debug,prefix="Queue")
         self.queue.append(task)
         self._didran = True
-    def startQueued(self,hostpool,**kwargs):
+    def startQueued(self,hostpool : HostPool, **kwargs ) -> None :
         """for all queued, try to find nodes to run it on;
         the hostpool argument is a HostPool object"""
         tqueue = copy.copy(self.queue)
@@ -1307,7 +1351,7 @@ class TaskQueue():
             requested_gap = t.size
             if requested_gap>max_gap:
                 continue
-            locator = hostpool.request_nodes(requested_gap)
+            locator : Optional[HostLocator] = hostpool.request_nodes(requested_gap)
             if locator is not None:
                 DebugTraceMsg\
                     (f"starting task <{str(t)}> on locator <{str(locator)}>",
@@ -1407,7 +1451,7 @@ class TaskGenerator():
     :param skip: (optional) list of tasks to skip, this is for restarted jobs
 
     """
-    def __init__(self,commandlines,**kwargs):
+    def __init__(self,commandlines,**kwargs) -> None :
         if isinstance(commandlines,(list)):
             self.commandlinegenerator = ListCommandlineGenerator(list=commandlines)
         elif isinstance(commandlines,(CommandlineGenerator)):
@@ -1467,10 +1511,10 @@ class TaskGenerator():
     def __iter__(self): return self
 
 class WrappedTaskGenerator(TaskGenerator):
-    def __init__(self,commandlines,**kwargs):
+    def __init__(self,commandlines,**kwargs) -> None :
         TaskGenerator.__init__(self,commandlines,taskclass=WrappedTask,**kwargs)
 class BareTaskGenerator(TaskGenerator):
-    def __init__(self,commandlines,**kwargs):
+    def __init__(self,commandlines,**kwargs) -> None :
         TaskGenerator.__init__(self,commandlines,taskclass=BareTask,**kwargs)
 
 def TaskGeneratorIterate( gen ):
@@ -1515,7 +1559,7 @@ class Executor():
     """
     execstring = "exec"
     outstring = "out"
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         self.debugs = kwargs.get("debug","")
         self.debug = re.search("exec",self.debugs)
         self.catch_output = kwargs.pop("catch_output",True)
@@ -1550,7 +1594,7 @@ class Executor():
     def cleanup(self):
         if self.workdir_is_safe():
             shutil.rmtree(self.workdir)
-    def setup_on_node(self,node):
+    def setup_on_node(self,node) -> None :
         return
     def release_from_node(self,node):
         return
@@ -1591,7 +1635,7 @@ class Executor():
         DebugTraceMsg("commandline <<%s>>" % wrappedcommand,
                       self.debug,prefix="Exec")
         return wrappedcommand
-    def execute(self,command,**kwargs):
+    def execute(self,command : str,pool: HostLocator,**kwargs):
         raise LauncherException("Should not call default execute")
     def terminate(self):
         DebugTraceMsg("base executor terminate",self.debug,prefix="Exec")
@@ -1602,11 +1646,11 @@ class LocalExecutor(Executor):
 
     :param prefix: (keyword, optional, default null string) for recalcitrant shells, the possibility to specify '/bin/sh' or so
     """
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         self.prefix = kwargs.pop("prefix","")
         Executor.__init__(self,**kwargs)
         DebugTraceMsg("Created local Executor",self.debug,prefix="Exec")
-    def execute(self,command,**kwargs):
+    def execute(self,command : str,pool: HostLocator,**kwargs):
         wrapped = self.wrap(command)
         fullcommandline = "%s%s & " % (self.prefix,wrapped)
         DebugTraceMsg("subprocess execution of:\n<<%s>>" % fullcommandline,
@@ -1638,13 +1682,13 @@ class SSHExecutor(Executor):
 
     For parameters, see the Executor class.
     """
-    def __init__(self,**kwargs):
-        self.node_client_dict = {}
+    def __init__(self,**kwargs) -> None :
+        self.node_client_dict : dict[str,Any] = {}
         Executor.__init__(self,**kwargs)
         self.debug_ssh = re.search("ssh",self.debugs)
         DebugTraceMsg("Created SSH Executor",self.debug,prefix="Exec")
-    def setup_on_node(self,node):
-        host = node.hostname
+    def setup_on_node(self,node) -> None:
+        host = node.host_dict['host']
         DebugTraceMsg( f"Set up connection to {host}",self.debug_ssh,prefix="SSH")
         if host in self.node_client_dict:
             node.ssh_client = self.node_client_dict[host]
@@ -1661,8 +1705,8 @@ class SSHExecutor(Executor):
     def release_from_node(self,node):
         if node.ssh_client_unique:
             node.ssh_client.close()
-    def execute(self,usercommand,**kwargs):
-        """SSHExecutor.excute: 
+    def execute(self,usercommand : str,pool : HostLocator, **kwargs):
+        """SSHExecutor.execute: 
         Execute a commandline in the background on the ssh_client object
         in this Executor object.
 
@@ -1671,24 +1715,17 @@ class SSHExecutor(Executor):
 
         :param pool: (required) either a Node or HostLocator
         """
-        # find where to execute
-        pool = kwargs.pop("pool",None)
-        if pool is None:
-            raise LauncherException("SSHExecutor needs explicit HostPool")
-        if isinstance(pool,(Node)):
-            hostname = pool.hostname
-        elif isinstance(pool,(HostLocator)):
-            hostname = pool.firsthost()
-        else:
-            raise LauncherException("Invalid pool <<%s>>" % str(pool))
+        # if isinstance(pool,(Node)):
+        #     hostname = pool.hostname
+        hostname : str = pool.firsthost()
         if self.numactl is None:
             exec_prefix = ""
         elif self.numactl=="core":
             cores = pool.first_range()
             exec_prefix = "numactl -C %s " % cores
         elif self.numactl=="gpu":
-            cores = pool.first_range()
-            exec_prefix = "CUDA_VISIBLE_DEVICES=%s " % cores
+            first_host : Node = pool[0]
+            exec_prefix = "CUDA_VISIBLE_DEVICES=%s " % first_host.host_dict['task_loc']
         else:
             raise LauncherException("Unknown numactl: %s" % self.numactl)
         # construct the command line with environment, workdir and expiration
@@ -1713,11 +1750,11 @@ class SubmitExecutor(Executor):
     Not elegant: we have to specify BareCompletion both here
     and in the task generator.
     """
-    def __init__(self,submitparams,**kwargs):
+    def __init__(self,submitparams,**kwargs) -> None :
         self.submitparams = submitparams
         Executor.__init__(self,**kwargs)
         DebugTraceMsg("Created Slurm Submit Executor",self.debug,prefix="Exec")
-    def execute(self,command,**kwargs):
+    def execute(self,command : str,pool: HostLocator,**kwargs):
         id = kwargs.pop("id","0")
         completion_function = lambda x:WrapCompletion(taskid=x,workdir=self.workdir)
         completion = completion_function(id)
@@ -1743,24 +1780,20 @@ class MPIExecutor(Executor):
     : param stdout: (optional) a file that is opne for writing; by default ``subprocess.PIPE`` is used
     
     """
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         catch_output = kwargs.pop("catch_output","foo")
         if catch_output != "foo": 
             raise LauncherException("MPIExecutor does not take catch_output parameter.")
         self.hfswitch = kwargs.pop("hfswitch","-machinefile")
         Executor.__init__(self,catch_output=False,**kwargs)
-        self.popen_object = None
-    def execute(self,command,**kwargs):
+        self.popen_object : Optional[ Popen[bytes] ] = None
+    def execute(self,command : str,pool: HostLocator,**kwargs):
         """MPIExecutor.execute:
         Because we do not have all the work that ibrun does on TACC systems, we will have 
         handle more parts.
         We need to define a hostfile for the correct subset of the nodes,
         """
 
-        # find where to execute
-        pool = kwargs.pop("pool",None)
-        if pool is None:
-            raise LauncherException("SSHExecutor needs explicit HostPool")
         stdout = kwargs.pop("stdout",subprocess.PIPE)
         # construct the command line with environment, workdir, and expiration
         # Construct a hostlist for use by mpirun
@@ -1795,19 +1828,20 @@ class IbrunExecutor(Executor):
     :param pool: (required) ``HostLocator`` object
     :param stdout: (optional) a file that is open for writing; by default ``subprocess.PIPE`` is used
     """
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         catch_output = kwargs.pop("catch_output","foo")
         if catch_output!="foo":
             raise LauncherException("IbrunExecutor does not take catch_output parameter")
         Executor.__init__(self,**kwargs) # ,catch_output=False ## Why?
         self.popen_object = None
-    def execute(self,command,**kwargs):
+    def execute(self,command : str,pool: HostLocator,**kwargs):
         """Much like ``SSHExecutor.execute()``, except that it has an exec_prefix
         like ``ibrun -n -o``
         This is either passed in if the command is bare
           bar args => ibrun -n -o bar args
         or has already been applied in the command:
           cd foo && ibrun -n -o bar args
+        This means the pool goes unused.
         """
         exec_prefix = kwargs.pop("prefix",None)
         wrapped_command = self.wrap(command)
@@ -1836,19 +1870,16 @@ class MpiexecExecutor(Executor):
     :param pool: (required) ``HostLocator`` object
     :param stdout: (optional) a file that is open for writing; by default ``subprocess.PIPE`` is used
     """
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         catch_output = kwargs.pop("catch_output","foo")
         if catch_output!="foo":
             raise LauncherException("IbrunExecutor does not take catch_output parameter")
         Executor.__init__(self,catch_output=False,**kwargs)
         self.popen_object = None
-    def execute(self,command,**kwargs):
+    def execute(self,command : str,pool : HostLocator,**kwargs):
         """Much like ``SSHExecutor.execute()``, except that it prefixes
         with ``ibrun -n -o``
         """
-        pool = kwargs.pop("pool",None)
-        if pool is None:
-            raise LauncherException("SSHExecutor needs explicit HostPool")
         wrapped_command = self.wrap(command)
         stdout = kwargs.pop("stdout",subprocess.PIPE)
         full_commandline \
@@ -1875,11 +1906,11 @@ class LauncherJob():
     :param gather_output: (keyword, optional, default None) filename to gather all command output
     :param maxruntime: (keyword, optional, default zero) if nonzero, maximum running time in seconds
     """
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         print( f"Start launcherjob, launcher version: {pylauncher_version}" )
         self.debugs = kwargs.get("debug","")
         self.debug = re.search("job",self.debugs)
-        self.hostpool = self.compulsory_hostpool( **kwargs )
+        self.hostpool : HostPoolBase = self.compulsory_hostpool( **kwargs )
         self.workdir = kwargs.pop("workdir",".")
         self.queuestate = self.workdir+"/"+kwargs.pop("queuestate","queuestate")
         try:
@@ -1942,17 +1973,24 @@ class LauncherJob():
         self.tock += 1
         self.runningtime = time.time()-self.starttime # needs to come before `handle' stuff
 
-        if not self.queue.finished(): #taskgenerator.stalling():
+        # job handling
+        if not self.queue.finished():
             self.queue.startQueued(self.hostpool,starttick=self.tock)
         self.handle_completed()
         self.handle_aborted()
         self.handle_enqueueing()
+        self.hostpool.record_occupancy()
         self.started = True
-        monitor() # this can be NullMonitor
-        time.sleep(self.delay)
 
+        # graphic display....
+        monitor() # this can be NullMonitor
+        display : str = self.hostpool.display()
+        DebugTraceMsg( f"Pool: {display}", self.debug,prefix="Job " )
         if re.search("host",self.debugs):
             DebugTraceMsg(str(self.hostpool))
+
+        # and then sleep for a bit
+        time.sleep(self.delay)
     def handle_completed(self):
         message = None
         completed_task = self.queue.find_recently_completed()
@@ -2074,14 +2112,19 @@ def ClassicLauncher(commandfile,*args,**kwargs):
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
-    cores = kwargs.get("cores",1)
-    corespernode = kwargs.get("corespernode",None)
+    #
+    # we pop the cores because at least the commandline generator
+    # doesn't need it
+    #
+    cores = kwargs.pop("cores",1)
+    ## corespernode = kwargs.get("corespernode",None)
+
     numactl = kwargs.get("numactl",None)
     resume = kwargs.pop("resume",None)
     if resume is not None and not (resume=="0" or resume=="no"):
-        generator = StateFileCommandlineGenerator(commandfile,cores=cores,debug=debug)
+        generator = StateFileCommandlineGenerator(commandfile,debug=debug)
     else:
-        generator = FileCommandlineGenerator(commandfile,cores=cores,debug=debug)
+        generator = FileCommandlineGenerator(commandfile,debug=debug)
     commandexecutor = SSHExecutor(workdir=workdir,numactl=numactl,debug=debug)
     job = LauncherJob(
         hostpool=HostPool(
@@ -2126,9 +2169,7 @@ def LocalLauncher(commandfile,nhosts,*args,**kwargs):
         hostpool=LocalHostPool( nhosts=nhosts ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            completion=lambda x:FileCompletion\
-                ( taskid=x,workdir=workdir),
-            workdir=workdir, debug=debug ),
+            workdir=workdir, **kwargs ),
         **kwargs)
     job.run()
     print(job.final_report(),flush=True)
@@ -2163,9 +2204,7 @@ def MPILauncher(commandfile,**kwargs):
             commandexecutor=MPIExecutor(workdir=workdir,debug=debug,hfswitch=hfswitch), debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            completion=lambda x:FileCompletion\
-                (taskid=x,workdir=workdir),
-            workdir=workdir, debug=debug ),
+            workdir=workdir, **kwargs ),
         **kwargs)
     job.run()
     print(job.final_report(),flush=True)
@@ -2201,9 +2240,7 @@ def IbrunLauncher(commandfile,**kwargs):
             debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            completion=lambda x:FileCompletion\
-                (taskid=x,workdir=workdir),
-            workdir=workdir, debug=debug ),
+            workdir=workdir, **kwargs ),
         **kwargs)
     job.run()
     print(job.final_report(),flush=True)
@@ -2227,16 +2264,17 @@ def GPULauncher(commandfile,**kwargs):
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
-    cores = kwargs.pop("cores",1)
+    if ( cores := kwargs.pop("cores",0) )>0:
+        raise LauncherException("GPU Launcher should have gpu, not core, specification")
+    gpuspernode = kwargs.pop("gpuspernode",1)
     job = LauncherJob(
-        hostpool=HostPool( hostlist=HostListByName(cores=cores,debug=debug),
+        hostpool=HostPool( hostlist=HostListByName(gpuspernode=gpuspernode,debug=debug),
             commandexecutor=SSHExecutor\
                 (numactl="gpu", workdir=workdir ,debug=debug),             
             workdir=workdir, debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
-            FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            completion=lambda x:FileCompletion(taskid=x,workdir=workdir),
-            workdir=workdir, debug=debug ),
+            FileCommandlineGenerator(commandfile,debug=debug),
+            workdir=workdir, **kwargs ),
         **kwargs)
     job.run()
     print(job.final_report(),flush=True)
@@ -2269,8 +2307,7 @@ def RemoteLauncher(commandfile,hostlist,**kwargs):
             workdir=workdir, debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            completion=lambda x:FileCompletion(taskid=x,workdir=workdir),
-            workdir=workdir, debug=debug ),
+            workdir=workdir, **kwargs ),
         **kwargs)
     job.run()
     print(job.final_report(),flush=True)
@@ -2371,8 +2408,7 @@ def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
             commandexecutor=SSHExecutor(workdir=workdir,debug=debug), debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            completion=lambda x:FileCompletion(taskid=x,workdir=workdir),
-            workdir=workdir, debug=debug ),
+            workdir=workdir, **kwargs ),
         **kwargs)
     job.run()
     print(job.final_report(),flush=True)
@@ -2388,7 +2424,7 @@ class DynamicLauncherJob(LauncherJob):
     the ClassicLauncher.
 
     """
-    def __init__(self,**kwargs):
+    def __init__(self,**kwargs) -> None :
         debug = kwargs.get("debug","")
         LauncherJob.__init__(
             self,
@@ -2397,10 +2433,10 @@ class DynamicLauncherJob(LauncherJob):
                 **kwargs,
             ),
             **kwargs)
-    def append(self,commandline):
+    def append(self,commandline) -> None :
         """Append a Unix commandline to the generator"""
         self.taskgenerator.append( commandline )
-    def finish(self):
+    def finish(self) -> None :
         self.taskgenerator.finish()
 
 def MICLauncher(commandfile,**kwargs):
@@ -2421,8 +2457,7 @@ def MICLauncher(commandfile,**kwargs):
                            debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            completion=lambda x:FileCompletion( taskid=x,workdir=workdir),
-            workdir=workdir, debug=debug ),
+            workdir=workdir, **kwargs ),
         **kwargs)
     job.run()
     print(job.final_report(),flush=True)

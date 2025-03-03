@@ -12,7 +12,7 @@
 #SBATCH   -e pylaunchertestNAME.o%j
 #SBATCH   --ntasks-per-node 1
 #SBATCH   -N NODES
-#SBATCH   -t 0:40:00
+#SBATCH   -t 0:MINUTES:00
 #SBATCH -A A-ccsc                  # replace by your own project
 
 if [ -z "$TACC_PYTHON_DIR}" ] ; then 
@@ -22,7 +22,8 @@ fi
 
 env | grep SLURM_
 echo ${PYTHONPATH}
+export GPUSPERNODE=GPUSPERNODE
 
 ## for local testing:
-#export PYTHONPATH=..:${PYTHONPATH}
+## export PYTHONPATH=..:${PYTHONPATH}
 SSH RUN EXECUTABLE.py
