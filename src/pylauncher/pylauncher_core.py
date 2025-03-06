@@ -2274,7 +2274,7 @@ def GPULauncher(commandfile,**kwargs):
     job = LauncherJob(
         hostpool=HostPool( hostlist=HostListByName(gpuspernode=gpuspernode,debug=debug),
             commandexecutor=SSHExecutor\
-                (numactl="gpu", workdir=workdir ,debug=debug),             
+                (numactl="gpu", workdir=workdir ,**kwargs),
             workdir=workdir, debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,debug=debug),
@@ -2307,7 +2307,7 @@ def RemoteLauncher(commandfile,hostlist,**kwargs):
     job = LauncherJob(
         hostpool=HostPool( 
             hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
-            commandexecutor=SSHExecutor(workdir=workdir,debug=debug), 
+            commandexecutor=SSHExecutor(workdir=workdir,**kwargs),
             workdir=workdir, debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
@@ -2409,7 +2409,7 @@ def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
     job = LauncherJob(
         hostpool=HostPool( 
             hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
-            commandexecutor=SSHExecutor(workdir=workdir,debug=debug), debug=debug ),
+            commandexecutor=SSHExecutor(workdir=workdir,**kwargs), debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
             workdir=workdir, **kwargs ),
