@@ -10,7 +10,7 @@
 ####
 ################################################################
 
-pylauncher_version = "5.0"
+pylauncher_version = "5.1"
 docstring = \
 f"""pylauncher.py version {pylauncher_version}
 
@@ -24,6 +24,9 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+5.1
+- adding timeout parameter for ssh connections
+- fixed cores=file mode
 5.0
 - use typing module
 - rewrite all node handling
@@ -1685,6 +1688,7 @@ class SSHExecutor(Executor):
     def __init__(self,**kwargs) -> None :
         self.node_client_dict : dict[str,Any] = {}
         Executor.__init__(self,**kwargs)
+        self.timeout = kwargs.get("timeout",None)
         self.debug_ssh = re.search("ssh",self.debugs)
         DebugTraceMsg("Created SSH Executor",self.debug,prefix="Exec")
     def setup_on_node(self,node) -> None:
@@ -1735,11 +1739,11 @@ class SSHExecutor(Executor):
                       self.debug,prefix="SSH")
         ssh = self.node_client_dict[hostname]
         try:
-            stdin,stdout,stderr = ssh.exec_command("( %s ) &" % wrapped_line)
+            stdin,stdout,stderr = ssh.exec_command( f"( {wrapped_line} ) &" ,timeout=self.timeout)
         except : # old paramiko value? ChannelException:
             DebugTraceMsg("Channel exception; let's see if this blows over",prefix="SSH")
             time.sleep(3)
-            ssh.exec_command("( %s ) &" % wrapped_line)
+            stdin,stdout,stderr = ssh.exec_command( f"( {wrapped_line} ) &" ,timeout=self.timeout)
     def end_execution(self):
         DebugTraceMsg("SSH executor end session",self.debug,prefix="Exec")
         self.session.send('\x03')
@@ -2125,7 +2129,7 @@ def ClassicLauncher(commandfile,*args,**kwargs):
         generator = StateFileCommandlineGenerator(commandfile,debug=debug)
     else:
         generator = FileCommandlineGenerator(commandfile,debug=debug)
-    commandexecutor = SSHExecutor(workdir=workdir,numactl=numactl,debug=debug)
+    commandexecutor = SSHExecutor(workdir=workdir,**kwargs)
     job = LauncherJob(
         hostpool=HostPool(
             hostlist=HostListByName(cores=cores,debug=debug),
