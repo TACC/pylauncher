@@ -10,7 +10,7 @@
 ####
 ################################################################
 
-pylauncher_version = "5.0"
+pylauncher_version = "5.1rc2"
 docstring = \
 f"""pylauncher.py version {pylauncher_version}
 
@@ -24,6 +24,9 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+5.1
+- adding timeout parameter for ssh connections
+- fixed cores=file mode
 5.0
 - use typing module
 - rewrite all node handling
@@ -361,6 +364,8 @@ class FileCommandlineGenerator(CommandlineGenerator):
     """
     def __init__(self,filename,**kwargs) -> None :
         cores = kwargs.pop("cores",1)
+        debugs = kwargs.get("debug","")
+        self.debug = re.search("command",debugs)
         dependencies = kwargs.pop("dependencies",False)
         file = open(filename); commandlist = []
         count = 0
@@ -398,6 +403,8 @@ class FileCommandlineGenerator(CommandlineGenerator):
                 c = cores
                 ## line is line
                 l = line
+            DebugTraceMsg( f"append command <<{l}>> on {c} cores", 
+                           self.debug,prefix="Cmd " )
             commandlist.append( Commandline(l,cores=c,dependencies=td) )
             count += 1
         CommandlineGenerator.__init__(self,list=commandlist,**kwargs)
@@ -914,12 +921,11 @@ class HostPoolBase():
         start = 0; found = False    
         while not found:
             if start+request>len(self.nodes):
-                return None
+                break
             # check that all loci for the next `request' number are free 
-            for i in range(start,start+request):
-                found = self[i].isfree()
-                if not found:
-                    start = i+1; break
+            if found := all( [ self[i].isfree() for i in range(start,start+request) ] ):
+                break
+            else: start += 1
         if found:
             locator : HostLocator = HostLocator(pool=self,offset=start,extent=request)
             DebugTraceMsg("returning <<%s>>" % str(locator),self.debug,prefix="Host")
@@ -1114,7 +1120,11 @@ class SLURMHostList(HostList):
         #
         # tasks/node & cores/task
         #
-        cores_per_task = int(kwargs.get("cores",1))
+        corespec = kwargs.get("cores",1)
+        if corespec=="file":
+            cores_per_task = 1
+        else:
+            cores_per_task = int(corespec)
         if cores_per_node%cores_per_task!=0:
             cores_per_node = cores_per_node - (cores_per_node%cores_per_task)
             DebugTraceMsg(f" .. reduced cores-per-node for divisibility to {cores_per_node}",
@@ -1685,6 +1695,7 @@ class SSHExecutor(Executor):
     def __init__(self,**kwargs) -> None :
         self.node_client_dict : dict[str,Any] = {}
         Executor.__init__(self,**kwargs)
+        self.timeout = kwargs.get("timeout",None)
         self.debug_ssh = re.search("ssh",self.debugs)
         DebugTraceMsg("Created SSH Executor",self.debug,prefix="Exec")
     def setup_on_node(self,node) -> None:
@@ -1735,11 +1746,11 @@ class SSHExecutor(Executor):
                       self.debug,prefix="SSH")
         ssh = self.node_client_dict[hostname]
         try:
-            stdin,stdout,stderr = ssh.exec_command("( %s ) &" % wrapped_line)
+            stdin,stdout,stderr = ssh.exec_command( f"( {wrapped_line} ) &" ,timeout=self.timeout)
         except : # old paramiko value? ChannelException:
             DebugTraceMsg("Channel exception; let's see if this blows over",prefix="SSH")
             time.sleep(3)
-            ssh.exec_command("( %s ) &" % wrapped_line)
+            stdin,stdout,stderr = ssh.exec_command( f"( {wrapped_line} ) &" ,timeout=self.timeout)
     def end_execution(self):
         DebugTraceMsg("SSH executor end session",self.debug,prefix="Exec")
         self.session.send('\x03')
@@ -2112,26 +2123,25 @@ def ClassicLauncher(commandfile,*args,**kwargs):
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
-    #
-    # we pop the cores because at least the commandline generator
-    # doesn't need it
-    #
-    cores = kwargs.pop("cores",1)
-    ## corespernode = kwargs.get("corespernode",None)
+    # #
+    # # we pop the cores because at least the commandline generator
+    # # doesn't need it
+    # #
+    # cores = kwargs.pop("cores",1)
 
     numactl = kwargs.get("numactl",None)
     resume = kwargs.pop("resume",None)
     if resume is not None and not (resume=="0" or resume=="no"):
-        generator = StateFileCommandlineGenerator(commandfile,debug=debug)
+        generator = StateFileCommandlineGenerator(commandfile,**kwargs)
     else:
-        generator = FileCommandlineGenerator(commandfile,debug=debug)
-    commandexecutor = SSHExecutor(workdir=workdir,numactl=numactl,debug=debug)
+        generator = FileCommandlineGenerator(commandfile,**kwargs)
+    commandexecutor = SSHExecutor(workdir=workdir,**kwargs)
     job = LauncherJob(
         hostpool=HostPool(
-            hostlist=HostListByName(cores=cores,debug=debug),
-            cores=cores,
+            hostlist=HostListByName(**kwargs),
             commandexecutor=commandexecutor,workdir=workdir,
-            debug=debug ),
+            **kwargs,
+        ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile, **kwargs),
             workdir=workdir, **kwargs ),
@@ -2270,7 +2280,7 @@ def GPULauncher(commandfile,**kwargs):
     job = LauncherJob(
         hostpool=HostPool( hostlist=HostListByName(gpuspernode=gpuspernode,debug=debug),
             commandexecutor=SSHExecutor\
-                (numactl="gpu", workdir=workdir ,debug=debug),             
+                (numactl="gpu", workdir=workdir ,**kwargs),
             workdir=workdir, debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,debug=debug),
@@ -2303,7 +2313,7 @@ def RemoteLauncher(commandfile,hostlist,**kwargs):
     job = LauncherJob(
         hostpool=HostPool( 
             hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
-            commandexecutor=SSHExecutor(workdir=workdir,debug=debug), 
+            commandexecutor=SSHExecutor(workdir=workdir,**kwargs),
             workdir=workdir, debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
@@ -2405,7 +2415,7 @@ def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
     job = LauncherJob(
         hostpool=HostPool( 
             hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
-            commandexecutor=SSHExecutor(workdir=workdir,debug=debug), debug=debug ),
+            commandexecutor=SSHExecutor(workdir=workdir,**kwargs), debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
             workdir=workdir, **kwargs ),
