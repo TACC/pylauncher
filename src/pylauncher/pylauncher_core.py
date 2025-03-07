@@ -10,7 +10,7 @@
 ####
 ################################################################
 
-pylauncher_version = "5.1"
+pylauncher_version = "5.1rc2"
 docstring = \
 f"""pylauncher.py version {pylauncher_version}
 
@@ -364,6 +364,8 @@ class FileCommandlineGenerator(CommandlineGenerator):
     """
     def __init__(self,filename,**kwargs) -> None :
         cores = kwargs.pop("cores",1)
+        debugs = kwargs.get("debug","")
+        self.debug = re.search("command",debugs)
         dependencies = kwargs.pop("dependencies",False)
         file = open(filename); commandlist = []
         count = 0
@@ -401,6 +403,8 @@ class FileCommandlineGenerator(CommandlineGenerator):
                 c = cores
                 ## line is line
                 l = line
+            DebugTraceMsg( f"append command <<{l}>> on {c} cores", 
+                           self.debug,prefix="Cmd " )
             commandlist.append( Commandline(l,cores=c,dependencies=td) )
             count += 1
         CommandlineGenerator.__init__(self,list=commandlist,**kwargs)
@@ -917,12 +921,11 @@ class HostPoolBase():
         start = 0; found = False    
         while not found:
             if start+request>len(self.nodes):
-                return None
+                break
             # check that all loci for the next `request' number are free 
-            for i in range(start,start+request):
-                found = self[i].isfree()
-                if not found:
-                    start = i+1; break
+            if found := all( [ self[i].isfree() for i in range(start,start+request) ] ):
+                break
+            else: start += 1
         if found:
             locator : HostLocator = HostLocator(pool=self,offset=start,extent=request)
             DebugTraceMsg("returning <<%s>>" % str(locator),self.debug,prefix="Host")
@@ -1117,7 +1120,11 @@ class SLURMHostList(HostList):
         #
         # tasks/node & cores/task
         #
-        cores_per_task = int(kwargs.get("cores",1))
+        corespec = kwargs.get("cores",1)
+        if corespec=="file":
+            cores_per_task = 1
+        else:
+            cores_per_task = int(corespec)
         if cores_per_node%cores_per_task!=0:
             cores_per_node = cores_per_node - (cores_per_node%cores_per_task)
             DebugTraceMsg(f" .. reduced cores-per-node for divisibility to {cores_per_node}",
@@ -2116,26 +2123,25 @@ def ClassicLauncher(commandfile,*args,**kwargs):
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
-    #
-    # we pop the cores because at least the commandline generator
-    # doesn't need it
-    #
-    cores = kwargs.pop("cores",1)
-    ## corespernode = kwargs.get("corespernode",None)
+    # #
+    # # we pop the cores because at least the commandline generator
+    # # doesn't need it
+    # #
+    # cores = kwargs.pop("cores",1)
 
     numactl = kwargs.get("numactl",None)
     resume = kwargs.pop("resume",None)
     if resume is not None and not (resume=="0" or resume=="no"):
-        generator = StateFileCommandlineGenerator(commandfile,debug=debug)
+        generator = StateFileCommandlineGenerator(commandfile,**kwargs)
     else:
-        generator = FileCommandlineGenerator(commandfile,debug=debug)
+        generator = FileCommandlineGenerator(commandfile,**kwargs)
     commandexecutor = SSHExecutor(workdir=workdir,**kwargs)
     job = LauncherJob(
         hostpool=HostPool(
-            hostlist=HostListByName(cores=cores,debug=debug),
-            cores=cores,
+            hostlist=HostListByName(**kwargs),
             commandexecutor=commandexecutor,workdir=workdir,
-            debug=debug ),
+            **kwargs,
+        ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile, **kwargs),
             workdir=workdir, **kwargs ),
