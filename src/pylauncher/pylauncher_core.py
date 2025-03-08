@@ -10,7 +10,7 @@
 ####
 ################################################################
 
-pylauncher_version = "5.1rc2"
+pylauncher_version = "5.1"
 docstring = \
 f"""pylauncher.py version {pylauncher_version}
 
@@ -1115,16 +1115,22 @@ class SLURMHostList(HostList):
         cores_per_node = SLURMCoresPerNode(**kwargs)
         if cpn_override := kwargs.get("corespernode",None):
             cores_per_node = int( cpn_override )
-            DebugTraceMsg( f" .. override of SLURM value: using {cores_per_node} cores per node",
-                           debug,prefix="Host")
+            DebugTraceMsg\
+               ( f" .. override of SLURM value: using {cores_per_node} cores per node",
+                 debug,prefix="Host")
         #
         # tasks/node & cores/task
         #
         corespec = kwargs.get("cores",1)
         if corespec=="file":
             cores_per_task = 1
+        else if corespec="node":
+            cores_per_task = cores_per_node
         else:
-            cores_per_task = int(corespec)
+            try:
+                cores_per_task = int(corespec)
+            except:
+                raise LauncherException( f"invalid core spec: <<{corespec}>>" )
         if cores_per_node%cores_per_task!=0:
             cores_per_node = cores_per_node - (cores_per_node%cores_per_task)
             DebugTraceMsg(f" .. reduced cores-per-node for divisibility to {cores_per_node}",
