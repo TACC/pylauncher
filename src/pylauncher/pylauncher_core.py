@@ -1124,7 +1124,7 @@ class SLURMHostList(HostList):
         corespec = kwargs.get("cores",1)
         if corespec=="file":
             cores_per_task = 1
-        else if corespec="node":
+        elif corespec=="node":
             cores_per_task = cores_per_node
         else:
             try:
