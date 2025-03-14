@@ -105,6 +105,7 @@ can be specified as kwarg to both Job and LauncherJob
 
 import sys
 import copy
+from datetime import datetime
 import glob
 import functools
 import math
@@ -387,7 +388,7 @@ class FileCommandlineGenerator(CommandlineGenerator):
             #     l = pylauncherBarrierString
             #     c = "1"
             elif cores=="node":
-                c = SLURMCoresPerNode()
+                c = 1 # SLURMCoresPerNode()
                 l = line
             elif cores=="file":
                 ## each line has a core count
@@ -681,15 +682,11 @@ class Task():
         """
         self.starttick = kwargs.pop("starttick",0)
         self.starttime = time.time()
-        try: 
-            self.locator : Optional[HostLocator] = kwargs.pop("locator")
-        except:
-            self.locator = \
-                LocalHostPool(nhosts=self.size,debug=self.debugs).request_nodes(self.size)
-        # elif isinstance(self.locator,(Node)):
-        #     if self.size>1:
-        #         raise LauncherException("Can not start size=%d on sing Node" % self.size)
-        #     self.locator = OneNodePool( self.locator,debug=self.debugs ).request_nodes(self.size)
+        # try: 
+        self.locator : Optional[HostLocator] = kwargs.pop("locator")
+        # except:
+        #     self.locator = \
+        #         LocalHostPool(nhosts=self.size,debug=self.debugs).request_nodes(self.size)
 
         wrapped,exec_prefix = self.line_with_completion()
 
@@ -969,7 +966,7 @@ class HostPoolBase():
 
 Number of tasks executed:
 max: {self.max_occupancy()}
-avg: {self.average_occupancy()}
+avg: {self.average_occupancy():.2f}
 """ ## % ( len(self),max(counts),sum(counts)/len(counts) )
         return message
     def printhosts(self) -> str :
@@ -1355,35 +1352,40 @@ class TaskQueue():
         self.queue.append(task)
         self._didran = True
     def startQueued(self,hostpool : HostPool, **kwargs ) -> None :
-        """for all queued, try to find nodes to run it on;
-        the hostpool argument is a HostPool object"""
+        """For all queued, try to find nodes to run it on"""
         tqueue = copy.copy(self.queue)
         tqueue.sort( key=lambda x:-x.size )
-        max_gap = len(hostpool)
+        #
+        # This is crude: we don't list the gaps in the hostpool, so 
+        # we try to find a gap for each task
+        #
+        max_gap = max( [ t.size for t in tqueue ] + [0] )
         starttick = kwargs.pop("starttick",0)
         for t in tqueue:
             # go through tasks in descending size
             # if one doesn't fit, skip all of same size
-            requested_gap = t.size
-            if requested_gap>max_gap:
-                continue
-            locator : Optional[HostLocator] = hostpool.request_nodes(requested_gap)
-            if locator is not None:
+            task_size = t.size
+            if task_size>max_gap:
+                # there can be smaller tasks so continue
+                if max_gap>0: 
+                    continue
+                else: break
+            if locator := hostpool.request_nodes(task_size):
                 DebugTraceMsg\
                     (f"starting task <{str(t)}> on locator <{str(locator)}>",
                      self.debug,prefix="Queue")
+                if self.submitdelay>0:
+                    time.sleep(self.submitdelay)
+                t.start_on_nodes(locator=locator,starttick=starttick)
+                hostpool.occupyNodes(locator,t.taskid)
+                self.queue.remove(t)
+                self.running.append(t)
+                self.maxsimul = max(self.maxsimul,len(self.running))
             else:
-                DebugTraceMsg(f"could not find nodes for <{str(t)}>",
-                              self.debug,prefix="Queue")
-                max_gap = requested_gap-1
+                DebugTraceMsg( f"could not find gap of {task_size} for <{str(t)}>",
+                               self.debug,prefix="Queue")
+                max_gap = task_size-1
                 continue
-            if self.submitdelay>0:
-                time.sleep(self.submitdelay)
-            t.start_on_nodes(locator=locator,starttick=starttick)
-            hostpool.occupyNodes(locator,t.taskid)
-            self.queue.remove(t)
-            self.running.append(t)
-            self.maxsimul = max(self.maxsimul,len(self.running))
     def find_recently_completed(self):
         """Find the first recently completed task.
         Note the return, not yield.
@@ -2125,7 +2127,7 @@ def ClassicLauncher(commandfile,*args,**kwargs):
     :param workdir: (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory
     :param debug: debug types string (optional, keyword)
     """
-    print( f"Pylauncher v{pylauncher_version} job, type=ClassicLauncher starting" )
+    print( f"Pylauncher v{pylauncher_version} job, type=ClassicLauncher, starting {datetime.today().strftime('%Y-%m-%d %H:%M:%S')}" )
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
