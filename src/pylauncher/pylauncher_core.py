@@ -682,12 +682,7 @@ class Task():
         """
         self.starttick = kwargs.pop("starttick",0)
         self.starttime = time.time()
-        # try: 
         self.locator : Optional[HostLocator] = kwargs.pop("locator")
-        # except:
-        #     self.locator = \
-        #         LocalHostPool(nhosts=self.size,debug=self.debugs).request_nodes(self.size)
-
         wrapped,exec_prefix = self.line_with_completion()
 
         # and here we go
@@ -745,6 +740,13 @@ class BareTask(Task):
         DebugTraceMsg(f"creating bare task id={id}",debug,prefix="Task")
         # the kwargs include taskid
         Task.__init__(self,command,completionclass=BareCompletion,**kwargs)
+        DebugTraceMsg(f"created bare task id={self.taskid}",self.debug,prefix="Task")
+    def line_with_completion(self):
+        line = re.sub("PYL_ID",str(self.taskid),self.command)
+        line = re.sub("PYLTID",str(self.taskid),line)
+        self.actual_command = line
+        exec_prefix = ""
+        return self.completion.attach(line),exec_prefix
 
 class RandomSleepTask(Task):
     """Make a task that sleeps for a random amount of time.
@@ -2357,7 +2359,8 @@ def SubmitLauncher(commandfile,submitparams,**kwargs):
     job = LauncherJob(
         hostpool=HostPool( 
             hostlist=ListHostList(
-                [queue for a in range(nactive)], debug=debug),
+                [ {'host':queue,'hostnum':isub,'task_loc':isub,'phys_core':""}
+                  for isub in range(nactive)], debug=debug),
             commandexecutor=SubmitExecutor(
                 submitparams, workdir=workdir, debug=debug),
             workdir=workdir, debug=debug ),

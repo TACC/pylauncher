@@ -1,0 +1,8 @@
+####
+####
+mkdir -p pylauncher_output && cd pylauncher_output && touch PYLTID && ../randomsleep 10 20
+mkdir -p pylauncher_output && cd pylauncher_output && touch PYLTID && ../randomsleep 10 20
+mkdir -p pylauncher_output && cd pylauncher_output && touch PYLTID && ../randomsleep 10 20
+mkdir -p pylauncher_output && cd pylauncher_output && touch PYLTID && ../randomsleep 10 20
+mkdir -p pylauncher_output && cd pylauncher_output && touch PYLTID && ../randomsleep 10 20
+mkdir -p pylauncher_output && cd pylauncher_output && touch PYLTID && ../randomsleep 10 20
