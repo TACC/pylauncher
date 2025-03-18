@@ -10,7 +10,7 @@
 ####
 ################################################################
 
-pylauncher_version = "5.1"
+pylauncher_version = "5.2"
 docstring = \
 f"""pylauncher.py version {pylauncher_version}
 
@@ -24,6 +24,8 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+5.2
+- submit launcher fixed
 5.1
 - adding timeout parameter for ssh connections
 - fixed cores=file mode
