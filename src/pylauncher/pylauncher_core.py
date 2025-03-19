@@ -26,6 +26,7 @@ otoelog = """
 Change log
 5.2
 - submit launcher fixed
+- fixed double counting of cores
 5.1
 - adding timeout parameter for ssh connections
 - fixed cores=file mode
@@ -403,7 +404,7 @@ class FileCommandlineGenerator(CommandlineGenerator):
             else:
                 ## default case: 
                 ## cores come from somewhere else
-                c = cores
+                c = 1
                 ## line is line
                 l = line
             DebugTraceMsg( f"append command <<{l}>> on {c} cores", 
@@ -1124,32 +1125,35 @@ class SLURMHostList(HostList):
         #
         corespec = kwargs.get("cores",1)
         if corespec=="file":
-            cores_per_task = 1
+            reason : str = "core spec in the commandlines file"
+            n_assignable_loci : int = cores_per_node
         elif corespec=="node":
-            cores_per_task = cores_per_node
+            reason = "full node tasks"
+            n_assignable_loci = 1
         else:
+            reason = f"uniform {corespec} cores per task"
             try:
-                cores_per_task = int(corespec)
+                n_assignable_loci = cores_per_node//int(corespec)
             except:
                 raise LauncherException( f"invalid core spec: <<{corespec}>>" )
-        if cores_per_node%cores_per_task!=0:
-            cores_per_node = cores_per_node - (cores_per_node%cores_per_task)
-            DebugTraceMsg(f" .. reduced cores-per-node for divisibility to {cores_per_node}",
-                          debug,prefix="Host")
-        tasks_per_node = int( kwargs.get("gpuspernode",cores_per_node//cores_per_task) )
-        cores_per_task = int( cores_per_node / tasks_per_node )
-        DebugTraceMsg( f"Ultimately using {tasks_per_node} tasks per node, and {cores_per_task} cores per task",
-                       debug,prefix="Host" )
+        ## tasks_per_node = int( kwargs.get("gpuspernode",cores_per_node//n_assignable_loci) )
 
         hlist_str = os.environ["SLURM_NODELIST"]
         hlist = hs.expand_hostlist(hlist_str)
         for inode,nodename in enumerate(hlist):
-            for itask in range(tasks_per_node):
-                task_cores = "%d-%d" % ( itask * cores_per_task, (itask+1) * cores_per_task-1 )
+            for itask in range(n_assignable_loci):
+                task_cores = "%d-%d" % ( itask * n_assignable_loci, (itask+1) * n_assignable_loci-1 )
                 host_dict : HostDict = {
                     'host':nodename,'hostnum':inode,
                     'task_loc':itask,'phys_core':task_cores }
                 self.append(host_dict)
+        DebugTraceMsg( f"""
+Ultimately using {n_assignable_loci} assignable loci per node,
+  {reason}
+  over {len(hlist)} nodes,
+  giving hostlist of length {len(self)}
+""",
+                       debug,prefix="Host" )
 
 # SLURM_TASKS_PER_NODE=48
 # SLURM_NPROCS=48
@@ -1440,18 +1444,20 @@ running   %3d jobs: %s
         for t in self.completed:
             state += "%s: %s\n" % (t.taskid,t.command)
         return state
-    def final_report(self,runningtime):
+    def final_report(self,runningtime,hostlistlength) -> str:
         """Return a string describing the max and average runtime for each task."""
         times = [ t.runningtime for t in self.completed]
-        message = """# tasks completed: %d
+        message = """tasks completed: %d
 tasks aborted: %d
 max runningtime: %6.2f
 avg runningtime: %6.2f
 aggregate      : %6.2f
 speedup        : %6.2f
+out of ideal   : %d
 """ % ( len(self.completed), len(self.aborted),
         max( times ), sum( times )/len(self.completed),
         sum( times ), sum( times )/runningtime,
+        hostlistlength,
     )
         return message
 
@@ -2094,7 +2100,7 @@ total running time: %6.2f
 %s
 ==========================
 """ % ( jobtype,self.runningtime,
-        self.queue.final_report(self.runningtime),# ends with newline
+        self.queue.final_report(self.runningtime,len(self.hostpool)),# ends with newline
         self.hostpool.final_report(), # ends with newline
        )
         return message
