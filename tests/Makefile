@@ -101,6 +101,14 @@ randomsleep randomcomma : $$@.c
 CUPROGRAMS = gpusleep
 gpusleep : $$@.cu
 	nvcc -g -O2 -o $@ $@.cu
+.PHONY: programs
+programs :
+	@make --no-print-directory ${CPROGRAMS} \
+	 && case ${TACC_SYSTEM} in \
+	    ( vista | frontera | ls6 ) \
+	      make --no-print-directory ${CUPROGRAMS} ;; \
+	    esac
+
 totalclean ::
 	@rm -f ${CPROGRAMS} ${CUPROGRAMS}
 
