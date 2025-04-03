@@ -1,1 +1,1 @@
-export PYTHONPATH=../src/pylauncher/:${PYTHONPATH}
+export PYTHONPATH=../src/:${PYTHONPATH}

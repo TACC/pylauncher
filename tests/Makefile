@@ -84,25 +84,7 @@ gpusubmit :
 
 example_shifted_ibrun_dependencies = parallel
 
-CPROGRAMS = parallel randomaction randomsleep randomcomma
-info ::
-	@echo 
-	@echo "make PROGRAM"
-	@echo "    with C programs: ${CPROGRAMS}"
-	@echo "    compiled with WAIT=SLURM_NPROCS"
-.SECONDEXPANSION:
-parallel randomaction :
-	@slurm=${SLURM_NPROCS} && slurm=$${slurm:=40} \
-	&& wait=${WAIT} && wait=$${wait:=$${slurm}} \
-	&& echo "compile $@ with wait=$$wait" \
-	&& mpicc -o $@ $@.c -DWAIT=$${wait:=20}
-randomsleep randomcomma : $$@.c
-	mpicc -g -O2 -o $@ $@.c 
-CUPROGRAMS = gpusleep
-gpusleep : $$@.cu
-	nvcc -g -O2 -o $@ $@.cu
-totalclean ::
-	@rm -f ${CPROGRAMS} ${CUPROGRAMS}
+include Make.programs
 
 info ::
 	@echo 
