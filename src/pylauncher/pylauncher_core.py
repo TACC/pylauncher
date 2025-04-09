@@ -10,7 +10,7 @@
 ####
 ################################################################
 
-pylauncher_version = "5.2"
+pylauncher_version = "5.3"
 docstring = \
 f"""pylauncher.py version {pylauncher_version}
 
@@ -24,6 +24,8 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+5.3
+- rethink the whole "dividing out common core counts" idea
 5.2
 - submit launcher fixed
 - fixed double counting of cores
@@ -131,9 +133,8 @@ import stat
 import subprocess
 import time
 import typing
-from typing import Any
-from typing import Optional
-from typing import TypedDict
+from typing import Any, Optional, TypedDict
+from typing import Type
 ## 3.10 from typing import TypeAlias
 import hostlist3 as hs
 
@@ -271,13 +272,15 @@ class Commandline():
     * dependencies : dependency stuff.
     """
     def __init__(self,command,**kwargs) -> None :
-        self.data = {'command':command}
-        self.data["cores"] = int( kwargs.pop("cores",1) )
-        self.data["dependencies"] = kwargs.pop("dependencies",None)
+        self.data : dict[str,int] = {'command':command,'cores':1}
+        self.data["cores"] = kwargs.pop("cores",1)
+        ## self.data["dependencies"] = kwargs.pop("dependencies",None)
     def __getitem__(self,ind):
         return self.data[ind]
-    def __str__(self):
-        r = "command=<<%s>>, cores=%d" % (self["command"],self["cores"])
+    def __str__(self) -> str:
+        command : str = self["command"]
+        cores : int = self["cores"]
+        r : str = f"command=<<{command}>>, cores={cores}"
         return r
 
 class CommandlineGenerator():
@@ -300,7 +303,7 @@ class CommandlineGenerator():
             kwargs.pop("cores")
             raise LauncherException( "Commandline generator should not have cores option" )
         except: pass
-        self.list = [ e for e in kwargs.pop("list",[]) ]
+        self.list : list[Commandline] = [ e for e in kwargs.pop("list",[]) ]
         self.ncommands = len(self.list); self.njobs = 0; self.stopped = False
         nmax = kwargs.pop("nmax",None)
         if nmax is None:
@@ -323,9 +326,8 @@ class CommandlineGenerator():
         DebugTraceMsg("gettingthe commandline generator to abort",
                       self.debug,prefix="Cmd ")
         self.stopped = True
-    def next(self):
-        """Produce the next Commandline object, or return an object telling that the
-        generator is stalling or has stopped"""
+    def next(self) -> Commandline :
+        """Produce the next Commandline object, or raise various errors"""
         if self.stopping() or self.stalling():
             raise LauncherException( "Should not call next when stopping or stalling" )
         if len(self.list)>0:
@@ -352,7 +354,8 @@ class ListCommandlineGenerator(CommandlineGenerator):
     """A generator from an explicit list of commandlines.
     """
     def __init__(self,**kwargs) -> None :
-        commandlist = [ Commandline(l,cores=1) for l in kwargs.pop("list",[]) ]
+        commands : list[str] = kwargs.pop("list",[])
+        commandlist = [ Commandline(l,cores=1) for l in commands ]
         CommandlineGenerator.__init__(self,list=commandlist,**kwargs)
 
 class FileCommandlineGenerator(CommandlineGenerator):
@@ -367,49 +370,35 @@ class FileCommandlineGenerator(CommandlineGenerator):
     :param dependencies: (keyword, default False) are there task dependencies?
     """
     def __init__(self,filename,**kwargs) -> None :
-        cores = kwargs.pop("cores",1)
         debugs = kwargs.get("debug","")
-        self.debug = re.search("command",debugs)
-        dependencies = kwargs.pop("dependencies",False)
-        file = open(filename); commandlist = []
+        self.debug = re.search("command",debugs) or re.search("cmd",debugs)
+        core_spec : str = kwargs.pop("cores","1")
+        if core_spec=="node":
+            cores : int = SLURMCoresPerNode(**kwargs)
+        elif not core_spec=="file":
+            try:
+                cores = int( core_spec )
+            except:
+                raise LauncherException( f"Strange core spec: <<{core_spec}>>" )
+        file = open(filename)
+        commandlist : list[Commandline] = []
         count = 0
         for line in file.readlines():
             ## Parse the line from file.
             line = line.strip()
             if re.match('^ *#',line) or re.match('^ *$',line):
                 continue # skip blank and comment
-            ## Default dependencies
-            ## I don't even know what this means.
-            td = str(count)
-            ## Parse dependency
-            if dependencies:
-                split = line.split(",",2)
-                if len(split)<3:
-                    raise LauncherException("No task#/dependency found <<%s>>" % split)
-                c,td,l = split
-            # elif re.match("barrier",line):
-            #     l = pylauncherBarrierString
-            #     c = "1"
-            elif cores=="node":
-                c = 1 # SLURMCoresPerNode()
-                l = line
-            elif cores=="file":
+            if core_spec=="file":
                 ## each line has a core count
                 if re.match("[0-9]+,",line):
-                    split = line.split(",",1)
-                    c,l = split
+                    lcores,line = line.split(",",1)
+                    cores = int(lcores)
                 else:
                     raise LauncherException \
                         (f"Can not parse line as having a core prefix: <<{line}>>")
-            else:
-                ## default case: 
-                ## cores come from somewhere else
-                c = 1
-                ## line is line
-                l = line
-            DebugTraceMsg( f"append command <<{l}>> on {c} cores", 
+            DebugTraceMsg( f"append command <<{line}>> on {cores} cores", 
                            self.debug,prefix="Cmd " )
-            commandlist.append( Commandline(l,cores=c,dependencies=td) )
+            commandlist.append( Commandline(line,cores=cores) )
             count += 1
         CommandlineGenerator.__init__(self,list=commandlist,**kwargs)
 
@@ -493,9 +482,9 @@ class DirectoryCommandlineGenerator(DynamicCommandlineGenerator):
         self.commandfile_root = commandfile_root
         self.finish_name = commandfile_root+"-finished"
         self.cores = kwargs.pop("cores",1)
-        self.scheduled_jobs = []
+        self.scheduled_jobs : list[int] = []
         DynamicCommandlineGenerator.__init__(self,**kwargs)
-    def next(self):
+    def next(self) -> Commandline :
         """ List the directory and iterate over the commandfiles:
 
         * ignore any open files, which are presumably still being written
@@ -517,7 +506,7 @@ class DirectoryCommandlineGenerator(DynamicCommandlineGenerator):
                 except IOError:
                     print("file still open",f,flush=True)
                     continue
-                jobnumber = f.split('-')[1]
+                jobnumber : int = int( f.split('-')[1] )
                 if jobnumber not in self.scheduled_jobs:
                     self.scheduled_jobs.append(jobnumber)
                     print("scheduling job",jobnumber,flush=True)
@@ -650,6 +639,10 @@ class BareCompletion(Completion):
     def cleanup(self):
         os.system("rm -f %s" % self.stampname())
 
+class FileCompletion(Completion):
+    def __init__(self,**kwargs):
+        throw("Unimplemented completion type, needed in RandomSleepTask")
+
 class Task():
     """A Task is an abstract object associated with a commandline
 
@@ -659,9 +652,7 @@ class Task():
     :param linewrapper: (keyword, required)
     :param debug: (keyword, optional) string of debug keywords
     """
-    def __init__(self,command,**kwargs) -> None :
-        self.command = command["command"]
-
+    def __init__(self,command : Commandline,**kwargs) -> None :
         self.debugs = kwargs.get("debug","")
         self.debug = re.search("task",self.debugs)
         self.workdir = kwargs.pop("workdir",None)
@@ -671,7 +662,8 @@ class Task():
         self.completion = kwargs.pop("completionclass")\
                           (taskid=self.taskid,workdir=self.workdir)
 
-        self.size = command["cores"]
+        self.command : str = command["command"]
+        self.size : int = command["cores"]
         self.has_started = False
         DebugTraceMsg("created task <<%s>>" % str(self),self.debug,prefix="Task")
         self.nodes = None
@@ -731,12 +723,12 @@ prefix=<<{prefix}>>, cmd=<<{line}>>""",
         return s
 
 class WrappedTask(Task):
-    def __init__(self,command,**kwargs) -> None :
+    def __init__(self,command : Commandline,**kwargs) -> None :
         # the command includes core count
         Task.__init__(self,command,completionclass=WrapCompletion,**kwargs)
         DebugTraceMsg(f"created wrapped task id={self.taskid}",self.debug,prefix="Task")
 class BareTask(Task):
-    def __init__(self,command,**kwargs) -> None :
+    def __init__(self,command : Commandline,**kwargs) -> None :
         id = kwargs.get("taskid")
         debugs = kwargs.get("debug","")
         debug = re.search("task",debugs)
@@ -767,8 +759,9 @@ class RandomSleepTask(Task):
         completion = kwargs.pop("completion",None)
         if completion is None:
             completion = FileCompletion(taskid=taskid,workdir="./pylauncher_sleep_tmp")
-        command = SleepCommandGenerator(nmax=1,tmax=t,tmin=tmin).next()
-        Task.__init__(self,Commandline(command),taskid=taskid,completion=completion,**kwargs)
+            raise LauncherException( "Not sure about this" )
+        # command : str = SleepCommandGenerator(nmax=1,tmax=t,tmin=tmin).next()
+        # Task.__init__(self,command,taskid=taskid,completion=completion,**kwargs)
         
 #
 # different ways of starting up a job
@@ -884,12 +877,7 @@ class HostPoolBase():
         or a hostname plus core number. This function is called in a loop when a
         ``HostPool`` is created from a ``HostList`` object."""
 
-        # host      = host_dict['host']
-        # core      = host_dict['hostnum']
-        # phys_core = host_dict['phys_core']
-
         node : Node = Node(host_dict,nodeid=len(self.nodes))
-        ## host,core,nodeid=len(self.nodes),phys_core=phys_core)
         self.nodes.append( node )
         self.commandexecutor.setup_on_node(node)
     def __len__(self) -> int :
@@ -898,7 +886,7 @@ class HostPoolBase():
         return sum( [ 1 for n in self.nodes if not n.isfree() ] )
     def record_occupancy(self) -> None :
         self.occupancies.append( self.occupancy() )
-    def max_occupancy(self) -> int :
+    def max_occupancy(self) -> float :
         return max( self.occupancies )
     def average_occupancy(self) -> float :
         return sum( self.occupancies )/len( self.occupancies )
@@ -958,6 +946,9 @@ class HostPoolBase():
         if not done:
             raise LauncherException("Could not find nodes associated with id %s"
                                     % str(taskid))
+    def __iter__(self) -> Node:
+        for n in self.nodes:
+            yield n
     def release(self) -> None :
         """If the executor opens ssh connections, we want to close them cleanly."""
         DebugTraceMsg("release HostpoolBase",self.debug,prefix="Host")
@@ -1012,12 +1003,14 @@ class HostPool(HostPoolBase):
             localhost = HostName()
             hostlist = [ localhost for i in range(nhosts) ]
             for i in range(nhosts):
-                self.append_node( {'host':localhost} )
+                self.append_node( {'host':localhost,
+                                   "hostnum":0, "task_loc":0, "phys_core":"0-0" ## defaults!
+                                   } )
         else:
             try :
                 hostlist = kwargs.pop("hostlist")
                 for h in hostlist:
-                    self.append_node(h) #(host=h['host'],core = h['core'],phys_core=h['phys_core'])
+                    self.append_node(h)
             except: raise LauncherException("HostPool creation needs n or list")
         DebugTraceMsg( f"Created host pool from <<{hostlist}>>" ,self.debug,prefix="Host")
     def __del__(self):
@@ -1079,10 +1072,11 @@ class SGEHostList(HostList):
         hostfilename : str = str( os.environ["PE_HOSTFILE"] )
         with open(hostfilename,"r") as hostfile:
             for h in hostfile:
-                line = h.strip(); line = line.split()
-                n = line[1]
+                hostline : str = h.strip()
+                hostinfo : list[str] = hostline.split()
+                n : str = hostinfo[1] # what is this used for?
                 host_dict : HostDict = {
-                    'host':line[0], 'hostnum':0,
+                    'host':hostinfo[0], 'hostnum':0,
                     'task_loc':0, 'phys_core':"" }
                 for i in range(int(n)):
                     host_dict['hostnum'] = i
@@ -1099,7 +1093,10 @@ def SLURMCoresPerNode(**kwargs) -> int :
         slurm_cores_per_node : str = os.environ["SLURM_CPUS_ON_NODE"]
         DebugTraceMsg(f"Found cpus per node: <<{slurm_cores_per_node}>>" ,
                       debug,prefix="Host")
-        cores_per_node : int = int( re.search(r'([0-9]+)',slurm_cores_per_node).groups()[0] )
+        if numspec := re.search(r'([0-9]+)',slurm_cores_per_node):
+            cores_per_node : int = int( numspec.groups()[0] )
+        else:
+            raise LauncherException( f"Could not parse SLURM_CPUS_ON_NODE={slurm_cores_per_node}" )
     except:
         cores_per_node = int( os.environ["SLURM_NPROCS"] ) // SLURMNnodes()
     DebugTraceMsg(f"Using cores per node: <<{cores_per_node}>>" ,
@@ -1111,55 +1108,41 @@ class SLURMHostList(HostList):
         HostList.__init__(self,**kwargs)
         debugs = kwargs.get("debug","")
         debug = re.search("host",debugs)
-        #
-        # determine node capability
-        #
-        cores_per_node = SLURMCoresPerNode(**kwargs)
-        if cpn_override := kwargs.get("corespernode",None):
-            cores_per_node = int( cpn_override )
-            DebugTraceMsg\
-               ( f" .. override of SLURM value: using {cores_per_node} cores per node",
-                 debug,prefix="Host")
+
+        cores_per_node : int = SLURMCoresPerNode(**kwargs)
+        core_msg = f" .. SLURM cores/node: {cores_per_node}"
+        if gpu_override := kwargs.get("gpuspernode",None):
+            # if we're using GPUs, shrink core count to gpu count
+            cores_per_node = int(gpu_override)
+            core_msg = f" .. override of SLURM cores/node with gpucount={cores_per_node}"
+        else:
+            # otherwise get from slurm
+            if core_spec := kwargs.get("cores",None):
+                if core_spec not in ["file","node"] :
+                    cores : int = int( core_spec ) # this can fail, we don't care
+                    excess : int = cores_per_node%cores
+                    if excess>0:
+                        cores_per_node -= excess
+                        core_msg = f" .. cores/node set to {cores_per_node} to fit core spec"
+        DebugTraceMsg( core_msg,debug,prefix="Host" )
         #
         # tasks/node & cores/task
         #
-        corespec = kwargs.get("cores",1)
-        if corespec=="file":
-            reason : str = "core spec in the commandlines file"
-            n_assignable_loci : int = cores_per_node
-        elif corespec=="node":
-            reason = "full node tasks"
-            n_assignable_loci = 1
-        else:
-            reason = f"uniform {corespec} cores per task"
-            try:
-                n_assignable_loci = cores_per_node//int(corespec)
-            except:
-                raise LauncherException( f"invalid core spec: <<{corespec}>>" )
-        ## tasks_per_node = int( kwargs.get("gpuspernode",cores_per_node//n_assignable_loci) )
-
         hlist_str = os.environ["SLURM_NODELIST"]
         hlist = hs.expand_hostlist(hlist_str)
         for inode,nodename in enumerate(hlist):
-            for itask in range(n_assignable_loci):
-                task_cores = "%d-%d" % ( itask * n_assignable_loci, (itask+1) * n_assignable_loci-1 )
+            for itask in range(cores_per_node):
+                task_cores : str = f"{itask}-{itask}"
                 host_dict : HostDict = {
                     'host':nodename,'hostnum':inode,
                     'task_loc':itask,'phys_core':task_cores }
                 self.append(host_dict)
         DebugTraceMsg( f"""
-Ultimately using {n_assignable_loci} assignable loci per node,
-  {reason}
+Ultimately using {cores_per_node} cores per node,
   over {len(hlist)} nodes,
   giving hostlist of length {len(self)}
 """,
                        debug,prefix="Host" )
-
-# SLURM_TASKS_PER_NODE=48
-# SLURM_NPROCS=48
-# SLURM_TACC_CORES=48
-# SLURM_CPUS_ON_NODE=96
-# SLURM_JOB_CPUS_PER_NODE=96
 
 class PBSHostList(HostList):
     def __init__(self,**kwargs) -> None :
@@ -1167,8 +1150,6 @@ class PBSHostList(HostList):
         hostfilename : str = str( os.environ["PBS_NODEFILE"] )
         with open(hostfilename,'r') as hostfile:
             myhostlist = hostfile.readlines()
-            #for host in myhostlist:
-            #    self.append(host.rstrip(),1)
             for i in range(len(myhostlist)):
                 myhostlist[i] = myhostlist[i].rstrip()
                 host_dict : HostDict = {
@@ -1361,7 +1342,7 @@ class TaskQueue():
         self._didran = True
     def startQueued(self,hostpool : HostPool, **kwargs ) -> None :
         """For all queued, try to find nodes to run it on"""
-        tqueue = copy.copy(self.queue)
+        tqueue : list[Task] = copy.copy(self.queue)
         tqueue.sort( key=lambda x:-x.size )
         #
         # This is crude: we don't list the gaps in the hostpool, so 
@@ -1481,13 +1462,14 @@ class TaskGenerator():
     """
     def __init__(self,commandlines,**kwargs) -> None :
         if isinstance(commandlines,(list)):
-            self.commandlinegenerator = ListCommandlineGenerator(list=commandlines)
+            self.commandlinegenerator : CommandlineGenerator = \
+                ListCommandlineGenerator(list=commandlines)
         elif isinstance(commandlines,(CommandlineGenerator)):
             self.commandlinegenerator = commandlines
         else:
             raise LauncherException("Invalid commandline generator object")
 
-        self.taskclass = kwargs.pop("taskclass")
+        self.taskclass : Type[Task] = kwargs.pop("taskclass")
         ## completion can probably go: the completion is set by the 
         ## specific taskclass
         self.workdir = kwargs.pop("workdir",None)
@@ -1497,7 +1479,7 @@ class TaskGenerator():
         self.taskcount = 0; self.paused = False
         self.debugs = kwargs.get("debug","")
         self.debug = re.search("task",self.debugs)
-        self.skip = kwargs.pop("skip",[])
+        self.skip : list[int] = kwargs.pop("skip",[])
     def append(self,cmdline):
         """Append a Unix commandline to the task generator by 
         appending it to the commandline generator"""
@@ -1513,7 +1495,7 @@ class TaskGenerator():
         return self.commandlinegenerator.stopping()
     def exhausted(self):
         return self.commandlinegenerator.exhausted()
-    def next(self,imposedcount=None):
+    def next(self,**kwargs) -> Task :
         """Deliver a Task object, or a special string:
 
         * "stall" : the commandline generator will give more, all in good time
@@ -1521,21 +1503,18 @@ class TaskGenerator():
         """
         if self.stalling() or self.stopping():
             raise LauncherException( "This case should not happen" )
-        comm = self.commandlinegenerator.next()
-        if imposedcount is not None:
-            taskid = imposedcount
-        else:
-            taskid = self.taskcount
+        comm : Commandline = self.commandlinegenerator.next()
+        taskid : int = kwargs.get("imposedcount",self.taskcount) ## what does this do?
         self.taskcount += 1
-        if taskid in self.skip:
-            return self.next(imposedcount=imposedcount)
-        else:
-            DebugTraceMsg(f"task generator next: id={taskid}",
-                          self.debug,prefix="Task")
-            return self.taskclass\
-                (comm,taskid=taskid,debug=self.debugs,
-                 workdir = self.workdir,
-                )
+        # if taskid in self.skip:
+        #     return self.next(imposedcount=imposedcount)
+        # else:
+        DebugTraceMsg(f"task generator next: id={taskid}",
+                      self.debug,prefix="Task")
+        return self.taskclass\
+            ( comm,taskid=taskid,debug=self.debugs,
+             workdir = self.workdir,
+             )
     def __iter__(self): return self
 
 class WrappedTaskGenerator(TaskGenerator):
@@ -1663,7 +1642,7 @@ class Executor():
         DebugTraceMsg("commandline <<%s>>" % wrappedcommand,
                       self.debug,prefix="Exec")
         return wrappedcommand
-    def execute(self,command : str,pool: HostLocator,**kwargs):
+    def execute(self,command : str,pool: HostLocator,**kwargs) -> None :
         raise LauncherException("Should not call default execute")
     def terminate(self):
         DebugTraceMsg("base executor terminate",self.debug,prefix="Exec")
@@ -1678,7 +1657,7 @@ class LocalExecutor(Executor):
         self.prefix = kwargs.pop("prefix","")
         Executor.__init__(self,**kwargs)
         DebugTraceMsg("Created local Executor",self.debug,prefix="Exec")
-    def execute(self,command : str,pool: HostLocator,**kwargs):
+    def execute(self,command : str,pool: HostLocator,**kwargs) -> None:
         wrapped = self.wrap(command)
         fullcommandline = "%s%s & " % (self.prefix,wrapped)
         DebugTraceMsg("subprocess execution of:\n<<%s>>" % fullcommandline,
@@ -1734,7 +1713,7 @@ class SSHExecutor(Executor):
     def release_from_node(self,node):
         if node.ssh_client_unique:
             node.ssh_client.close()
-    def execute(self,usercommand : str,pool : HostLocator, **kwargs):
+    def execute(self,usercommand : str,pool : HostLocator, **kwargs) -> None:
         """SSHExecutor.execute: 
         Execute a commandline in the background on the ssh_client object
         in this Executor object.
@@ -2141,11 +2120,6 @@ def ClassicLauncher(commandfile,*args,**kwargs):
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
-    # #
-    # # we pop the cores because at least the commandline generator
-    # # doesn't need it
-    # #
-    # cores = kwargs.pop("cores",1)
 
     numactl = kwargs.get("numactl",None)
     resume = kwargs.pop("resume",None)
@@ -2187,16 +2161,15 @@ def LocalLauncher(commandfile,nhosts,*args,**kwargs):
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
-    cores = kwargs.pop("cores",1)
     resume = kwargs.pop("resume",None)
     if resume is not None and not (resume=="0" or resume=="no"):
-        generator = StateFileCommandlineGenerator(commandfile,cores=cores,debug=debug)
+        generator = StateFileCommandlineGenerator( commandfile,**kwargs )
     else:
-        generator = FileCommandlineGenerator(commandfile,cores=cores,debug=debug)
+        generator = FileCommandlineGenerator( commandfile,**kwargs )
     job = LauncherJob(
         hostpool=LocalHostPool( nhosts=nhosts ),
         taskgenerator=WrappedTaskGenerator( 
-            FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
+            FileCommandlineGenerator( commandfile,**kwargs ),
             workdir=workdir, **kwargs ),
         **kwargs)
     job.run()
@@ -2219,19 +2192,19 @@ def MPILauncher(commandfile,**kwargs):
     :param cores: number of cores (keyword, optional, default=4, see ``FileCommandlineGenerator`` for more explanation)
     :param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to resuse an already existing directory
     :param debug: debug types string (optional, keyword)
-    :param hfswitch: Switch used to determine the hostifle switch used with your MPI distribution. Default is -machinefile (optional,keyword)
+    :param hfswitch: Switch used to determine the hostfile switch used with your MPI distribution. Default is -machinefile (optional,keyword)
     '''
     print( f"Pylauncher v{pylauncher_version} job, type=MPILauncher starting" )
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
-    cores =  kwargs.pop("cores",4)
     hfswitch = kwargs.pop("hfswitch","-machinefile")
     job = LauncherJob(
-        hostpool=HostPool( hostlist=HostListByName(cores=cores,debug=debug),
-            commandexecutor=MPIExecutor(workdir=workdir,debug=debug,hfswitch=hfswitch), debug=debug ),
+        hostpool=HostPool( hostlist=HostListByName(**kwargs),
+            commandexecutor=MPIExecutor(workdir=workdir,debug=debug,hfswitch=hfswitch),
+            debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
-            FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
+            FileCommandlineGenerator(commandfile,**kwargs),
             workdir=workdir, **kwargs ),
         **kwargs)
     job.run()
@@ -2256,18 +2229,15 @@ def IbrunLauncher(commandfile,**kwargs):
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
-    cores = kwargs.pop("cores",4)
     numactl = kwargs.pop("numactl",None)
-    corespernode = kwargs.pop("corespernode",None)
     resume = kwargs.pop("resume",None)
-    commandexecutor = IbrunExecutor(workdir=workdir,debug=debug)
+    commandexecutor = IbrunExecutor(workdir=workdir,**kwargs)
     job = LauncherJob(
         hostpool=HostPool( 
-            hostlist=HostListByName(cores=cores,debug=debug),
-            commandexecutor=commandexecutor,workdir=workdir,
-            debug=debug ),
+            hostlist=HostListByName(**kwargs),
+            commandexecutor=commandexecutor,workdir=workdir,**kwargs),
         taskgenerator=WrappedTaskGenerator( 
-            FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
+            FileCommandlineGenerator(commandfile,**kwargs),
             workdir=workdir, **kwargs ),
         **kwargs)
     job.run()
@@ -2327,14 +2297,13 @@ def RemoteLauncher(commandfile,hostlist,**kwargs):
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     ppn = kwargs.pop("ppn",4)
-    cores = kwargs.pop("cores",1)
     job = LauncherJob(
         hostpool=HostPool( 
             hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
             commandexecutor=SSHExecutor(workdir=workdir,**kwargs),
-            workdir=workdir, debug=debug ),
+            workdir=workdir,**kwargs ),
         taskgenerator=WrappedTaskGenerator( 
-            FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
+            FileCommandlineGenerator(commandfile,**kwargs),
             workdir=workdir, **kwargs ),
         **kwargs)
     job.run()
@@ -2360,7 +2329,6 @@ def SubmitLauncher(commandfile,submitparams,**kwargs):
     nactive = kwargs.pop("nactive",1)
     queue = kwargs.pop("queue","normal")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
-    cores = kwargs.pop("cores",1)
     if debug:
         monitor = SlurmSqueueMonitor
     else: monitor = NullMonitor
@@ -2370,11 +2338,11 @@ def SubmitLauncher(commandfile,submitparams,**kwargs):
                 [ {'host':queue,'hostnum':isub,'task_loc':isub,'phys_core':""}
                   for isub in range(nactive)], debug=debug),
             commandexecutor=SubmitExecutor(
-                submitparams, workdir=workdir, debug=debug),
-            workdir=workdir, debug=debug ),
+                submitparams, workdir=workdir, **kwargs),
+            workdir=workdir, **kwargs ),
         taskgenerator=BareTaskGenerator( 
-            FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
-            workdir=workdir, debug=debug ),
+            FileCommandlineGenerator( commandfile,**kwargs ),
+            workdir=workdir, **kwargs ),
         **kwargs)
     job.run(monitor=monitor)
     print(job.final_report(),flush=True)
@@ -2398,16 +2366,13 @@ def DynamicLauncher( *args,**kwargs ):
     print( f"Pylauncher v{pylauncher_version} job, type=DynamicLauncher starting" )
     jobid = JobId()
     debug = kwargs.get("debug","")
-    cores = kwargs.get("cores",1)
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
-    corespernode = kwargs.get("corespernode",None)
     commandexecutor = SSHExecutor(workdir=workdir,**kwargs)
     return DynamicLauncherJob(
         hostpool=HostPool(
-            hostlist=HostListByName(cores=cores,debug=debug),
-            cores=cores,
+            hostlist=HostListByName(**kwargs),
             commandexecutor=commandexecutor,workdir=workdir,
-            debug=debug ),
+            **kwargs ),
         workdir=workdir, # pass to TaskGenerator
         **kwargs)
 
@@ -2430,13 +2395,12 @@ def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     ppn = kwargs.pop("ppn",4)
-    cores = kwargs.pop("cores",4)
     job = LauncherJob(
         hostpool=HostPool( 
             hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
             commandexecutor=SSHExecutor(workdir=workdir,**kwargs), debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
-            FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
+            FileCommandlineGenerator(commandfile,**kwargs),
             workdir=workdir, **kwargs ),
         **kwargs)
     job.run()
@@ -2480,12 +2444,12 @@ def MICLauncher(commandfile,**kwargs):
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     cores = kwargs.pop("cores",1)
     job = LauncherJob(
-        hostpool=HostPool( hostlist=HostListByName(cores=cores,debug=debug),
+        hostpool=HostPool( hostlist=HostListByName(**kwargs),
             commandexecutor=LocalExecutor(
                 prefix="/bin/sh ",workdir=workdir,debug=debug), 
                            debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
-            FileCommandlineGenerator(commandfile,cores=cores,debug=debug),
+            FileCommandlineGenerator(commandfile,**kwargs),
             workdir=workdir, **kwargs ),
         **kwargs)
     job.run()
