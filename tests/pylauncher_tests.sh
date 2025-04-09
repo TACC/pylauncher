@@ -11,7 +11,7 @@ function usage () {
 }
 
 recompile=1
-examples="classic comma core filecore ibrun node gpu submit"
+examples="classic comma core filecore ibrun fileibrun node gpu submit"
 while [ $# -gt 0 ] ; do
     if [ "$1" = "-h" ] ; then
 	usage && exit 0
