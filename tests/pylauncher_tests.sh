@@ -4,18 +4,19 @@
 # default examples
 # note: submit needs to come last!
 #
-examples="classic comma core filecore ibrun node gpu submit"
-if [ "$1" = "-h" ] ; then
+
+function usage () {
     echo "Usage: $0 [ -h ] [ -e ex1,ex2,ex3,... ]"
     echo " where examples: ${examples}"
-    exit 0
-fi
+}
+
 recompile=1
+examples="classic comma core filecore ibrun node gpu submit"
 while [ $# -gt 0 ] ; do
-    if [ "$1" = "-e" ] ; then
+    if [ "$1" = "-h" ] ; then
+	usage && exit 0
+    elif [ "$1" = "-e" ] ; then
 	shift && examples=$1 && recompile=0 && shift
-    # elif [ "$1" = "-g" ] ; then 
-    # 	gpu=1 && shift
     else
 	echo "Unknown option: $1" && exit 1
     fi
@@ -44,6 +45,8 @@ fi
 # 
 # Example loop
 #
+eval QUEUE=\${QUEUE_${TACC_SYSTEM}}
+echo "QUEUE = ${QUEUE}"
 for e in \
         $( echo ${examples} | tr ',' ' ' ) \
 	; do
@@ -54,22 +57,22 @@ for e in \
 	case ${TACC_SYSTEM} in \
 	    ( vista )
             make --no-print-directory script submit \
-		 NAME=gpu EXECUTABLE=gpu
+		 NAME=gpu EXECUTABLE=gpu QUEUE=gh
 	    ;;
 	    ( frontera ) 
             make --no-print-directory script submit \
-		 NAME=gpu EXECUTABLE=gpu
+		 NAME=gpu EXECUTABLE=gpu QUEUE=rtx
 	    ;;
 	    ( ls6 ) 
             make --no-print-directory script submit \
-		 NAME=gpu EXECUTABLE=gpu
+		 NAME=gpu EXECUTABLE=gpu QUEUE=a100
 	    ;;
 	    ( * ) echo "No GPUs on system ${TACC_SYSTEM} to test" ;;
 	esac
     else
 	make --no-print-directory script submit \
 	     NAME=${e} \
-	     QUEUE=$( eval echo \${QUEUE_${TACC_SYSTEM}} ) \
+	     QUEUE=${QUEUE} \
 	     CORESPERNODE=${cores_per_node} \
 	     EXECUTABLE=${e}
     fi

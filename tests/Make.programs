@@ -1,0 +1,30 @@
+# -*- makefile -*-
+CPROGRAMS = parallel randomaction randomsleep randomcomma
+info ::
+	@echo 
+	@echo "make PROGRAM"
+	@echo "    with C programs: ${CPROGRAMS}"
+	@echo "    compiled with WAIT=SLURM_NPROCS"
+.SECONDEXPANSION:
+parallel randomaction :
+	@slurm=${SLURM_NPROCS} && slurm=$${slurm:=40} \
+	&& wait=${WAIT} && wait=$${wait:=$${slurm}} \
+	&& echo "compile $@ with wait=$$wait" \
+	&& mpicc -o $@ $@.c -DWAIT=$${wait:=20}
+randomsleep randomcomma : $$@.c
+	mpicc -g -O2 -o $@ $@.c 
+info ::
+	@echo "    with Cuda programs: ${CUPROGRAMS}"
+CUPROGRAMS = gpusleep
+gpusleep : $$@.cu
+	nvcc -g -O2 -o $@ $@.cu
+.PHONY: programs
+programs :
+	@make --no-print-directory ${CPROGRAMS} \
+	 && case ${TACC_SYSTEM} in \
+	    ( vista | frontera | ls6 ) \
+	      make --no-print-directory ${CUPROGRAMS} ;; \
+	    esac
+
+totalclean ::
+	@rm -f ${CPROGRAMS} ${CUPROGRAMS}

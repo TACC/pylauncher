@@ -20,7 +20,7 @@ NODES = 3
 CORESPERNODE = 16
 GPUSPERNODE =
 MINUTES = 20
-QUEUE = development
+QUEUE = 
 info ::
 	@echo "================ script submission"
 	@echo "make script submit"
@@ -45,12 +45,14 @@ script :
 	    ; else \
 	      EXECUTABLE=${EXECUTABLE} \
 	    ; fi \
-	 && if [ "$$( hostname )" = "staff.vista.tacc.utexas.edu" ] ; then \
+	 && if [ ! -z "${QUEUE}" ] ; then \
+	      QUEUE=${QUEUE} \
+	    ; elif [ "$$( hostname )" = "staff.vista.tacc.utexas.edu" ] ; then \
 	      QUEUE=gg \
 	    ; elif [ "$$( hostname )" = "staff.stampede3.tacc.utexas.edu" ] ; then \
 	      QUEUE=skx-dev \
 	    ; else \
-	      QUEUE=${QUEUE} \
+	      QUEUE=development \
 	    ; fi \
 	 && cat $${template} | sed -e "s/SSH/${SSH}/" -e "s/RUN/${RUN}/" \
 	        -e "s/EXECUTABLE/$${EXECUTABLE}/" -e "s/NODES/${NODES}/" \

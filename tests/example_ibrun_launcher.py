@@ -24,4 +24,4 @@ example = "IbrunLauncher"
 pylauncher.IbrunLauncher("parallellines",cores=3,
      # optional spec of output dir:
      workdir=f"pylauncher_tmp_{example}_{ os.environ['SLURM_JOBID'] }",
-                         debug="job+host+task+exec")
+                         debug="job+host+task+exec+cmd")
