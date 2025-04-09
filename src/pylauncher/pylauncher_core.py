@@ -1220,6 +1220,9 @@ def ClusterName():
     # Non-TACC example, this is for Georgia Instiute of Technology's PACE
     if "pace" in namesplit:
         return namesplit[1]
+    # UMich Great Lakes cluster
+    if "arc-ts" == namesplit[1]:
+        return namesplit[1]
     # case: unknown
     return None
 
@@ -1274,6 +1277,8 @@ def HostListByName(**kwargs) -> HostList:
         hostlist = HostList( ["localhost" for i in range(60)] )
     elif cluster in ['pace']:
         return PBSHostList(**kwargs)
+    elif cluster in ['arc-ts']:
+        hostlist = SLURMHostList(tag="",**kwargs)
     elif cluster in [ "frontera", "longhorn", "ls6", "maverick",
                       "stampede2", "stampede3", "vista", ]:
         hostlist = SLURMHostList(tag=f".{cluster}.tacc.utexas.edu",**kwargs)
