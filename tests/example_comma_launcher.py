@@ -23,4 +23,4 @@ pylauncher.ClassicLauncher(
     "commalines",
     # optional spec of output dir:
     workdir=f"pylauncher_tmp_{example}_{ os.environ['SLURM_JOBID'] }",
-    debug="exec")
+    debug="host+jobs+exec")
