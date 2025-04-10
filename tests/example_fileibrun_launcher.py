@@ -22,7 +22,7 @@ import pylauncher
 ## that is constant, specified here.
 ##
 example = "FileIbrunLauncher"
-pylauncher.IbrunLauncher("fileparallellines",cores="file,
+pylauncher.IbrunLauncher("fileparallellines",cores="file",
      # optional spec of output dir:
      workdir=f"pylauncher_tmp_{example}_{ os.environ['SLURM_JOBID'] }",
                          debug="job+host+task+exec+cmd")

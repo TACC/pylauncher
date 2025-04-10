@@ -1,7 +1,7 @@
 /****************************************************************
  *
  * This example program is part of the pylauncher distribution
- * copyright Victor Eijkhout 2024
+ * copyright Victor Eijkhout 2024-2025
  *
  ****************************************************************/
 
@@ -22,7 +22,9 @@ int main(int argc,char **argv) {
   else 
     nseconds = tmin + rand() % (tmax-tmin);
 
-  printf("Detected core count: %d\n",omp_get_num_procs());
+#pragma omp parallel
+#pragma omp master
+  printf("Detected core count: %d\n",omp_get_num_threads());
   printf("I am going to sleep for %d seconds\n",nseconds);
   sleep(nseconds);
   printf("There. I did it.\n");

@@ -18,7 +18,7 @@ import pylauncher
 ## Emulate the classic launcher, using a one liner
 ##
 
-example="filecore"
+example="Filecore"
 print( f"Script: {example}_launcher\n .. running: ClassicLauncher" )
 commandlines = "filecorelines"
 if not os.path.exists(commandlines):
