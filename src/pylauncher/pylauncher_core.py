@@ -1885,7 +1885,7 @@ class IbrunExecutor(Executor):
         if self.popen_object is not None:
             DebugTraceMsg(" .. popen object terminate",self.debug,prefix="Exec")
             self.popen_object.terminate()
-        Executor.terminate()
+        Executor.terminate(self)
         DebugTraceMsg(" .. ibrun executor terminated",self.debug,prefix="Exec")
     ## no setup_on_node or release_from_node needed
 
