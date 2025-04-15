@@ -1559,10 +1559,10 @@ def environment_list():
     :param command: a unix command, including semicolons and whatnot
     :param workdir: if this is None, the ssh connection will cd to the current directory, otherwise it will go to this workdir. If this is a relative path, it is taken relative to the current directory.
     """
+    global umask
     listcommand = "cd %s\n" % os.environ["PWD"]
 
-    mask = os.umask(0o0077)
-    listcommand += f"umask {mask:o}\n"
+    listcommand += f"umask {umask:o}\n"
     for e in os.environ:
         val = os.environ[e]
         #val = re.sub('\(','\(',val); val = re.sub('\)','\)',val)
@@ -2530,6 +2530,9 @@ def MICLauncher(commandfile,**kwargs):
         **kwargs)
     job.run()
     print(job.final_report(jobtype=jobtype),flush=True)
+
+global umask
+umask = os.umask(0o0077)
 
 if __name__ == "__main__":
     print(sys.version_info)
