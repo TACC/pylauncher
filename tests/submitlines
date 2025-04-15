@@ -1,8 +1,8 @@
 ####
 ####
-mkdir -p pylauncher_output && cd pylauncher_output && touch PYLTID && ../randomsleep 10 20
-mkdir -p pylauncher_output && cd pylauncher_output && touch PYLTID && ../randomsleep 10 20
-mkdir -p pylauncher_output && cd pylauncher_output && touch PYLTID && ../randomsleep 10 20
-mkdir -p pylauncher_output && cd pylauncher_output && touch PYLTID && ../randomsleep 10 20
-mkdir -p pylauncher_output && cd pylauncher_output && touch PYLTID && ../randomsleep 10 20
-mkdir -p pylauncher_output && cd pylauncher_output && touch PYLTID && ../randomsleep 10 20
+mkdir -p pylauncher_output_submit && cd pylauncher_output_submit && touch PYLTID && ../randomsleep 10 20
+mkdir -p pylauncher_output_submit && cd pylauncher_output_submit && touch PYLTID && ../randomsleep 10 20
+mkdir -p pylauncher_output_submit && cd pylauncher_output_submit && touch PYLTID && ../randomsleep 10 20
+mkdir -p pylauncher_output_submit && cd pylauncher_output_submit && touch PYLTID && ../randomsleep 10 20
+mkdir -p pylauncher_output_submit && cd pylauncher_output_submit && touch PYLTID && ../randomsleep 10 20
+mkdir -p pylauncher_output_submit && cd pylauncher_output_submit && touch PYLTID && ../randomsleep 10 20
