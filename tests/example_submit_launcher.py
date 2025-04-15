@@ -56,7 +56,7 @@ pylauncher.SubmitLauncher\
     ("submitlines",
      f"-A {TACCproject} -N 1 -n 1 -p {queue} -t 0:5:0", # slurm arguments
      nactive=maxjobs,      # two jobs simultaneously
-     maxruntime=900,       # this test should not take too long
+     ## maxruntime=900,       # this test should not take too long
      workdir=workdir,
      debug="host+queue+exec+job+task", # lots of debug output
      )
