@@ -1438,7 +1438,7 @@ running   %3d jobs: %s
         for t in self.completed:
             state += "%s: %s\n" % (t.taskid,t.command)
         return state
-    def final_report(self,runningtime,hostlistlength) -> str:
+    def final_report( self,runningtime,optimalspeedup : float ) -> str:
         """Return a string describing the max and average runtime for each task."""
         if len(self.completed)==0:
             maxtime : float = 0; sumtime : float = 0
@@ -1453,10 +1453,10 @@ max runningtime: %6.2f
 avg runningtime: %6.2f
 aggregate      : %6.2f
 speedup        : %6.2f
-out of ideal   : %d
+out of ideal   : %6.2f
 """ % ( len(self.completed), len(self.aborted),
         maxtime,avgtime,sumtime,speedup,
-        hostlistlength,
+        optimalspeedup,
     )
         return message
 
@@ -1940,6 +1940,14 @@ class LauncherJob():
         self.debugs = kwargs.get("debug","")
         self.debug = re.search("job",self.debugs)
         self.hostpool : HostPoolBase = self.compulsory_hostpool( **kwargs )
+        corespec : str = kwargs.get("cores",1)
+        if corespec=="file":
+            self.uniformcorecount : int = 1
+        elif corespec=="node":
+            self.uniformcorecount = int( kwargs.get("corespernode",1) )
+        else:
+            self.uniformcorecount = int(corespec)
+        print( f"Using uniform core count {self.uniformcorecount}" )
         self.workdir = kwargs.pop("workdir",".")
         self.queuestate = self.workdir+"/"+kwargs.pop("queuestate","queuestate")
         try:
@@ -2085,15 +2093,14 @@ class LauncherJob():
     def finished(self) -> bool :
         """Condition for breaking down the iteration mechanism"""
         return self.taskgenerator.exhausted() and self.queue.isEmpty()
-    def final_report(self) -> str:
+    def final_report(self,**kwargs) -> str:
         """Return a string describing the total running time, as well as
         including the final report from the embedded ``HostPool`` and ``TaskQueue``
         objects."""
-        jobtype=f"Launcher type: {self.__class__.__name__}"
+        jobtype : str = kwargs.get("jobtype",self.__class__.__name__)
         message = """
 ==========================
-Launcher run completed.
-%s
+Launcher run completed, launcher type: %s
 
 total running time: %6.2f
 
@@ -2101,7 +2108,8 @@ total running time: %6.2f
 %s
 ==========================
 """ % ( jobtype,self.runningtime,
-        self.queue.final_report(self.runningtime,len(self.hostpool)),# ends with newline
+        self.queue.final_report\
+            (self.runningtime,len(self.hostpool)/self.uniformcorecount),# ends with newline
         self.hostpool.final_report(), # ends with newline
        )
         return message
@@ -2138,7 +2146,8 @@ def ClassicLauncher(commandfile,*args,**kwargs):
     :param workdir: (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory
     :param debug: debug types string (optional, keyword)
     """
-    print( f"Pylauncher v{pylauncher_version} job, type=ClassicLauncher, starting {datetime.today().strftime('%Y-%m-%d %H:%M:%S')}" )
+    jobtype = "ClassicLauncher"
+    print( f"Pylauncher v{pylauncher_version} job, type={jobtype}, starting {datetime.today().strftime('%Y-%m-%d %H:%M:%S')}" )
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
@@ -2152,6 +2161,7 @@ def ClassicLauncher(commandfile,*args,**kwargs):
         generator = FileCommandlineGenerator\
             (commandfile,corespernode=SLURMCoresPerNode(**kwargs),**kwargs)
     commandexecutor = SSHExecutor(workdir=workdir,**kwargs)
+    corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
     job = LauncherJob(
         hostpool=HostPool(
             hostlist=HostListByName(**kwargs),
@@ -2161,10 +2171,11 @@ def ClassicLauncher(commandfile,*args,**kwargs):
         taskgenerator=WrappedTaskGenerator(
             generator,
             workdir=workdir, **kwargs ),
+        corespernode=corespernode,
         **kwargs)
     job.run()
     print( "Prepating final report" )
-    report : str = job.final_report()
+    report : str = job.final_report(jobtype=jobtype)
     print(report,flush=True)
 
 def LocalLauncher(commandfile,nhosts,*args,**kwargs):
@@ -2183,6 +2194,7 @@ def LocalLauncher(commandfile,nhosts,*args,**kwargs):
     :param workdir: (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory
     :param debug: debug types string (optional, keyword)
     """
+    jobtype = "LocalLauncher"
     print( f"Pylauncher v{pylauncher_version} job, type=LocalLauncher starting" )
     jobid = JobId()
     debug = kwargs.get("debug","")
@@ -2192,14 +2204,16 @@ def LocalLauncher(commandfile,nhosts,*args,**kwargs):
         generator = StateFileCommandlineGenerator( commandfile,**kwargs )
     else:
         generator = FileCommandlineGenerator( commandfile,**kwargs )
+    corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
     job = LauncherJob(
         hostpool=LocalHostPool( nhosts=nhosts ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator( commandfile,**kwargs ),
             workdir=workdir, **kwargs ),
+        corespernode=corespernode,
         **kwargs)
     job.run()
-    print(job.final_report(),flush=True)
+    print(job.final_report(jobtype=jobtype),flush=True)
 
 def ResumeClassicLauncher(commandfile,**kwargs):
     ClassicLauncher(commandfile,resume=1,**kwargs)
@@ -2220,22 +2234,25 @@ def MPILauncher(commandfile,**kwargs):
     :param debug: debug types string (optional, keyword)
     :param hfswitch: Switch used to determine the hostfile switch used with your MPI distribution. Default is -machinefile (optional,keyword)
     '''
+    jobtype = "MPILauncher"
     print( f"Pylauncher v{pylauncher_version} job, type=MPILauncher starting" )
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     hfswitch = kwargs.pop("hfswitch","-machinefile")
+    corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
     job = LauncherJob(
         hostpool=HostPool( hostlist=HostListByName(**kwargs),
             commandexecutor=MPIExecutor(workdir=workdir,debug=debug,hfswitch=hfswitch),
             debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
-            FileCommandlineGenerator(commandfile,corespernode=SLURMCoresPerNode(**kwargs),
+            FileCommandlineGenerator(commandfile,corespernode=corespernode,
                                      **kwargs),
             workdir=workdir, **kwargs ),
+        corespernode=corespernode,
         **kwargs)
     job.run()
-    print(job.final_report(),flush=True)
+    print(job.final_report(jobtype=jobtype),flush=True)
 
 def IbrunLauncher(commandfile,**kwargs):
     """A LauncherJob for a file of small MPI jobs.
@@ -2252,6 +2269,7 @@ def IbrunLauncher(commandfile,**kwargs):
     :param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory
     :param debug: debug types string (optional, keyword)
     """
+    jobtype = "IbrunLauncher"
     print( f"Pylauncher v{pylauncher_version} job, type=IbrunLauncher starting" )
     jobid = JobId()
     debug = kwargs.get("debug","")
@@ -2259,17 +2277,19 @@ def IbrunLauncher(commandfile,**kwargs):
     numactl = kwargs.pop("numactl",None)
     resume = kwargs.pop("resume",None)
     commandexecutor = IbrunExecutor(workdir=workdir,**kwargs)
+    corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
     job = LauncherJob(
         hostpool=HostPool( 
             hostlist=HostListByName(**kwargs),
             commandexecutor=commandexecutor,workdir=workdir,**kwargs),
         taskgenerator=WrappedTaskGenerator( 
-            FileCommandlineGenerator(commandfile,corespernode=SLURMCoresPerNode(**kwargs),
+            FileCommandlineGenerator(commandfile,corespernode=corespernode,
                                      **kwargs),
             workdir=workdir, **kwargs ),
+        corespernode=corespernode,
         **kwargs)
     job.run()
-    print(job.final_report(),flush=True)
+    print(job.final_report(jobtype=jobtype),flush=True)
 
 def GPULauncher(commandfile,**kwargs):
     """A LauncherJob for a file of small MPI jobs.
@@ -2286,6 +2306,7 @@ def GPULauncher(commandfile,**kwargs):
     :param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory
     :param debug: debug types string (optional, keyword)
     """
+    jobtype = "GPULauncher"
     print( f"Pylauncher v{pylauncher_version} job, type=GPULauncher starting" )
     jobid = JobId()
     debug = kwargs.get("debug","")
@@ -2293,18 +2314,20 @@ def GPULauncher(commandfile,**kwargs):
     if ( cores := kwargs.pop("cores",0) )>0:
         raise LauncherException("GPU Launcher should have gpu, not core, specification")
     gpuspernode = kwargs.pop("gpuspernode",1)
+    corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
     job = LauncherJob(
         hostpool=HostPool( hostlist=HostListByName(gpuspernode=gpuspernode,debug=debug),
             commandexecutor=SSHExecutor\
                 (numactl="gpu", workdir=workdir ,**kwargs),
             workdir=workdir, debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
-            FileCommandlineGenerator(commandfile,corespernode=SLURMCoresPerNode(**kwargs),
+            FileCommandlineGenerator(commandfile,corespernode=corespernode,
                                      **kwargs),
             workdir=workdir, **kwargs ),
+        corespernode=corespernode,
         **kwargs)
     job.run()
-    print(job.final_report(),flush=True)
+    print(job.final_report(jobtype=jobtype),flush=True)
 
 def RemoteLauncher(commandfile,hostlist,**kwargs):
     """A LauncherJob for a file of single or multi-thread commands, executed remotely.
@@ -2321,23 +2344,26 @@ def RemoteLauncher(commandfile,hostlist,**kwargs):
     :param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory
     :param debug: debug types string (optional, keyword)
     """
+    jobtype = "RemoteLauncher"
     print( f"Pylauncher v{pylauncher_version} job, type=RemoteLauncher starting" )
     jobid = "000"
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     ppn = kwargs.pop("ppn",4)
+    corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
     job = LauncherJob(
         hostpool=HostPool( 
             hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
             commandexecutor=SSHExecutor(workdir=workdir,**kwargs),
             workdir=workdir,**kwargs ),
         taskgenerator=WrappedTaskGenerator( 
-            FileCommandlineGenerator(commandfile,corespernode=SLURMCoresPerNode(**kwargs),
+            FileCommandlineGenerator(commandfile,corespernode=corespernode,
                                      **kwargs),
             workdir=workdir, **kwargs ),
+        corespernode=corespernode,
         **kwargs)
     job.run()
-    print(job.final_report(),flush=True)
+    print(job.final_report(jobtype=jobtype),flush=True)
 
 def SubmitLauncher(commandfile,submitparams,**kwargs):
     """A LauncherJob for a file of single or multi-thread commands, executed remotely.
@@ -2354,6 +2380,7 @@ def SubmitLauncher(commandfile,submitparams,**kwargs):
     :param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory
     :param debug: debug types string (optional, keyword)
     """
+    jobtype = "SubmitLauncher"
     jobid = "000"
     debug = kwargs.get("debug","")
     nactive = kwargs.pop("nactive",1)
@@ -2362,6 +2389,7 @@ def SubmitLauncher(commandfile,submitparams,**kwargs):
     if debug:
         monitor = SlurmSqueueMonitor
     else: monitor = NullMonitor
+    corespernode : int = int( kwargs.get("corespernode",1) )
     job = LauncherJob(
         hostpool=HostPool( 
             hostlist=ListHostList(
@@ -2373,9 +2401,11 @@ def SubmitLauncher(commandfile,submitparams,**kwargs):
         taskgenerator=BareTaskGenerator( 
             FileCommandlineGenerator(commandfile,**kwargs),
             workdir=workdir, **kwargs ),
+        corespernode=corespernode,
         **kwargs)
     job.run(monitor=monitor)
-    print(job.final_report(),flush=True)
+    jobtype = "SubmitLauncher"
+    print(job.final_report(jobtype=jobtype),flush=True)
 
 def DynamicLauncher( *args,**kwargs ):
     """A LauncherJob for a file of single or multi-threaded commands.
@@ -2393,17 +2423,20 @@ def DynamicLauncher( *args,**kwargs ):
     :param workdir: (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory
     :param debug: debug types string (optional, keyword)
     """
+    jobtype = "DynamicLauncher"
     print( f"Pylauncher v{pylauncher_version} job, type=DynamicLauncher starting" )
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     commandexecutor = SSHExecutor(workdir=workdir,**kwargs)
+    corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
     return DynamicLauncherJob(
         hostpool=HostPool(
             hostlist=HostListByName(**kwargs),
             commandexecutor=commandexecutor,workdir=workdir,
             **kwargs ),
         workdir=workdir, # pass to TaskGenerator
+        corespernode=corespernode,
         **kwargs)
 
 def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
@@ -2421,21 +2454,25 @@ def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
     :param workdir: directory for output and temporary files (optional, keyword, default uses the job number); the launcher refuses to reuse an already existing directory
     :param debug: debug types string (optional, keyword)
     """
+    jobtype = "RemoteIbrunLauncher"
     jobid = 000
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     ppn = kwargs.pop("ppn",4)
+    corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
     job = LauncherJob(
         hostpool=HostPool( 
             hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
             commandexecutor=SSHExecutor(workdir=workdir,**kwargs), debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
-            FileCommandlineGenerator(commandfile,corespernode=SLURMCoresPerNode(**kwargs),
+            FileCommandlineGenerator(commandfile,corespernode=corespernode,
                                      **kwargs),
             workdir=workdir, **kwargs ),
+        corespernode=corespernode,
         **kwargs)
     job.run()
-    print(job.final_report(),flush=True)
+    jobtype = "RemoteIbrunLauncher"
+    print(job.final_report(jobtype=jobtype),flush=True)
 
 class DynamicLauncherJob(LauncherJob):
     """A LauncherJob derived class that is designed for dynamic adding of commands.
@@ -2450,12 +2487,14 @@ class DynamicLauncherJob(LauncherJob):
     """
     def __init__(self,**kwargs) -> None :
         debug = kwargs.get("debug","")
+        corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
         LauncherJob.__init__(
             self,
             taskgenerator=WrappedTaskGenerator(
                 DynamicCommandlineGenerator( **kwargs ),
                 **kwargs,
             ),
+            corespernode=corespernode,
             **kwargs)
     def append(self,commandline) -> None :
         """Append a Unix commandline to the generator"""
@@ -2470,22 +2509,25 @@ def MICLauncher(commandfile,**kwargs):
     The only difference is in the use of a LocalExecutor.
     Treatment of the MIC cores is handled in the ``HostListByName``.
     """
+    jobtype = "MICLauncher"
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     cores = kwargs.pop("cores",1)
+    corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
     job = LauncherJob(
         hostpool=HostPool( hostlist=HostListByName(**kwargs),
             commandexecutor=LocalExecutor(
                 prefix="/bin/sh ",workdir=workdir,debug=debug), 
                            debug=debug ),
         taskgenerator=WrappedTaskGenerator( 
-            FileCommandlineGenerator(commandfile,corespernode=SLURMCoresPerNode(**kwargs),
+            FileCommandlineGenerator(commandfile,corespernode=corespernode,
                                      **kwargs),
             workdir=workdir, **kwargs ),
+        corespernode=corespernode,
         **kwargs)
     job.run()
-    print(job.final_report(),flush=True)
+    print(job.final_report(jobtype=jobtype),flush=True)
 
 if __name__ == "__main__":
     print(sys.version_info)
