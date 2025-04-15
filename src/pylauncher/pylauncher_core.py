@@ -1560,6 +1560,8 @@ def environment_list():
     """
     listcommand = "cd %s\n" % os.environ["PWD"]
 
+    mask = os.umask(0o0077)
+    listcommand += f"umask {mask:o}\n"
     for e in os.environ:
         val = os.environ[e]
         #val = re.sub('\(','\(',val); val = re.sub('\)','\)',val)
