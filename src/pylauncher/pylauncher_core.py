@@ -26,6 +26,7 @@ otoelog = """
 Change log
 5.3
 - rethink the whole "dividing out common core counts" idea
+- bunch ore mypy typing
 5.2
 - submit launcher fixed
 - fixed double counting of cores
