@@ -1339,7 +1339,7 @@ class TaskQueue():
         self.completed : list[Task] = []
         self.aborted   : list[Task] = []
         self.maxsimul = 0; self.submitdelay = 0
-        self.queuestate = kwargs.pop("queuestate","queuestate")
+        # not used? self.queuestate = kwargs.pop("queuestate","./queuestate")
         self.debugs = kwargs.get("debug",False)
         self.debug = re.search("queue",self.debugs)
         self._didran = False
@@ -1951,7 +1951,7 @@ class LauncherJob():
             self.uniformcorecount = int(corespec)
         print( f"Using uniform core count {self.uniformcorecount}" )
         self.workdir = kwargs.pop("workdir",".")
-        self.queuestate = self.workdir+"/"+kwargs.pop("queuestate","queuestate")
+        self.queuestate = kwargs.pop("queuestate","./queuestate")
         try:
             self.taskgenerator = kwargs.pop("taskgenerator")
         except:
@@ -2531,6 +2531,10 @@ def MICLauncher(commandfile,**kwargs):
     job.run()
     print(job.final_report(jobtype=jobtype),flush=True)
 
+##
+## see the "environment_list" function
+## which sets the umask in the exec files
+##
 global umask
 umask = os.umask(0o0077)
 
