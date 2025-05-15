@@ -24,9 +24,11 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+5.3.2
+- queuestate path no longer relative to dot
 5.3
 - rethink the whole "dividing out common core counts" idea
-- bunch ore mypy typing
+- bunch more mypy typing
 5.2
 - submit launcher fixed
 - fixed double counting of cores
