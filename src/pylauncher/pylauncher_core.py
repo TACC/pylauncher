@@ -24,9 +24,11 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+5.3.2
+- queuestate path no longer relative to dot
 5.3
 - rethink the whole "dividing out common core counts" idea
-- bunch ore mypy typing
+- bunch more mypy typing
 5.2
 - submit launcher fixed
 - fixed double counting of cores
@@ -1353,7 +1355,7 @@ class TaskQueue():
         DebugTraceMsg("enqueueing <%s>" % str(task),self.debug,prefix="Queue")
         self.queue.append(task)
         self._didran = True
-    def startQueued(self,hostpool : HostPool, **kwargs ) -> None :
+    def startQueued(self,hostpool : HostPoolBase, **kwargs ) -> None :
         """For all queued, try to find nodes to run it on"""
         tqueue : list[Task] = copy.copy(self.queue)
         tqueue.sort( key=lambda x:-x.size )
@@ -1660,7 +1662,7 @@ class Executor():
         DebugTraceMsg("commandline <<%s>>" % wrappedcommand,
                       self.debug,prefix="Exec")
         return wrappedcommand
-    def execute(self,command : str,pool: HostLocator,**kwargs) -> None :
+    def execute(self,usercommand : str,pool: HostLocator,**kwargs) -> None :
         raise LauncherException("Should not call default execute")
     def terminate(self) -> None :
         DebugTraceMsg("base executor terminate (no-op)",self.debug,prefix="Exec")
@@ -1674,8 +1676,8 @@ class LocalExecutor(Executor):
         self.prefix = kwargs.pop("prefix","")
         Executor.__init__(self,**kwargs)
         DebugTraceMsg("Created local Executor",self.debug,prefix="Exec")
-    def execute(self,command : str,pool: HostLocator,**kwargs) -> None:
-        wrapped = self.wrap(command)
+    def execute(self,usercommand : str,pool: HostLocator,**kwargs) -> None:
+        wrapped = self.wrap(usercommand)
         fullcommandline = "%s%s & " % (self.prefix,wrapped)
         DebugTraceMsg("subprocess execution of:\n<<%s>>" % fullcommandline,
                       self.debug,prefix="Exec")
@@ -1781,11 +1783,11 @@ class SubmitExecutor(Executor):
         self.submitparams = submitparams
         Executor.__init__(self,**kwargs)
         DebugTraceMsg("Created Slurm Submit Executor",self.debug,prefix="Exec")
-    def execute(self,command : str,pool: HostLocator,**kwargs):
+    def execute(self,usercommand : str,pool: HostLocator,**kwargs):
         id = kwargs.pop("id","0")
         completion_function = lambda x:WrapCompletion(taskid=x,workdir=self.workdir)
         completion = completion_function(id)
-        command_and_stamp = completion.attach(command)
+        command_and_stamp = completion.attach(usercommand)
         scriptname = f"{self.workdir}/jobscript{id}"
         with open( scriptname , "w" ) as jobscript:
             jobscript.write(
@@ -1814,7 +1816,7 @@ class MPIExecutor(Executor):
         self.hfswitch = kwargs.pop("hfswitch","-machinefile")
         Executor.__init__(self,catch_output=False,**kwargs)
         self.popen_object : Optional[ Popen[bytes] ] = None
-    def execute(self,command : str,pool: HostLocator,**kwargs):
+    def execute(self,usercommand : str,pool: HostLocator,**kwargs):
         """MPIExecutor.execute:
         Because we do not have all the work that ibrun does on TACC systems, we will have 
         handle more parts.
@@ -1837,7 +1839,7 @@ class MPIExecutor(Executor):
         with open(os.path.join(self.workdir,hostfilename+str(hostfilenumber)),'w') as myhostfile:
             for machine in machinelist:
                 myhostfile.write(machine+'\n')
-        full_commandline = "mpirun -np {0} {1} {2} {3} ".format(np,self.hfswitch,os.path.join(self.workdir,hostfilename+str(hostfilenumber)),self.wrap(command))
+        full_commandline = "mpirun -np {0} {1} {2} {3} ".format(np,self.hfswitch,os.path.join(self.workdir,hostfilename+str(hostfilenumber)),self.wrap(usercommand))
         DebugTraceMsg("executed commandline: <<%s>>" % full_commandline, self.debug,prefix="Exec")
         p = subprocess.Popen(full_commandline,shell=True,stdout=stdout)
         self.popen_object = p
@@ -1861,7 +1863,7 @@ class IbrunExecutor(Executor):
             raise LauncherException("IbrunExecutor does not take catch_output parameter")
         Executor.__init__(self,**kwargs) # ,catch_output=False ## Why?
         self.popen_object = None
-    def execute(self,command : str,pool: HostLocator,**kwargs):
+    def execute(self,usercommand : str,pool: HostLocator,**kwargs):
         """Much like ``SSHExecutor.execute()``, except that it has an exec_prefix
         like ``ibrun -n -o``
         This is either passed in if the command is bare
@@ -1871,7 +1873,7 @@ class IbrunExecutor(Executor):
         This means the pool goes unused.
         """
         exec_prefix = kwargs.pop("prefix",None)
-        wrapped_command = self.wrap(command)
+        wrapped_command = self.wrap(usercommand)
         if exec_prefix is None:
             full_commandline = f"{wrapped_command}" # note: absolute path
         else:
@@ -1906,11 +1908,11 @@ class MpiexecExecutor(Executor):
             raise LauncherException("IbrunExecutor does not take catch_output parameter")
         Executor.__init__(self,catch_output=False,**kwargs)
         self.popen_object = None
-    def execute(self,command : str,pool : HostLocator,**kwargs):
+    def execute(self,usercommand : str,pool : HostLocator,**kwargs):
         """Much like ``SSHExecutor.execute()``, except that it prefixes
         with ``ibrun -n -o``
         """
-        wrapped_command = self.wrap(command)
+        wrapped_command = self.wrap(usercommand)
         stdout = kwargs.pop("stdout",subprocess.PIPE)
         full_commandline \
             =  "mpiexec -n %d %s" % \
@@ -2133,7 +2135,7 @@ def SlurmSqueueMonitor():
                          stderr=subprocess.STDOUT)
 
 
-def ClassicLauncher(commandfile,*args,**kwargs):
+def ClassicLauncher(commandfile,*args,**kwargs) -> None:
     """A LauncherJob for a file of single or multi-threaded commands.
 
     The following values are specified for your convenience:
@@ -2182,7 +2184,7 @@ def ClassicLauncher(commandfile,*args,**kwargs):
     report : str = job.final_report(jobtype=jobtype)
     print(report,flush=True)
 
-def LocalLauncher(commandfile,nhosts,*args,**kwargs):
+def LocalLauncher(commandfile,nhosts,*args,**kwargs) -> None:
     """A LauncherJob for a file of single or multi-threaded commands, running locally
 
     The following values are specified for your convenience:
@@ -2205,9 +2207,11 @@ def LocalLauncher(commandfile,nhosts,*args,**kwargs):
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     resume = kwargs.pop("resume",None)
     if resume is not None and not (resume=="0" or resume=="no"):
-        generator = StateFileCommandlineGenerator( commandfile,**kwargs )
+        generator : CommandlineGenerator = \
+            StateFileCommandlineGenerator( commandfile,**kwargs )
     else:
-        generator = FileCommandlineGenerator( commandfile,**kwargs )
+        generator = \
+            FileCommandlineGenerator( commandfile,**kwargs )
     corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
     job = LauncherJob(
         hostpool=LocalHostPool( nhosts=nhosts ),
@@ -2219,10 +2223,10 @@ def LocalLauncher(commandfile,nhosts,*args,**kwargs):
     job.run()
     print(job.final_report(jobtype=jobtype),flush=True)
 
-def ResumeClassicLauncher(commandfile,**kwargs):
+def ResumeClassicLauncher(commandfile,**kwargs) -> None:
     ClassicLauncher(commandfile,resume=1,**kwargs)
 
-def MPILauncher(commandfile,**kwargs):
+def MPILauncher(commandfile,**kwargs) -> None:
     '''A LauncherJob for a file of small MPI jobs, for a system not using Ibrun
     
     The following values are specified using other functions.
@@ -2258,7 +2262,7 @@ def MPILauncher(commandfile,**kwargs):
     job.run()
     print(job.final_report(jobtype=jobtype),flush=True)
 
-def IbrunLauncher(commandfile,**kwargs):
+def IbrunLauncher(commandfile,**kwargs) -> None:
     """A LauncherJob for a file of small MPI jobs.
 
     The following values are specified for your convenience:
@@ -2295,7 +2299,7 @@ def IbrunLauncher(commandfile,**kwargs):
     job.run()
     print(job.final_report(jobtype=jobtype),flush=True)
 
-def GPULauncher(commandfile,**kwargs):
+def GPULauncher(commandfile,**kwargs) -> None :
     """A LauncherJob for a file of small MPI jobs.
 
     The following values are specified for your convenience:
@@ -2333,7 +2337,7 @@ def GPULauncher(commandfile,**kwargs):
     job.run()
     print(job.final_report(jobtype=jobtype),flush=True)
 
-def RemoteLauncher(commandfile,hostlist,**kwargs):
+def RemoteLauncher(commandfile,hostlist,**kwargs) -> None :
     """A LauncherJob for a file of single or multi-thread commands, executed remotely.
 
     The following values are specified for your convenience:
@@ -2369,7 +2373,7 @@ def RemoteLauncher(commandfile,hostlist,**kwargs):
     job.run()
     print(job.final_report(jobtype=jobtype),flush=True)
 
-def SubmitLauncher(commandfile,submitparams,**kwargs):
+def SubmitLauncher(commandfile,submitparams,**kwargs) -> None :
     """A LauncherJob for a file of single or multi-thread commands, executed remotely.
 
     The following values are specified for your convenience:
@@ -2411,7 +2415,7 @@ def SubmitLauncher(commandfile,submitparams,**kwargs):
     jobtype = "SubmitLauncher"
     print(job.final_report(jobtype=jobtype),flush=True)
 
-def DynamicLauncher( *args,**kwargs ):
+def DynamicLauncher( *args,**kwargs ) -> LauncherJob :
     """A LauncherJob for a file of single or multi-threaded commands.
 
     The following values are specified for your convenience:
@@ -2443,7 +2447,7 @@ def DynamicLauncher( *args,**kwargs ):
         corespernode=corespernode,
         **kwargs)
 
-def RemoteIbrunLauncher(commandfile,hostlist,**kwargs):
+def RemoteIbrunLauncher(commandfile,hostlist,**kwargs) -> None :
     """A LauncherJob for a file of small MPI jobs, executed remotely.
 
     The following values are specified for your convenience:
@@ -2506,7 +2510,7 @@ class DynamicLauncherJob(LauncherJob):
     def finish(self) -> None :
         self.taskgenerator.finish()
 
-def MICLauncher(commandfile,**kwargs):
+def MICLauncher(commandfile,**kwargs) -> None :
     """A LauncherJob for execution entirely on an Intel Xeon Phi.
 
     See ``ClassicLauncher`` for an explanation of the parameters.
