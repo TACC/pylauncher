@@ -1718,10 +1718,12 @@ class SSHExecutor(Executor):
         host = node.host_dict['host']
         DebugTraceMsg( f"Set up connection to {host}",self.debug_ssh,prefix="SSH")
         if host in self.node_client_dict:
+            DebugTraceMsg( f" .. reusing ssh client to host: {host}",
+                           self.debug_ssh,prefix="SSH")
             node.ssh_client = self.node_client_dict[host]
             node.ssh_client_unique = False
         else:
-            DebugTraceMsg( f"making ssh client to host: {host}",
+            DebugTraceMsg( f" .. making ssh client to host: {host}",
                            self.debug_ssh,prefix="SSH")
             try : 
                 node.ssh_client = ssh_client(host,debug=self.debug)
