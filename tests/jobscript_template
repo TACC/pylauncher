@@ -13,7 +13,7 @@
 #SBATCH   --ntasks-per-node 1
 #SBATCH   -N NODES
 #SBATCH   -t 0:MINUTES:00
-#SBATCH -A A-ccsc                  # replace by your own project
+#SBATCH   -A PROJECT
 
 if [ -z "$TACC_PYTHON_DIR}" ] ; then 
     echo "Please load python module outside job script"

@@ -29,6 +29,7 @@ info ::
 	@echo "    [CORESPERNODE=... (default: ${CORESPERNODE})]"
 	@echo "    [GPUSPERNODE=... ]" 
 	@echo "    [QUEUE=... (default: ${QUEUE})]"
+	@echo "    [PROJECT=... (default is victor-only})]"
 	@echo "  this submits a jobscript (see jobscr.hostname) to the queue"
 	@echo "  available programs:"
 	@echo "    example_classic_launcher : single core jobs, found in ""commandlines"""
@@ -54,10 +55,12 @@ script :
 	    ; else \
 	      QUEUE=development \
 	    ; fi \
+	 && if [ -z "${PROJECT}" ] ; then PROJECT=A-ccsc ; fi \
 	 && cat $${template} | sed -e "s/SSH/${SSH}/" -e "s/RUN/${RUN}/" \
 	        -e "s/EXECUTABLE/$${EXECUTABLE}/" -e "s/NODES/${NODES}/" \
 	        -e "s/NAME/${NAME}/" \
 	        -e "s/QUEUE/$${QUEUE}/" \
+	        -e "s/PROJECT/$${PROJECT}/" \
 	        -e "s/MINUTES/${MINUTES}/" \
 	        -e $$( if [ ! -z "${GPUSPERNODE}" ] ; then \
 	                   echo "s/=GPUSPERNODE/=${GPUSPERNODE}/" \
