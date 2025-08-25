@@ -10,7 +10,7 @@
 ####
 ################################################################
 
-pylauncher_version = "5.3"
+pylauncher_version = "5.4"
 docstring = \
 f"""pylauncher.py version {pylauncher_version}
 
@@ -24,6 +24,8 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+5.4
+- detect nested srun
 5.3.2
 - queuestate path no longer relative to dot
 5.3
@@ -569,17 +571,19 @@ class Completion():
     def __init__(self,**kwargs) -> None :
         self.taskid = kwargs.pop("taskid",0)
         self.workdir = kwargs.pop("workdir",".")
+        self.starttime : float = float( kwargs.get("starttime") )
+        self.taskmaxruntime : int = int( kwargs.pop("taskmaxruntime",0) )
         debugs = kwargs.get("debug","")
         self.debug = re.search("task",debugs)
     def attach(self,txt):
         """Attach a completion to a command, giving a new command.
         Default is to return the line unaltered."""
         return txt
-    def test(self):
+    def test(self,curtime : float ) -> bool :
         """Test whether the task has completed"""
-        DebugTraceMsg("default completion test is true",
+        DebugTraceMsg( f"default completion test is on runtime",
                       self.debug,prefix="Task")
-        return True
+        return ( self.taskmaxruntime>0 and curtime-self.starttime>self.taskmaxruntime )
 
 class WrapCompletion(Completion):
     """WrapCompletion is the most common type of completion. It appends
@@ -608,14 +612,18 @@ class WrapCompletion(Completion):
             command_with_stamp = \
                 f"( {txt} ) && touch {self.successname()} ; touch {self.stampname()}"
         return command_with_stamp
-    def test(self):
+    def test(self,curtime : float ) -> bool :
         """Test for the existence of the stamp file"""
-        stampfile = self.stampname()
-        stamptest = os.path.isfile(stampfile)
-        if stamptest:
-            DebugTraceMsg(f"stamp file <<{stampfile}>> detected",
-                          self.debug,prefix="Task")
-        return stamptest
+        if exceeded := Completion.test(self,curtime):
+            DebugTraceMsg( f"runtime exceeded" )
+            return exceeded
+        else:
+            stampfile = self.stampname()
+            stamptest = os.path.isfile(stampfile)
+            if stamptest:
+                DebugTraceMsg(f"stamp file <<{stampfile}>> detected",
+                              self.debug,prefix="Task")
+            return stamptest
     def cleanup(self):
         os.system("rm -f %s" % self.stampname())
 
@@ -663,10 +671,12 @@ class Task():
 
         # instantiate a completion for this id.
         self.taskid : int = kwargs.pop("taskid")
-        self.completion = kwargs.pop("completionclass")\
-                          (taskid=self.taskid,workdir=self.workdir)
+        self.taskmaxruntime : int = int( kwargs.pop("taskmaxruntime",0) )
+        self.completionclass = kwargs.pop("completionclass")
 
         self.command : str = command["command"]
+        if re.search( r'\bsrun\b',self.command ):
+            raise LauncherException(f"Detected nested parallelism using srun in line <<{self.command}>>")
         self.size : int = command["cores"]
         self.has_started = False
         DebugTraceMsg("created task <<%s>>" % str(self),self.debug,prefix="Task")
@@ -679,9 +689,13 @@ class Task():
         This sets ``self.startime`` to right before the execution begins. We do not keep track
         of the endtime, but instead set ``self.runningtime`` in the ``hasCompleted`` routine.
         """
-        self.starttick = kwargs.pop("starttick",0)
-        self.starttime = time.time()
+        self.starttick : int = int( kwargs.pop("starttick",0) )
+        self.starttime : float = time.time()
         self.locator : Optional[HostLocator] = kwargs.pop("locator")
+        self.completion = self.completionclass\
+            (taskid=self.taskid,
+             starttime=self.starttime, taskmaxruntime=self.taskmaxruntime,
+             workdir=self.workdir)
         wrapped,exec_prefix = self.line_with_completion()
 
         # and here we go
@@ -716,7 +730,7 @@ prefix=<<{prefix}>>, cmd=<<{line}>>""",
         return self.completion.attach(line),exec_prefix
     def hasCompleted(self) -> bool :
         """Execute the completion test of this Task"""
-        completed : bool = self.has_started and self.completion.test()
+        completed : bool = self.has_started and self.completion.test(0)
         self.runningtime : float = time.time()-self.starttime
         if completed:
             DebugTraceMsg( f"completed taskid={self.taskid} in {self.runningtime:5.3f}",
@@ -764,8 +778,6 @@ class RandomSleepTask(Task):
         if completion is None:
             completion = FileCompletion(taskid=taskid,workdir="./pylauncher_sleep_tmp")
             raise LauncherException( "Not sure about this" )
-        # command : str = SleepCommandGenerator(nmax=1,tmax=t,tmin=tmin).next()
-        # Task.__init__(self,command,taskid=taskid,completion=completion,**kwargs)
         
 #
 # different ways of starting up a job
@@ -1491,8 +1503,11 @@ class TaskGenerator():
         ## completion can probably go: the completion is set by the 
         ## specific taskclass
         self.workdir = kwargs.pop("workdir",None)
+        taskmaxruntime = kwargs.pop("taskmaxruntime",0)
         self.completion = kwargs.pop\
-            ("completion",lambda x:Completion(taskid=x,workdir=self.workdir))
+            ("completion",lambda x:Completion\
+             (taskid=x,
+              taskmaxruntime=taskmaxruntime,workdir=self.workdir))
 
         self.taskcount = 0; self.paused = False
         self.debugs = kwargs.get("debug","")
@@ -2059,7 +2074,7 @@ class LauncherJob():
             self.hostpool.releaseNodesByTask(completeID)
             message = "truncated %s" % str(completeID)
         return message
-    def handle_enqueueing(self):
+    def handle_enqueueing(self) -> None :
         if self.taskgenerator.stalling():
             DebugTraceMsg("stalling",self.debug,prefix="Job ")
         elif self.taskgenerator.stopping():
@@ -2168,6 +2183,7 @@ def ClassicLauncher(commandfile,*args,**kwargs) -> None:
             (commandfile,corespernode=SLURMCoresPerNode(**kwargs),**kwargs)
     commandexecutor = SSHExecutor(workdir=workdir,**kwargs)
     corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
+    taskmaxruntime = kwargs.pop("taskmaxruntime",0)
     job = LauncherJob(
         hostpool=HostPool(
             hostlist=HostListByName(**kwargs),
@@ -2176,7 +2192,7 @@ def ClassicLauncher(commandfile,*args,**kwargs) -> None:
         ),
         taskgenerator=WrappedTaskGenerator(
             generator,
-            workdir=workdir, **kwargs ),
+            taskmaxruntime=taskmaxruntime, workdir=workdir, **kwargs ),
         corespernode=corespernode,
         **kwargs)
     job.run()
@@ -2213,11 +2229,12 @@ def LocalLauncher(commandfile,nhosts,*args,**kwargs) -> None:
         generator = \
             FileCommandlineGenerator( commandfile,**kwargs )
     corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
+    taskmaxruntime = kwargs.pop("taskmaxruntime",0)
     job = LauncherJob(
         hostpool=LocalHostPool( nhosts=nhosts ),
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator( commandfile,**kwargs ),
-            workdir=workdir, **kwargs ),
+            taskmaxruntime=taskmaxruntime, workdir=workdir, **kwargs ),
         corespernode=corespernode,
         **kwargs)
     job.run()
@@ -2249,6 +2266,7 @@ def MPILauncher(commandfile,**kwargs) -> None:
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     hfswitch = kwargs.pop("hfswitch","-machinefile")
     corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
+    taskmaxruntime = kwargs.pop("taskmaxruntime",0)
     job = LauncherJob(
         hostpool=HostPool( hostlist=HostListByName(**kwargs),
             commandexecutor=MPIExecutor(workdir=workdir,debug=debug,hfswitch=hfswitch),
@@ -2256,7 +2274,7 @@ def MPILauncher(commandfile,**kwargs) -> None:
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,corespernode=corespernode,
                                      **kwargs),
-            workdir=workdir, **kwargs ),
+            taskmaxruntime=taskmaxruntime, workdir=workdir, **kwargs ),
         corespernode=corespernode,
         **kwargs)
     job.run()
@@ -2286,6 +2304,7 @@ def IbrunLauncher(commandfile,**kwargs) -> None:
     resume = kwargs.pop("resume",None)
     commandexecutor = IbrunExecutor(workdir=workdir,**kwargs)
     corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
+    taskmaxruntime = kwargs.pop("taskmaxruntime",0)
     job = LauncherJob(
         hostpool=HostPool( 
             hostlist=HostListByName(**kwargs),
@@ -2293,7 +2312,7 @@ def IbrunLauncher(commandfile,**kwargs) -> None:
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,corespernode=corespernode,
                                      **kwargs),
-            workdir=workdir, **kwargs ),
+            taskmaxruntime=taskmaxruntime, workdir=workdir, **kwargs ),
         corespernode=corespernode,
         **kwargs)
     job.run()
@@ -2323,6 +2342,7 @@ def GPULauncher(commandfile,**kwargs) -> None :
         raise LauncherException("GPU Launcher should have gpu, not core, specification")
     gpuspernode = kwargs.pop("gpuspernode",1)
     corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
+    taskmaxruntime = kwargs.pop("taskmaxruntime",0)
     job = LauncherJob(
         hostpool=HostPool( hostlist=HostListByName(gpuspernode=gpuspernode,debug=debug),
             commandexecutor=SSHExecutor\
@@ -2331,7 +2351,7 @@ def GPULauncher(commandfile,**kwargs) -> None :
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,corespernode=corespernode,
                                      **kwargs),
-            workdir=workdir, **kwargs ),
+            taskmaxruntime=taskmaxruntime, workdir=workdir, **kwargs ),
         corespernode=corespernode,
         **kwargs)
     job.run()
@@ -2359,6 +2379,7 @@ def RemoteLauncher(commandfile,hostlist,**kwargs) -> None :
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     ppn = kwargs.pop("ppn",4)
     corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
+    taskmaxruntime = kwargs.pop("taskmaxruntime",0)
     job = LauncherJob(
         hostpool=HostPool( 
             hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
@@ -2367,7 +2388,7 @@ def RemoteLauncher(commandfile,hostlist,**kwargs) -> None :
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,corespernode=corespernode,
                                      **kwargs),
-            workdir=workdir, **kwargs ),
+            taskmaxruntime=taskmaxruntime, workdir=workdir, **kwargs ),
         corespernode=corespernode,
         **kwargs)
     job.run()
@@ -2398,6 +2419,7 @@ def SubmitLauncher(commandfile,submitparams,**kwargs) -> None :
         monitor = SlurmSqueueMonitor
     else: monitor = NullMonitor
     corespernode : int = int( kwargs.get("corespernode",1) )
+    taskmaxruntime = kwargs.pop("taskmaxruntime",0)
     job = LauncherJob(
         hostpool=HostPool( 
             hostlist=ListHostList(
@@ -2408,7 +2430,7 @@ def SubmitLauncher(commandfile,submitparams,**kwargs) -> None :
             workdir=workdir, **kwargs ),
         taskgenerator=BareTaskGenerator( 
             FileCommandlineGenerator(commandfile,**kwargs),
-            workdir=workdir, **kwargs ),
+            taskmaxruntime=taskmaxruntime, workdir=workdir, **kwargs ),
         corespernode=corespernode,
         **kwargs)
     job.run(monitor=monitor)
@@ -2468,6 +2490,7 @@ def RemoteIbrunLauncher(commandfile,hostlist,**kwargs) -> None :
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     ppn = kwargs.pop("ppn",4)
     corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
+    taskmaxruntime = kwargs.pop("taskmaxruntime",0)
     job = LauncherJob(
         hostpool=HostPool( 
             hostlist=ListHostList(hostlist,ppn=ppn,debug=debug),
@@ -2475,7 +2498,7 @@ def RemoteIbrunLauncher(commandfile,hostlist,**kwargs) -> None :
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,corespernode=corespernode,
                                      **kwargs),
-            workdir=workdir, **kwargs ),
+            taskmaxruntime=taskmaxruntime, workdir=workdir, **kwargs ),
         corespernode=corespernode,
         **kwargs)
     job.run()
@@ -2496,12 +2519,12 @@ class DynamicLauncherJob(LauncherJob):
     def __init__(self,**kwargs) -> None :
         debug = kwargs.get("debug","")
         corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
+        taskmaxruntime = kwargs.pop("taskmaxruntime",0)
         LauncherJob.__init__(
             self,
             taskgenerator=WrappedTaskGenerator(
                 DynamicCommandlineGenerator( **kwargs ),
-                **kwargs,
-            ),
+                taskmaxruntime=taskmaxruntime, workdir=workdir, **kwargs ),
             corespernode=corespernode,
             **kwargs)
     def append(self,commandline) -> None :
@@ -2523,6 +2546,7 @@ def MICLauncher(commandfile,**kwargs) -> None :
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
     cores = kwargs.pop("cores",1)
     corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
+    taskmaxruntime = kwargs.pop("taskmaxruntime",0)
     job = LauncherJob(
         hostpool=HostPool( hostlist=HostListByName(**kwargs),
             commandexecutor=LocalExecutor(
@@ -2531,7 +2555,7 @@ def MICLauncher(commandfile,**kwargs) -> None :
         taskgenerator=WrappedTaskGenerator( 
             FileCommandlineGenerator(commandfile,corespernode=corespernode,
                                      **kwargs),
-            workdir=workdir, **kwargs ),
+            taskmaxruntime=taskmaxruntime, workdir=workdir, **kwargs ),
         corespernode=corespernode,
         **kwargs)
     job.run()
