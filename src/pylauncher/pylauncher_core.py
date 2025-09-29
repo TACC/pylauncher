@@ -571,7 +571,7 @@ class Completion():
     def __init__(self,**kwargs) -> None :
         self.taskid = kwargs.pop("taskid",0)
         self.workdir = kwargs.pop("workdir",".")
-        self.starttime : float = float( kwargs.get("starttime") )
+        self.starttime : float = float( kwargs.get("starttime",time.time()) )
         self.taskmaxruntime : int = int( kwargs.pop("taskmaxruntime",0) )
         debugs = kwargs.get("debug","")
         self.debug = re.search("task",debugs)
@@ -583,7 +583,8 @@ class Completion():
         """Test whether the task has completed"""
         DebugTraceMsg( f"default completion test is on runtime",
                       self.debug,prefix="Task")
-        return ( self.taskmaxruntime>0 and curtime-self.starttime>self.taskmaxruntime )
+        return ( self.taskmaxruntime>0
+                 and curtime-self.starttime>self.taskmaxruntime )
 
 class WrapCompletion(Completion):
     """WrapCompletion is the most common type of completion. It appends
@@ -640,7 +641,7 @@ class BareCompletion(Completion):
         """Internal function that gives the name of the stamp file,
         including directory path"""
         return "%s/%s%s" % (self.workdir,"expire",str(self.taskid))
-    def test(self):
+    def test(self,**args):
         """Test for the existence of the stamp file"""
         stampfile = self.stampname()
         stamptest = os.path.isfile(stampfile)

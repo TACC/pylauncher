@@ -91,14 +91,6 @@ example_shifted_ibrun_dependencies = parallel
 
 include Make.programs
 
-info ::
-	@echo 
-	@echo "make unittests"
-	@echo "  this submits a unittest run (nosetests pylauncher.py) to the queue"
-unittests :
-	@ln -s ../pylauncher.py pylauncher.py
-	@make submit RUN=nosetests EXECUTABLE=pylauncher
-
 ##
 ## input files
 ##
