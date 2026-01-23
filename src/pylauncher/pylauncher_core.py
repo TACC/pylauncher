@@ -126,7 +126,7 @@ except:
     print("""
 Your python is missing the paramiko module.
 Please do: pip install paramiko
-on the commandline.
+on the Unix commandline.
 This run will now quit.
 """)
     sys.exit(0)
@@ -538,8 +538,6 @@ def MakeRandomCommandFile(fn,ncommand,**kwargs):
         generator = kwargs.pop("generator",CountedCommandGenerator(nmax=ncommand,catch="/dev/null"))
     else:
         generator = kwargs.pop("generator",CountedCommandGenerator(nmax=ncommand))
-    # if len(kwargs)>0:
-    #     raise LauncherException("Unprocessed args: %s" % str(kwargs))
     commandlines = open(fn,"w")
     for i in range(ncommand):
         if i%5==0:
@@ -1627,8 +1625,6 @@ class Executor():
                 os.mkdir(self.workdir)
         else:
             raise LauncherException("Executor needs explicit workdir")
-        # if len(kwargs)>0:
-        #     raise LauncherException("Unprocessed Executor args: %s" % str(kwargs))
     def workdir_is_safe(self):
         """Test that the working directory is (in) a subdirectory of the cwd"""
         here = os.getcwd(); os.chdir(self.workdir); there = os.getcwd(); os.chdir(here)
