@@ -7,7 +7,12 @@ info ::
 	@echo "    compiled with WAIT=SLURM_NPROCS"
 .SECONDEXPANSION:
 corecount : $$@.c
-	@${TACC_CC} -fopenmp -o $@ $<
+	@if [ -z "${TACC_CC}" ] ; then \
+	    echo "No TACC_CC defined" && exit 1 ; fi
+	@${TACC_CC} \
+	    $$( if [ "${TACC_FAMILY_COMPILER}" = "intel" ] ; then \
+	          echo -qopenmp ; else echo -fopenmp ; fi ) \
+	    -o $@ $<
 parallel randomaction :
 	@slurm=${SLURM_NPROCS} && slurm=$${slurm:=40} \
 	&& wait=${WAIT} && wait=$${wait:=$${slurm}} \
