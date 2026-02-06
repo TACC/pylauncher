@@ -3,7 +3,7 @@
 #### This file is part of the `pylauncher' package
 #### for parametric job launching
 ####
-#### Copyright Victor Eijkhout 2010-2025
+#### Copyright Victor Eijkhout 2010-2026
 #### eijkhout@tacc.utexas.edu
 ####
 #### https://github.com/TACC/pylauncher
@@ -24,6 +24,8 @@ chris.blanton@gatech.edu
 """
 otoelog = """
 Change log
+5.5 UNRELEASED
+- new features
 5.4
 - detect nested srun
 5.3.2
