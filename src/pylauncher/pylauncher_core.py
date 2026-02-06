@@ -1565,15 +1565,16 @@ def TaskGeneratorIterate( gen ):
         yield t
 
 def environment_list():
-    """This function takes a command and turns it into
+    """This function returns a list of lines that together 
+    reproduce the current environment:
     
-    ``cd workdir ; env [the current environment] command``
+    `cd workdir 
+    umask [ current mask ]
+    export [ all the current environment ]'
 
     Note: environment variables with a space, semicolon, or parentheses
     are not transferred.
 
-    :param command: a unix command, including semicolons and whatnot
-    :param workdir: if this is None, the ssh connection will cd to the current directory, otherwise it will go to this workdir. If this is a relative path, it is taken relative to the current directory.
     """
     global umask
     listcommand = "cd %s\n" % os.environ["PWD"]
@@ -1973,6 +1974,7 @@ class LauncherJob():
         except:
             raise LauncherException("Need a task generator")
         self.delay = kwargs.pop("delay",.5)
+        self.schedule = kwargs.get("schedule","default")
         self.queue = TaskQueue(debug=self.debugs)
         self.maxruntime = kwargs.pop("maxruntime",0)
         self.taskmaxruntime = kwargs.pop("taskmaxruntime",0)
