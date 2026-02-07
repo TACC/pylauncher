@@ -20,7 +20,8 @@ import pylauncher
 
 example = "ClassicLauncher"
 pylauncher.ClassicLauncher\
-    ("commandlines",
+    ("blockcommandlines",
      # optional spec of output dir:
      workdir=f"pylauncher_tmp_{example}_{ os.environ['SLURM_JOBID'] }",
+     schedule="block2",
      debug="host+exec+task+job+cmd")

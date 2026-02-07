@@ -25,7 +25,7 @@ chris.blanton@gatech.edu
 otoelog = """
 Change log
 5.5 UNRELEASED
-- new features
+- schedule=blocknn
 5.4
 - detect nested srun
 5.3.2
@@ -276,12 +276,10 @@ class Commandline():
 
     * command : a unix commandline
     * cores : an integer core count
-    * dependencies : dependency stuff.
     """
     def __init__(self,command,**kwargs) -> None :
         self.data : dict[str,int] = {'command':command,'cores':1}
         self.data["cores"] = kwargs.pop("cores",1)
-        ## self.data["dependencies"] = kwargs.pop("dependencies",None)
     def __getitem__(self,ind):
         return self.data[ind]
     def __str__(self) -> str:
@@ -389,8 +387,12 @@ class FileCommandlineGenerator(CommandlineGenerator):
             except:
                 raise LauncherException( f"Strange core spec: <<{core_spec}>>" )
         file = open(filename)
+        self.schedule = kwargs.get("schedule","default")
         commandlist : list[Commandline] = []
         count = 0
+        blocksize = self.blocksize_from_schedule()
+        DebugTraceMsg( f"using blocksize {blocksize}",self.debug,prefix="Cmd ")
+        blockcount = 1
         for line in file.readlines():
             ## Parse the line from file.
             line = line.strip()
@@ -404,11 +406,32 @@ class FileCommandlineGenerator(CommandlineGenerator):
                 else:
                     raise LauncherException \
                         (f"Can not parse line as having a core prefix: <<{line}>>")
-            DebugTraceMsg( f"append command <<{line}>> on {cores} cores", 
+            if blockcount==1:
+                total_line = line
+            else: total_line += " && " + line
+            if blockcount<blocksize:
+                # if the block is not full, read the next line
+                blockcount += 1; continue
+            DebugTraceMsg( f"append command <<{total_line}>> on {cores} cores", 
                            self.debug,prefix="Cmd " )
-            commandlist.append( Commandline(line,cores=cores) )
+            commandlist.append( Commandline(total_line,cores=cores) )
             count += 1
+            # reset for the next block
+            blockcount = 1
+            total_line = ""
         CommandlineGenerator.__init__(self,list=commandlist,**kwargs)
+    def blocksize_from_schedule(self):
+        schedule = self.schedule
+        if schedule=="default":
+            blocksize = 1
+        elif bs := re.match( r'block([0-9]+)',schedule ):
+            blocksize = int( bs.groups()[0] )
+            if not int(blocksize)>0:
+                raise LauncherException\
+                ( f"Invalid blocksize: <<{blocksize}>> from schedule <<{schedule}>>" )
+        else: raise LauncherException\
+            ( f"Could not parse schedule=<<{schedule}>>" )
+        return blocksize
 
 class StateFileCommandlineGenerator(CommandlineGenerator):
     """A generator for the lines in a queuestate restart file.
