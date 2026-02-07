@@ -23,5 +23,5 @@ pylauncher.ClassicLauncher\
     ("blockcommandlines",
      # optional spec of output dir:
      workdir=f"pylauncher_tmp_{example}_{ os.environ['SLURM_JOBID'] }",
-     schedule="block2",
+     schedule="block3",
      debug="host+exec+task+job+cmd")

@@ -389,33 +389,33 @@ class FileCommandlineGenerator(CommandlineGenerator):
         file = open(filename)
         self.schedule = kwargs.get("schedule","default")
         commandlist : list[Commandline] = []
-        count = 0
         blocksize = self.blocksize_from_schedule()
         DebugTraceMsg( f"using blocksize {blocksize}",self.debug,prefix="Cmd ")
+        lines : list[str] = \
+            [ line for line in [ line.strip() for line in file.readlines() ]
+              # skip blank and comment lines
+              if not ( re.match('^ *#',line) or re.match('^ *$',line) ) ]
         blockcount = 1
-        for line in file.readlines():
-            ## Parse the line from file.
-            line = line.strip()
-            if re.match('^ *#',line) or re.match('^ *$',line):
-                continue # skip blank and comment
+        # count tasks in the commandline file
+        for linecount,line in enumerate(lines): 
+            # parse core count
             if core_spec=="file":
-                ## each line has a core count
-                if re.match("[0-9]+,",line):
-                    lcores,line = line.split(",",1)
-                    cores = int(lcores)
-                else:
-                    raise LauncherException \
-                        (f"Can not parse line as having a core prefix: <<{line}>>")
+                cores,line = self.coreline_split( line )
+            # substitute macros
+            line = self.tid_substitute( line,linecount )
+            # construct total line
             if blockcount==1:
                 total_line = line
             else: total_line += " && " + line
-            if blockcount<blocksize:
-                # if the block is not full, read the next line
-                blockcount += 1; continue
+            if blockcount<blocksize and linecount<len(lines)-1:
+                # if the block is not full, and there are more lines,
+                # read the next line
+                blockcount += 1
+                continue
+            # if block is full, or `lines' is empty, ship out
             DebugTraceMsg( f"append command <<{total_line}>> on {cores} cores", 
                            self.debug,prefix="Cmd " )
             commandlist.append( Commandline(total_line,cores=cores) )
-            count += 1
             # reset for the next block
             blockcount = 1
             total_line = ""
@@ -432,6 +432,19 @@ class FileCommandlineGenerator(CommandlineGenerator):
         else: raise LauncherException\
             ( f"Could not parse schedule=<<{schedule}>>" )
         return blocksize
+    def coreline_split( self,line ):
+        ## each line has a core count
+        if re.match("[0-9]+,",line):
+            lcores,line = line.split(",",1)
+            cores = int(lcores)
+        else:
+            raise LauncherException \
+                (f"Can not parse line as having a core prefix: <<{line}>>")
+        return cores,line
+    def tid_substitute( self,line,count ):
+        line = re.sub("PYL_ID",str(count),line)
+        line = re.sub("PYLTID",str(count),line)
+        return line
 
 class StateFileCommandlineGenerator(CommandlineGenerator):
     """A generator for the lines in a queuestate restart file.
@@ -740,8 +753,9 @@ prefix=<<{prefix}>>, cmd=<<{line}>>""",
         return self.has_started
     def line_with_completion(self):
         """Return the task's commandline with completion attached"""
-        line = re.sub("PYL_ID",str(self.taskid),self.command)
-        line = re.sub("PYLTID",str(self.taskid),line)
+        # line = re.sub("PYL_ID",str(self.taskid),self.command)
+        # line = re.sub("PYLTID",str(self.taskid),line)
+        line = self.command # substitution is done in FileCommandlineGenerator
         # ibrun needs to know about the full cores
         ncores = int( os.environ["SLURM_CPUS_ON_NODE"] )
         exec_prefix = \
