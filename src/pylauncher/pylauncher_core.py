@@ -25,7 +25,7 @@ chris.blanton@gatech.edu
 otoelog = """
 Change log
 5.5 UNRELEASED
-- new features
+- schedule=blocknn
 5.4
 - detect nested srun
 5.3.2
@@ -276,12 +276,10 @@ class Commandline():
 
     * command : a unix commandline
     * cores : an integer core count
-    * dependencies : dependency stuff.
     """
     def __init__(self,command,**kwargs) -> None :
         self.data : dict[str,int] = {'command':command,'cores':1}
         self.data["cores"] = kwargs.pop("cores",1)
-        ## self.data["dependencies"] = kwargs.pop("dependencies",None)
     def __getitem__(self,ind):
         return self.data[ind]
     def __str__(self) -> str:
@@ -389,26 +387,64 @@ class FileCommandlineGenerator(CommandlineGenerator):
             except:
                 raise LauncherException( f"Strange core spec: <<{core_spec}>>" )
         file = open(filename)
+        self.schedule = kwargs.get("schedule","default")
         commandlist : list[Commandline] = []
-        count = 0
-        for line in file.readlines():
-            ## Parse the line from file.
-            line = line.strip()
-            if re.match('^ *#',line) or re.match('^ *$',line):
-                continue # skip blank and comment
+        blocksize = self.blocksize_from_schedule()
+        DebugTraceMsg( f"using blocksize {blocksize}",self.debug,prefix="Cmd ")
+        lines : list[str] = \
+            [ line for line in [ line.strip() for line in file.readlines() ]
+              # skip blank and comment lines
+              if not ( re.match('^ *#',line) or re.match('^ *$',line) ) ]
+        blockcount = 1
+        # count tasks in the commandline file
+        for linecount,line in enumerate(lines): 
+            # parse core count
             if core_spec=="file":
-                ## each line has a core count
-                if re.match("[0-9]+,",line):
-                    lcores,line = line.split(",",1)
-                    cores = int(lcores)
-                else:
-                    raise LauncherException \
-                        (f"Can not parse line as having a core prefix: <<{line}>>")
-            DebugTraceMsg( f"append command <<{line}>> on {cores} cores", 
+                cores,line = self.coreline_split( line )
+            # substitute macros
+            line = self.tid_substitute( line,linecount )
+            # construct total line
+            if blockcount==1:
+                total_line = line
+            else: total_line += " && " + line
+            if blockcount<blocksize and linecount<len(lines)-1:
+                # if the block is not full, and there are more lines,
+                # read the next line
+                blockcount += 1
+                continue
+            # if block is full, or `lines' is empty, ship out
+            DebugTraceMsg( f"append command <<{total_line}>> on {cores} cores", 
                            self.debug,prefix="Cmd " )
-            commandlist.append( Commandline(line,cores=cores) )
-            count += 1
+            commandlist.append( Commandline(total_line,cores=cores) )
+            # reset for the next block
+            blockcount = 1
+            total_line = ""
         CommandlineGenerator.__init__(self,list=commandlist,**kwargs)
+    def blocksize_from_schedule(self):
+        schedule = self.schedule
+        if schedule=="default":
+            blocksize = 1
+        elif bs := re.match( r'block([0-9]+)',schedule ):
+            blocksize = int( bs.groups()[0] )
+            if not int(blocksize)>0:
+                raise LauncherException\
+                ( f"Invalid blocksize: <<{blocksize}>> from schedule <<{schedule}>>" )
+        else: raise LauncherException\
+            ( f"Could not parse schedule=<<{schedule}>>" )
+        return blocksize
+    def coreline_split( self,line ):
+        ## each line has a core count
+        if re.match("[0-9]+,",line):
+            lcores,line = line.split(",",1)
+            cores = int(lcores)
+        else:
+            raise LauncherException \
+                (f"Can not parse line as having a core prefix: <<{line}>>")
+        return cores,line
+    def tid_substitute( self,line,count ):
+        line = re.sub("PYL_ID",str(count),line)
+        line = re.sub("PYLTID",str(count),line)
+        return line
 
 class StateFileCommandlineGenerator(CommandlineGenerator):
     """A generator for the lines in a queuestate restart file.
@@ -717,8 +753,9 @@ prefix=<<{prefix}>>, cmd=<<{line}>>""",
         return self.has_started
     def line_with_completion(self):
         """Return the task's commandline with completion attached"""
-        line = re.sub("PYL_ID",str(self.taskid),self.command)
-        line = re.sub("PYLTID",str(self.taskid),line)
+        # line = re.sub("PYL_ID",str(self.taskid),self.command)
+        # line = re.sub("PYLTID",str(self.taskid),line)
+        line = self.command # substitution is done in FileCommandlineGenerator
         # ibrun needs to know about the full cores
         ncores = int( os.environ["SLURM_CPUS_ON_NODE"] )
         exec_prefix = \

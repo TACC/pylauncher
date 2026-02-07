@@ -6,15 +6,18 @@
 #
 
 function usage () {
-    echo "Usage: $0 [ -h ] [ -e ex1,ex2,ex3,... ]"
+    echo "Usage: $0 [ -h ] [ -n nnodes ] [ -e ex1,ex2,ex3,... ]"
     echo " where examples: ${examples}"
 }
 
 recompile=1
-examples="classic comma core filecore ibrun fileibrun node gpu submit"
+nnodes=3
+examples="classic comma core filecore block ibrun fileibrun node gpu submit"
 while [ $# -gt 0 ] ; do
     if [ "$1" = "-h" ] ; then
 	usage && exit 0
+    elif [ "$1" = "-n" ] ; then
+	shift && nnodes=$1 && shift
     elif [ "$1" = "-e" ] ; then
 	shift && examples=$1 && recompile=0 && shift
     else
@@ -73,7 +76,7 @@ for e in \
 	make --no-print-directory script submit \
 	     NAME=${e} \
 	     QUEUE=${QUEUE} \
-	     CORESPERNODE=${cores_per_node} \
+	     NODES=${nnodes} CORESPERNODE=${cores_per_node} \
 	     EXECUTABLE=${e}
     fi
 done
