@@ -2188,6 +2188,11 @@ def SlurmSqueueMonitor():
                          stderr=subprocess.STDOUT)
 
 
+def print_launcher_header( jobtype ):
+    print( f"Pylauncher v{pylauncher_version} job, type={jobtype}, starting {datetime.today().strftime('%Y-%m-%d %H:%M:%S')}" )
+    print( f" .. using python {sys.version}" )
+    print( f" .. using paramiko {paramiko.file}" )
+
 def ClassicLauncher(commandfile,*args,**kwargs) -> None:
     """A LauncherJob for a file of single or multi-threaded commands.
 
@@ -2206,7 +2211,7 @@ def ClassicLauncher(commandfile,*args,**kwargs) -> None:
     :param debug: debug types string (optional, keyword)
     """
     jobtype = "ClassicLauncher"
-    print( f"Pylauncher v{pylauncher_version} job, type={jobtype}, starting {datetime.today().strftime('%Y-%m-%d %H:%M:%S')}" )
+    print_launcher_header( jobtype )
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
@@ -2255,7 +2260,7 @@ def LocalLauncher(commandfile,nhosts,*args,**kwargs) -> None:
     :param debug: debug types string (optional, keyword)
     """
     jobtype = "LocalLauncher"
-    print( f"Pylauncher v{pylauncher_version} job, type=LocalLauncher starting" )
+    print_launcher_header( jobtype )
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
@@ -2298,7 +2303,7 @@ def MPILauncher(commandfile,**kwargs) -> None:
     :param hfswitch: Switch used to determine the hostfile switch used with your MPI distribution. Default is -machinefile (optional,keyword)
     '''
     jobtype = "MPILauncher"
-    print( f"Pylauncher v{pylauncher_version} job, type=MPILauncher starting" )
+    print_launcher_header( jobtype )
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
@@ -2334,7 +2339,7 @@ def IbrunLauncher(commandfile,**kwargs) -> None:
     :param debug: debug types string (optional, keyword)
     """
     jobtype = "IbrunLauncher"
-    print( f"Pylauncher v{pylauncher_version} job, type=IbrunLauncher starting" )
+    print_launcher_header( jobtype )
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
@@ -2372,7 +2377,7 @@ def GPULauncher(commandfile,**kwargs) -> None :
     :param debug: debug types string (optional, keyword)
     """
     jobtype = "GPULauncher"
-    print( f"Pylauncher v{pylauncher_version} job, type=GPULauncher starting" )
+    print_launcher_header( jobtype )
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
@@ -2411,7 +2416,7 @@ def RemoteLauncher(commandfile,hostlist,**kwargs) -> None :
     :param debug: debug types string (optional, keyword)
     """
     jobtype = "RemoteLauncher"
-    print( f"Pylauncher v{pylauncher_version} job, type=RemoteLauncher starting" )
+    print_launcher_header( jobtype )
     jobid = "000"
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
@@ -2448,6 +2453,7 @@ def SubmitLauncher(commandfile,submitparams,**kwargs) -> None :
     :param debug: debug types string (optional, keyword)
     """
     jobtype = "SubmitLauncher"
+    print_launcher_header( jobtype )
     jobid = "000"
     debug = kwargs.get("debug","")
     nactive = kwargs.pop("nactive",1)
@@ -2492,7 +2498,7 @@ def DynamicLauncher( *args,**kwargs ) -> LauncherJob :
     :param debug: debug types string (optional, keyword)
     """
     jobtype = "DynamicLauncher"
-    print( f"Pylauncher v{pylauncher_version} job, type=DynamicLauncher starting" )
+    print_launcher_header( jobtype )
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
@@ -2523,6 +2529,7 @@ def RemoteIbrunLauncher(commandfile,hostlist,**kwargs) -> None :
     :param debug: debug types string (optional, keyword)
     """
     jobtype = "RemoteIbrunLauncher"
+    print_launcher_header( jobtype )
     jobid = 000
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
@@ -2579,6 +2586,7 @@ def MICLauncher(commandfile,**kwargs) -> None :
     Treatment of the MIC cores is handled in the ``HostListByName``.
     """
     jobtype = "MICLauncher"
+    print_launcher_header( jobtype )
     jobid = JobId()
     debug = kwargs.get("debug","")
     workdir = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
