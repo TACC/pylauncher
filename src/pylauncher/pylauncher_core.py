@@ -1762,6 +1762,7 @@ class SSHExecutor(Executor):
     """
     def __init__(self,**kwargs) -> None :
         self.node_client_dict : dict[str,Any] = {}
+        self.node_pids_dict : dict[str,Any] = {}
         Executor.__init__(self,**kwargs)
         self.timeout = kwargs.get("timeout",None)
         self.debug_ssh = re.search("ssh",self.debugs)
@@ -1783,6 +1784,7 @@ class SSHExecutor(Executor):
                 print( f"\nParamiko could not create ssh client to {host}\n",flush=True)
             node.ssh_client_unique = True
             self.node_client_dict[host] = node.ssh_client
+            self.node_pids_dict[host] = []
     def release_from_node(self,node):
         if node.ssh_client_unique:
             node.ssh_client.close()
@@ -1815,12 +1817,23 @@ class SSHExecutor(Executor):
         DebugTraceMsg("Executing << ( %s ) & >> on <<%s>>" % (wrapped_line,hostname),
                       self.debug,prefix="SSH")
         ssh = self.node_client_dict[hostname]
+        cmdline = f"( {wrapped_line} ) & echo $!"
         try:
-            stdin,stdout,stderr = ssh.exec_command( f"( {wrapped_line} ) &" ,timeout=self.timeout)
+            stdin,stdout,stderr = ssh.exec_command( cmdline ,timeout=self.timeout)
         except : # old paramiko value? ChannelException:
             DebugTraceMsg("Channel exception; let's see if this blows over",prefix="SSH")
             time.sleep(3)
-            stdin,stdout,stderr = ssh.exec_command( f"( {wrapped_line} ) &" ,timeout=self.timeout)
+            stdin,stdout,stderr = ssh.exec_command( cmdline ,timeout=self.timeout)
+        pid = stdout.readline()
+        #print( f"PID: {pid}" )
+        self.node_pids_dict[hostname].append(pid)
+    def send_signal( self,signal : str ) -> None:
+        unix_signal = re.sub("SIG","",signal)
+        for hostname in self.node_pids_dict.keys():
+            ssh = self.node_client_dict[hostname]
+            pids = " ".join(         self.node_pids_dict[hostname] )
+            print( f"Sending signal {unix_signal} to host={hostname}, processes={pids}" )
+            ssh.exec_command( f"kill -{unix_signal} {pids}" )
     def end_execution(self):
         DebugTraceMsg("SSH executor end session",self.debug,prefix="Exec")
         self.session.send('\x03')
@@ -2210,6 +2223,7 @@ def ClassicLauncher(commandfile,*args,**kwargs) -> None:
     :param workdir: (keyword, optional, default=pylauncher_tmp_jobid) directory for output and temporary files; the launcher refuses to reuse an already existing directory
     :param debug: debug types string (optional, keyword)
     """
+    global the_executor
     jobtype = "ClassicLauncher"
     print_launcher_header( jobtype )
     jobid = JobId()
@@ -2225,6 +2239,9 @@ def ClassicLauncher(commandfile,*args,**kwargs) -> None:
         generator = FileCommandlineGenerator\
             (commandfile,corespernode=SLURMCoresPerNode(**kwargs),**kwargs)
     commandexecutor = SSHExecutor(workdir=workdir,**kwargs)
+    the_executor = commandexecutor
+    signal.signal( signal.SIGUSR1,pylauncher_signal_handler )
+                   #lambda signum,frame:pylauncher_signal_handler(signum,frame,commandexecutor) )
     corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
     taskmaxruntime = kwargs.pop("taskmaxruntime",0)
     job = LauncherJob(
@@ -2562,9 +2579,13 @@ class DynamicLauncherJob(LauncherJob):
 
     """
     def __init__(self,**kwargs) -> None :
+        jobtype = "DynamicLauncher"
+        print_launcher_header( jobtype )
+        jobid = JobId()
         debug = kwargs.get("debug","")
         corespernode : int = int( kwargs.get("corespernode",SLURMCoresPerNode(**kwargs)) )
         taskmaxruntime = kwargs.pop("taskmaxruntime",0)
+        workdir : str = kwargs.pop("workdir","pylauncher_tmp"+str(jobid) )
         LauncherJob.__init__(
             self,
             taskgenerator=WrappedTaskGenerator(
@@ -2614,8 +2635,26 @@ def MICLauncher(commandfile,**kwargs) -> None :
 global umask
 umask = os.umask(0o0077)
 
+##
+## We catch user signals
+## but don't do anything with them right now
+##
+import signal
+# can't get this to work with lambdas
+def pylauncher_signal_handler( signum,frame ) -> None:
+    global the_executor
+    signame = signal.Signals(signum).name
+    print(f'Signal handler called with signal {signame} ({signum})')
+    print( f" .. forwarding signal to executor" )
+    the_executor.send_signal(signame)
+
+# def pylauncher_default_signal_handler( signum,frame ) -> None:
+#     signame = signal.Signals(signum).name
+#     print(f'Signal handler called with signal {signame} ({signum})')
+#     sys.exit(5)
+#     #pylauncher_signal_handler( signum,frame,None )
+    
+
 if __name__ == "__main__":
-    print(sys.version_info)
-    if sys.version_info<(3,8,0):
-        raise LauncherException("Pylauncher requires at least Python 3.8")
     os.environ["PYLAUNCHER_ENABLED"] = "1"
+    signal.signal( signal.SIGUSR1,pylauncher_default_signal_handler )

@@ -1,5 +1,17 @@
 #!/bin/bash
 
+################################################################
+####
+#### This file is part of the `pylauncher' package
+#### for parametric job launching
+####
+#### Copyright Victor Eijkhout 2010-2026
+#### eijkhout@tacc.utexas.edu
+####
+#### https://github.com/TACC/pylauncher
+####
+################################################################
+
 #
 # default examples
 # note: submit needs to come last!
@@ -12,7 +24,7 @@ function usage () {
 
 recompile=1
 nnodes=3
-examples="classic comma core filecore block ibrun fileibrun node gpu submit"
+examples="classic comma core filecore block ibrun fileibrun node gpu signal submit"
 while [ $# -gt 0 ] ; do
     if [ "$1" = "-h" ] ; then
 	usage && exit 0

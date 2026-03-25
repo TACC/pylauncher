@@ -26,4 +26,6 @@ export GPUSPERNODE=GPUSPERNODE
 
 ## for local testing:
 ## export PYTHONPATH=..:${PYTHONPATH}
-SSH RUN EXECUTABLE.py
+VANILLA SSH RUN EXECUTABLE.py
+HANDLING SSH RUN EXECUTABLE.py & launcher_process=$! && sleep 20 && echo "Now trying to terminate ${launcher_process}" && kill -USR1 ${launcher_process} && sleep 10
+
