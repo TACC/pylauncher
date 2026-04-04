@@ -1,5 +1,5 @@
 # -*- makefile -*-
-CPROGRAMS = corecount parallel randomaction randomsleep randomcomma
+CPROGRAMS = corecount parallel randomaction randomsleep randomcomma catchsignal
 info ::
 	@echo 
 	@echo "make PROGRAM"
@@ -18,7 +18,7 @@ parallel randomaction :
 	&& wait=${WAIT} && wait=$${wait:=$${slurm}} \
 	&& echo "compile $@ with wait=$$wait" \
 	&& mpicc -o $@ $@.c -DWAIT=$${wait:=20}
-randomsleep randomcomma : $$@.c
+randomsleep randomcomma catchsignal : $$@.c
 	mpicc -g -O2 -o $@ $@.c 
 info ::
 	@echo "    with Cuda programs: ${CUPROGRAMS}"

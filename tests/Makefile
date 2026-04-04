@@ -1,7 +1,7 @@
 ################################################################
 ####
 #### Makefile for the pylauncher examples
-#### pylauncher is copyright Victor Eijkhout 2010-2025
+#### pylauncher is copyright Victor Eijkhout 2010-2026
 ####
 ################################################################
 
@@ -66,6 +66,10 @@ script :
 	                   echo "s/=GPUSPERNODE/=${GPUSPERNODE}/" \
 	               ; else \
 	                   echo "/GPUSPERNODE/d" \
+	               ; fi ) \
+	        -e $$( if [ "${EXECUTABLE}" = "signal" ] ; then \
+	                 echo "/VANILLA/d" -e "s/HANDLING//" \
+	               ; else echo "/HANDLING/d" \
 	               ; fi ) \
 	        -e "/####/d" \
 	        > "$${generated}" \
