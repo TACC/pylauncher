@@ -1707,12 +1707,11 @@ class Executor():
                 pipe = ">>"
             else: 
                 pipe = ">"
-            wrappedcommand = "%s %s %s 2>&1" % (execfilename,pipe,execoutname)
+            wrappedcommand = f"{execfilename} {pipe} {execoutname} 2>&1"
         else:
             wrappedcommand = execfilename
         wrappedcommand = prefix+wrappedcommand
-        DebugTraceMsg("commandline <<%s>>" % wrappedcommand,
-                      self.debug,prefix="Exec")
+        DebugTraceMsg( f"commandline <<{wrappedcommand}>>",self.debug,prefix="Exec")
         return wrappedcommand
     def execute(self,usercommand : str,pool: HostLocator,**kwargs) -> None :
         raise LauncherException("Should not call default execute")
@@ -1824,16 +1823,22 @@ class SSHExecutor(Executor):
             DebugTraceMsg("Channel exception; let's see if this blows over",prefix="SSH")
             time.sleep(3)
             stdin,stdout,stderr = ssh.exec_command( cmdline ,timeout=self.timeout)
-        pid = stdout.readline()
-        #print( f"PID: {pid}" )
+        pid = stdout.readline().strip('\n')
         self.node_pids_dict[hostname].append(pid)
     def send_signal( self,signal : str ) -> None:
+        # this is activated by the global signal handler `pylauncher_signal_handler'
+        # it sends the signal to all running processes.
         unix_signal = re.sub("SIG","",signal)
         for hostname in self.node_pids_dict.keys():
             ssh = self.node_client_dict[hostname]
             pids = " ".join(         self.node_pids_dict[hostname] )
             print( f"Sending signal {unix_signal} to host={hostname}, processes={pids}" )
-            ssh.exec_command( f"kill -{unix_signal} {pids}" )
+            for p in pids:
+                try:
+                    ssh.exec_command( f"kill -{unix_signal} -{p}" )
+                except EOFError:
+                    print("Find out what goes wrong with this signal")
+                    pass
     def end_execution(self):
         DebugTraceMsg("SSH executor end session",self.debug,prefix="Exec")
         self.session.send('\x03')
@@ -2641,6 +2646,8 @@ umask = os.umask(0o0077)
 ##
 import signal
 # can't get this to work with lambdas
+# this routine needs to be set by each launcher separately
+# or can we move it to the launcher class?
 def pylauncher_signal_handler( signum,frame ) -> None:
     global the_executor
     signame = signal.Signals(signum).name
