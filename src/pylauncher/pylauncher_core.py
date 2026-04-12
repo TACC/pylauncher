@@ -10,7 +10,7 @@
 ####
 ################################################################
 
-pylauncher_version = "5.4"
+pylauncher_version = "5.5"
 docstring = \
 f"""pylauncher.py version {pylauncher_version}
 
@@ -26,6 +26,7 @@ otoelog = """
 Change log
 5.5 UNRELEASED
 - schedule=blocknn
+- signal handler
 5.4
 - detect nested srun
 5.3.2
