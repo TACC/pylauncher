@@ -56,6 +56,13 @@ script :
 	      QUEUE=development \
 	    ; fi \
 	 && if [ -z "${PROJECT}" ] ; then PROJECT=A-ccsc ; fi \
+	 && if [ "${EXECUTABLE}" = "signal" ] ; then \
+	      handling="-e /VANILLA/d -e s/HANDLING/ " \
+	    ; else \
+	      handling="-e /HANDLING/d -e s/VANILLA// " \
+	    ; fi \
+	 && echo "handling=$${handling}" \
+	 && set -x \
 	 && cat $${template} | sed -e "s/SSH/${SSH}/" -e "s/RUN/${RUN}/" \
 	        -e "s/EXECUTABLE/$${EXECUTABLE}/" -e "s/NODES/${NODES}/" \
 	        -e "s/NAME/${NAME}/" \
@@ -67,10 +74,7 @@ script :
 	               ; else \
 	                   echo "/GPUSPERNODE/d" \
 	               ; fi ) \
-	        -e $$( if [ "${EXECUTABLE}" = "signal" ] ; then \
-	                 echo "/VANILLA/d" -e "s/HANDLING//" \
-	               ; else echo "/HANDLING/d" \
-	               ; fi ) \
+	        $${handling} \
 	        -e "/####/d" \
 	        > "$${generated}" \
 	 && chmod +x "$${generated}" \
