@@ -1,8 +1,24 @@
 #!/usr/bin/env python3
 
+docstring = """
+paramiko_test.py
+
+Copyright 2026 Victor Eijkhout
+
+A short test program of the paramiko python library.
+
+Usage:
+  ./paramiko_test.py somehost.tacc.utexas.edu
+
+1. Allocate a node and run this on the node to itself
+2. Allocate a node and run this from the login node to the compute
+3. Allocate two compute nodes and test the one from the other.
+"""
+
 import sys
 if len(sys.argv)<2:
     print( f"Usage: {sys.argv[0]} hostname" )
+    print( docstring )
     sys.exit(1)
 
 try:
